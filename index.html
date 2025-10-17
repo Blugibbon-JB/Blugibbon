@@ -117,6 +117,13 @@
 <canvas id="chartTopDoctors"></canvas>
 </div>
 <div class="row card">
+  <div class="bar" style="justify-content: space-between; margin-bottom: 6px;">
+    <div class="sub">Top 10 Doctors by Estimated W/E Margin</div>
+  </div>
+  <canvas id="chartTopDoctorsEst"></canvas>
+</div>
+
+<div class="row card">
 <div class="bar" style="justify-content: space-between; margin-bottom: 6px;">
 <div class="sub">Teammate Contribution (Actual W/E Margin)</div>
 </div>
@@ -262,35 +269,6 @@
 <canvas id="chartTeammateWinRate"></canvas>
 </div>
 <!-- === End Insights === -->
-
-<div class="row card" id="prevWeekMissingCard">
-  <div class="bar" style="justify-content: space-between; margin-bottom: 6px;">
-    <div>
-      <div class="sub">Missing vs Previous Week</div>
-      <div class="muted" style="font-size:12px">
-        Shows doctors who had a timesheet line in week <b id="prevWeekLabel">?</b> but have <u>no rows</u> in week <b id="curWeekLabel">?</b>.
-      </div>
-    </div>
-    <div class="controls">
-      <button id="btnCopyPrevMissing" class="chip">Copy Names</button>
-      <span class="chip" id="prevMissingCount">0 missing</span>
-    </div>
-  </div>
-  <div class="scroll">
-    <table id="tablePrevWeekMissing">
-      <thead>
-        <tr>
-          <th>Doctor</th>
-          <th>Last Week Teammate</th>
-          <th>Last Week Client(s)</th>
-          <th>Last Week Site(s)</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
-
 <div class="wide card">
 <div class="bar" style="justify-content: space-between;">
 <div>
@@ -447,7 +425,7 @@ function updateKPIs() {
   document.getElementById("kpi_sites").textContent = "Clients: " + clients;
 }
 
-let chartWeek, chartEstWeek, chartDoc, chartTeam, chartClient;
+let chartWeek, chartEstWeek, chartDoc, chartDocEst, chartTeam, chartClient;
 let chartMarginCompareWeek, chartUnitsCompareWeek, chartTeamCompare, chartClientCompare;
 let chartActualVsEstOverTime;
 let chartRealizationByWeek, chartForecastAccuracyWeek, chartAvgMarginPerDoctor, chartMarginPerClient, chartMarginPerSite, chartDoctorContinuity, chartNewVsReturning, chartMarginPerDoctorByTeammate, chartGrowthRate, chartConversionFunnel, chartTeammateWinRate;
@@ -510,7 +488,16 @@ const ctxDoc = document.getElementById("chartTopDoctors");
     options: { indexAxis: "y", plugins: { legend: { display: false } } }
   });
 
-  const ctxTeam = document.getElementById("chartByTeammate");
+  
+  const ctxDocEst = document.getElementById("chartTopDoctorsEst");
+  destroyIfExists(chartDocEst);
+  const byDocEst = groupBy(filtered, "doctor", "est_we_margin").sort((a,b)=> b.value - a.value).slice(0,10);
+  chartDocEst = new Chart(ctxDocEst, {
+    type: "bar",
+    data: { labels: byDocEst.map(d=>d.label), datasets: [{ label: "Estimated W/E Margin", data: byDocEst.map(d=>d.value) }] },
+    options: { indexAxis: "y", plugins: { legend: { display: false } } }
+  });
+const ctxTeam = document.getElementById("chartByTeammate");
   destroyIfExists(chartTeam);
   const byTeam = groupBy(filtered, "teammate", "total_we_margin").sort((a,b)=> b.value - a.value);
   chartTeam = new Chart(ctxTeam, {
@@ -920,99 +907,6 @@ function loadData(data) {
 attachSorting();
 populateFilterOptions(rawData);
 applyFilters();
-
-
-// === Prev-week Missing (simple set difference) ===
-function _toInt(x){ const n=parseInt(x,10); return isNaN(n)?null:n; }
-function _clean(s){ return (s??'').toString().trim(); }
-function _group(arr, key){ const m=new Map(); for(const r of arr){ const k=key(r); if(!m.has(k)) m.set(k, []); m.get(k).push(r);} return m; }
-function _uniq(arr){ return Array.from(new Set(arr.filter(Boolean))); }
-
-function getSelectedWeek(){
-  const sel = document.getElementById('filterWeek');
-  const w = sel && sel.value ? parseInt(sel.value,10) : null;
-  if (w && !isNaN(w)) return w;
-  // if "All Weeks", take max week number from data
-  const weeks = (Array.isArray(rawData)?rawData:[]).map(r=>_toInt(r.week)).filter(w=>w!=null);
-  return weeks.length? Math.max(...weeks) : null;
-}
-
-function renderPrevWeekMissing(){
-  const curW = getSelectedWeek();
-  if (curW==null || !Array.isArray(rawData)) return;
-
-  const prevW = curW - 1;
-  const curRows = rawData.filter(r => _toInt(r.week) === curW);
-  const prevRows = rawData.filter(r => _toInt(r.week) === prevW);
-
-  const curDocs = new Set(curRows.map(r => _clean(r.doctor)).filter(Boolean));
-  const prevByDoc = _group(prevRows, r => _clean(r.doctor));
-
-  const missing = [];
-  for (const [doc, rows] of prevByDoc.entries()){
-    if (!doc) continue;
-    if (!curDocs.has(doc)){
-      const teammates = _uniq(rows.map(r=>_clean(r.teammate))).join('; ');
-      const clients   = _uniq(rows.map(r=>_clean(r.client))).join('; ');
-      const sites     = _uniq(rows.map(r=>_clean(r.site))).join('; ');
-      missing.push({doctor: doc, teammate: teammates, clients, sites});
-    }
-  }
-
-  // Update labels + count
-  const prevLbl = document.getElementById('prevWeekLabel');
-  const curLbl  = document.getElementById('curWeekLabel');
-  if (prevLbl) prevLbl.textContent = prevW;
-  if (curLbl)  curLbl.textContent  = curW;
-  const cnt = document.getElementById('prevMissingCount');
-  if (cnt) cnt.textContent = `${missing.length} missing`;
-
-  // Render table
-  const tbody = document.querySelector('#tablePrevWeekMissing tbody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  for (const r of missing.sort((a,b)=>a.doctor.localeCompare(b.doctor))){
-    const tr = document.createElement('tr');
-    [r.doctor, r.teammate, r.clients, r.sites].forEach(val => {
-      const td = document.createElement('td');
-      td.textContent = val || '';
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  }
-
-  // Copy button
-  const btn = document.getElementById('btnCopyPrevMissing');
-  if (btn){
-    btn.onclick = () => {
-      const names = missing.map(m=>m.doctor).join(', ');
-      navigator.clipboard.writeText(names);
-      btn.textContent = 'Copied!';
-      setTimeout(()=>btn.textContent='Copy Names', 1000);
-    };
-  }
-}
-
-// Hook into week filter changes + initial render (after DOM and any CSV load)
-document.addEventListener('DOMContentLoaded', () => {
-  const sel = document.getElementById('filterWeek');
-  if (sel) sel.addEventListener('change', renderPrevWeekMissing);
-
-  // Render shortly after load; CSV drops will mutate rawData, so poll briefly
-  setTimeout(renderPrevWeekMissing, 400);
-  let lastLen = Array.isArray(rawData)? rawData.length : 0;
-  const poll = setInterval(()=>{
-    const curLen = Array.isArray(rawData)? rawData.length : 0;
-    if (curLen !== lastLen){
-      lastLen = curLen;
-      renderPrevWeekMissing();
-    }
-  }, 800);
-  // Stop polling after 30s (just a safety)
-  setTimeout(()=>clearInterval(poll), 30000);
-});
-// === End Prev-week Missing ===
-
 </script>
 </body>
 </html>
