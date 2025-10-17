@@ -2,6 +2,20 @@
 
 <html lang="en">
 <head>
+  <script>
+(() => {
+  const PASSWORD = "BlueRevolution2024@"; // change this
+  if (sessionStorage.getItem("ok") === "1") return;
+
+  const entered = prompt("Enter password:");
+  if (entered === PASSWORD) {
+    sessionStorage.setItem("ok", "1");
+  } else {
+    document.body.innerHTML = "<h2>Access denied</h2>";
+    throw new Error("Denied");
+  }
+})();
+</script>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>Blugibbon Weekly Metrics Dashboard</title>
