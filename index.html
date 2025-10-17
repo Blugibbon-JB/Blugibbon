@@ -119,6 +119,32 @@
 <div class="row card">
   <div class="bar" style="justify-content: space-between; margin-bottom: 6px;">
     <div class="sub">Top 10 Doctors by Estimated W/E Margin</div>
+<!-- Missing Doctors Section -->
+<div class="row card" id="cardMissingPrev">
+  <div class="bar" style="justify-content: space-between; margin-bottom: 6px;">
+    <div class="sub">Doctors Missing This Week (had <b>Actual</b> in W-1)</div>
+    <div class="controls">
+      <button id="btnMissingCSV" class="chip">Export CSV</button>
+      <span class="chip" id="chipMissingCount">0 missing</span>
+    </div>
+  </div>
+  <div class="scroll">
+    <table id="tableMissingPrev">
+      <thead>
+        <tr>
+          <th>Doctor</th>
+          <th>Prev Week (W-1)</th>
+          <th>Teammate(s)</th>
+          <th>Client(s)</th>
+          <th>Site(s)</th>
+          <th>Prev Week Actual Margin</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
   </div>
   <canvas id="chartTopDoctorsEst"></canvas>
 </div>
@@ -907,6 +933,87 @@ function loadData(data) {
 attachSorting();
 populateFilterOptions(rawData);
 applyFilters();
+
+// === Doctors Missing This Week (had Actual in W-1) ===
+(function(){
+  function toInt(x){const n=parseInt(x,10);return isNaN(n)?null:n;}
+  function clean(s){return (s??'').toString().trim();}
+  function fmt(n){try{return new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD',maximumFractionDigits:0}).format(n||0);}catch{return '$'+Math.round(n||0);}}
+  function getW(){const sel=document.getElementById('filterWeek');if(!sel)return null;const w=parseInt(sel.value||'',10);return isNaN(w)?null:w;}
+  function computeMissing(){
+    const W=getW();if(W==null)return{W:null,rows:[]};
+    const rows=Array.isArray(rawData)?rawData:[];
+    const wk=rows.filter(r=>toInt(r.week)===W);
+    const wk1=rows.filter(r=>toInt(r.week)===(W-1)&&(Number(r.total_we_margin)||0)>0);
+    const docsThis=new Set(wk.map(r=>clean(r.doctor)).filter(Boolean));
+    const docsPrev=new Set(wk1.map(r=>clean(r.doctor)).filter(Boolean));
+    const missing=[];
+    for(const d of docsPrev){
+      if(!docsThis.has(d)){
+        const lastRows=wk1.filter(r=>clean(r.doctor)===d);
+        const teammate=[...new Set(lastRows.map(r=>clean(r.teammate)).filter(Boolean))].join('; ');
+        const clients=[...new Set(lastRows.map(r=>clean(r.client)).filter(Boolean))].join('; ');
+        const sites=[...new Set(lastRows.map(r=>clean(r.site)).filter(Boolean))].join('; ');
+        const margin=lastRows.reduce((s,r)=>s+(Number(r.total_we_margin)||0),0);
+        missing.push({doctor:d,week:W-1,teammate,clients,sites,margin});
+      }
+    }
+    missing.sort((a,b)=>(b.margin||0)-(a.margin||0)||a.doctor.localeCompare(b.doctor));
+    return{W,rows:missing};
+  }
+  function renderMissing(){
+    const data=computeMissing();
+    const tbody=document.querySelector('#tableMissingPrev tbody');
+    if(!tbody)return;
+    tbody.innerHTML='';
+    data.rows.forEach(r=>{
+      const tr=document.createElement('tr');
+      [r.doctor,r.week,r.teammate,r.clients,r.sites,fmt(r.margin)].forEach(v=>{
+        const td=document.createElement('td');td.textContent=v||'';tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    const chip=document.getElementById('chipMissingCount');
+    if(chip)chip.textContent=(data.rows.length||0)+' missing';
+  }
+  // CSV export
+  const btn=document.getElementById('btnMissingCSV');
+  if(btn){
+    btn.onclick=()=>{
+      const data=computeMissing();
+      const header=['Doctor','PrevWeek','Teammates','Clients','Sites','PrevWeekActualMargin'];
+      const lines=[header.join(',')];
+      data.rows.forEach(r=>{
+        lines.push([
+          (r.doctor||'').replace(/,/g,';'),
+          r.week||'',
+          (r.teammate||'').replace(/,/g,';'),
+          (r.clients||'').replace(/,/g,';'),
+          (r.sites||'').replace(/,/g,';'),
+          Math.round(r.margin||0)
+        ].join(','));
+      });
+      const blob=new Blob([lines.join('\\n')],{type:'text/csv;charset=utf-8;'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;
+      const W=getW();a.download='doctors_missing_W'+(W||'')+'_vs_W'+((W?W-1:''))+'.csv';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    };
+  }
+  window.addEventListener('load',()=>{
+    const sel=document.getElementById('filterWeek');
+    if(sel)sel.addEventListener('change',renderMissing);
+    setTimeout(renderMissing,600);
+  });
+  (function(){
+    let lastLen=Array.isArray(rawData)?rawData.length:0;
+    const poll=setInterval(()=>{
+      const curLen=Array.isArray(rawData)?rawData.length:0;
+      if(curLen!==lastLen){lastLen=curLen;renderMissing();}
+    },800);
+    setTimeout(()=>clearInterval(poll),15000);
+  })();
+})();
 </script>
 </body>
 </html>
