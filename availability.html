@@ -1,0 +1,3447 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>BLUGIBBON Locum Availability Roster</title>
+
+  <!-- FullCalendar -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@6.1.15/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.15/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.15/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/list@6.1.15/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/multimonth@6.1.15/index.global.min.js"></script>
+
+  <style>
+    :root{
+      --border:#e7e7e7; --muted:#6b6b6b; --bg:#fff; --panel:#fafafa;
+      --radius:14px; --shadow: 0 10px 28px rgba(0,0,0,0.10);
+      --font:-apple-system, Segoe UI, Roboto, Arial;
+    }
+    html, body { height:100%; margin:0; font-family:var(--font); background:var(--bg); }
+    #app { height:100%; display:flex; flex-direction:column; }
+    #topbar{
+      padding:10px 12px; border-bottom:1px solid var(--border);
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:#fff;
+      z-index:10;
+    }
+    .label{ font-weight:900; }
+    button, select, input{
+      padding:7px 10px; border:1px solid #ccc; border-radius:12px; background:#fff; font-size:14px;
+    }
+    button{ cursor:pointer; }
+    button.primary{ background:#111; color:#fff; border-color:#111; }
+    .chip{
+      font-size:12px; padding:6px 10px; border:1px solid #ddd; border-radius:999px; background:#fff; color:var(--muted);
+    }
+    #main{
+      flex:1; display:grid; grid-template-columns: 360px 1fr; min-height:0;
+    }
+    #left{
+      border-right:1px solid var(--border); background:var(--panel);
+      display:flex; flex-direction:column; min-height:0;
+    }
+    #doctorHeader{
+      padding:12px; display:flex; flex-direction:column; gap:10px; border-bottom:1px solid var(--border);
+      background:#fff;
+    }
+    #doctorHeader .title{ font-size:16px; font-weight:900; }
+    #doctorHeader .sub{ color:var(--muted); font-size:12px; }
+    #doctorHeader .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    #doctorListWrap{ padding:12px; min-height:0; display:flex; flex-direction:column; gap:10px; }
+    #doctorListWrap input{ width:100%; }
+    #doctorList{
+      min-height:0; overflow:auto; background:#fff; border:1px solid var(--border);
+      border-radius:var(--radius);
+    }
+    .docItem{
+      padding:10px 10px; border-bottom:1px solid #f0f0f0; cursor:pointer;
+      display:flex; justify-content:space-between; gap:10px;
+    }
+    .docItem:last-child{ border-bottom:none; }
+    .docItem:hover{ background:#fafcff; }
+    .docItem.selected{ outline:2px solid #111; outline-offset:-2px; background:#f5f7ff; }
+    .docName{ font-weight:900; }
+    .docMeta{ color:var(--muted); font-size:12px; margin-top:2px; }
+    .docRight{ text-align:right; }
+    .badge{ display:inline-block; font-size:11px; padding:2px 8px; border:1px solid #ddd; border-radius:999px; color:var(--muted); background:#fff; }
+
+    /* Uniform ClickUp button (doctor list) */
+    .btn-clickup{
+      -webkit-appearance:none;
+      appearance:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      height:28px;
+      padding:0 10px;
+      border-radius:999px;
+      border:1px solid #111;
+      background:#fff;
+      color:#111;
+      text-decoration:none;
+      font-size:11px;
+      font-weight:700;
+      line-height:1;
+      white-space:nowrap;
+    }
+    .btn-clickup:hover{ filter:brightness(0.98); }
+    .btn-clickup:active{ transform: translateY(1px); }
+    .btn-clickup:focus-visible{ outline:2px solid rgba(0,0,0,0.35); outline-offset:2px; }
+
+    #calendarWrap{ min-height:0; }
+    #calendar{
+      height:100%;
+      padding:12px;
+    }
+
+    /* Modal */
+    .modalBackdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,0.35); display:none;
+      align-items:center; justify-content:center; z-index:9999;
+    }
+    .modal{
+      width:min(720px, 92vw);
+      background:#fff; border-radius:18px; box-shadow: var(--shadow);
+      border:1px solid var(--border);
+      overflow:hidden;
+    }
+    .modalHeader{
+      padding:14px 16px; border-bottom:1px solid var(--border);
+      display:flex; justify-content:space-between; align-items:center; gap:12px;
+    }
+    .modalHeader .h{ font-weight:900; font-size:16px; }
+    .modalBody{ padding:14px 16px; display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .modalBody .full{ grid-column: 1 / -1; }
+    .field label{ display:block; font-size:12px; color:var(--muted); margin-bottom:4px; font-weight:800; }
+    .field input, .field select, .field textarea{ width:100%; box-sizing:border-box; }
+    textarea{ resize:vertical; min-height:86px; }
+    .modalFooter{
+      padding:14px 16px; border-top:1px solid var(--border);
+      display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .danger{ background:#b00020; color:#fff; border-color:#b00020; }
+    .ghost{ background:#fff; }
+    .hint{ color:var(--muted); font-size:12px; }
+    @media (max-width: 980px){
+      #main{ grid-template-columns: 1fr; }
+      #left{ border-right:none; border-bottom:1px solid var(--border); height:44vh; }
+      #calendarWrap{ height:56vh; }
+      .modalBody{ grid-template-columns: 1fr; }
+    }
+
+    /* FullCalendar small polish */
+    .fc .fc-toolbar-title{ font-size:18px; font-weight:900; }
+    .fc .fc-button{ border-radius:12px; }
+  
+    .fc-tooltip{
+      position:fixed;
+      z-index:100000;
+      max-width:320px;
+      background:#111;
+      color:#fff;
+      padding:10px 12px;
+      border-radius:12px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.25);
+      font-size:12px;
+      line-height:1.35;
+      pointer-events:none;
+      display:none;
+      white-space:pre-wrap;
+    }
+    .fc-tooltip .t{ font-weight:900; font-size:12px; margin-bottom:6px; }
+    .fc-tooltip .row{ opacity:0.95; }
+
+  
+#copyAvailBtn, #pasteAvailBtn {
+  display:inline-flex !important;
+  align-items:center;
+  margin-left:6px;
+}
+
+/* ===== Compact calendar density ===== */
+.fc .fc-daygrid-day-frame {
+  min-height: 90px;
+}
+.fc .fc-daygrid-event {
+  font-size: 11px;
+  padding: 1px 4px;
+  margin-bottom: 2px;
+}
+.fc .fc-daygrid-more-link {
+  font-size: 11px;
+  padding: 1px 4px;
+}
+.fc .fc-daygrid-day-top {
+  margin-bottom: 2px;
+}
+.fc .fc-scrollgrid-sync-inner {
+  padding: 2px;
+}
+
+/* Make calendar area larger */
+#calendar {
+  height: calc(100vh - 160px);
+}
+
+/* Slightly tighten left doctor list */
+.docItem {
+  padding: 6px 8px;
+}
+.docName {
+  font-size: 13px;
+}
+.docMeta {
+  font-size: 11px;
+}
+
+
+#exportJsonBtn, #importJsonBtn { margin-left: 6px; }
+
+/* ===== Topbar grouped layout ===== */
+.topbarFlex{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 14px;
+  align-items:center;
+}
+.barGroup{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  padding:6px 10px;
+  border:1px solid rgba(0,0,0,0.08);
+  border-radius:999px;
+  background:#fff;
+}
+.groupLabel{
+  font-weight:700;
+  margin-right:4px;
+}
+
+
+  /* ---- Views + Finder ---- */
+  .barTitle{ font-size:11px; opacity:0.75; margin-bottom:4px; }
+  .btnGroup{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+
+  #rightViews{ min-height:0; }
+  .panel{
+    border:1px solid rgba(0,0,0,0.08);
+    border-radius:12px;
+    background:#fff;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    padding:10px 12px;
+    margin-bottom:10px;
+  }
+  .panelHeader{ display:flex; justify-content:space-between; gap:12px; align-items:baseline; margin-bottom:8px; }
+  .panelBody .field label{ display:block; font-size:12px; opacity:0.8; margin-bottom:4px; }
+  .panelBody .field input{ height:32px; border-radius:10px; border:1px solid rgba(0,0,0,0.18); padding:0 10px; }
+
+  .viewHeader{ display:flex; justify-content:space-between; align-items:baseline; padding:6px 2px 10px; }
+  .heatmapGrid{
+    border:1px solid rgba(0,0,0,0.08);
+    border-radius:12px;
+    overflow:auto;
+    background:#fff;
+  }
+  .hmRow{ display:grid; grid-template-columns: 220px repeat(var(--hm-cols), 120px); border-bottom:1px solid rgba(0,0,0,0.06); }
+  .hmRow:last-child{ border-bottom:none; }
+  .hmHead{ position:sticky; top:0; background:#fff; z-index:2; }
+  .hmCell{ padding:8px 10px; border-right:1px solid rgba(0,0,0,0.06); font-size:12px; }
+  .hmCell:last-child{ border-right:none; }
+  .hmName{ font-weight:650; }
+  .hmWeek{ font-weight:650; font-size:12px; opacity:0.85; }
+  .hmBox{
+    height:26px;
+    border-radius:10px;
+    border:1px solid rgba(0,0,0,0.12);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 8px;
+    gap:8px;
+  }
+  .hmBox .small{ font-size:11px; opacity:0.75; }
+  .hm0{ opacity:0.15; }
+  .hm1{ opacity:0.25; }
+  .hm2{ opacity:0.35; }
+  .hm3{ opacity:0.45; }
+  .hm4{ opacity:0.55; }
+  .hm5{ opacity:0.65; }
+  .hm6{ opacity:0.78; }
+  .hm7{ opacity:0.9; }
+
+  .stripsTable{
+    border:1px solid rgba(0,0,0,0.08);
+    border-radius:12px;
+    overflow:auto;
+    background:#fff;
+  }
+  .stripRow{
+    display:grid;
+    grid-template-columns: 220px 1fr;
+    border-bottom:1px solid rgba(0,0,0,0.06);
+    min-width: 720px;
+  }
+  .stripHeaderRow{
+    position:sticky;
+    top:0;
+    z-index:3;
+    background:#fff;
+    border-bottom:1px solid rgba(0,0,0,0.10);
+  }
+  .stripHeaderRow .stripName{ font-weight:800; }
+  .stripHeaderBar{
+    padding:6px 10px 4px;
+    align-items:end;
+  }
+  .dayLabel{
+    height:18px;
+    font-size:10px;
+    opacity:0.75;
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    user-select:none;
+  }
+  .dayLabel.weekStart{ font-weight:800; opacity:0.95; }
+  .dayLabel.mondayTick{ border-left:1px solid rgba(0,0,0,0.10); }
+  .stripRow:last-child{ border-bottom:none; }
+  .stripName{ padding:8px 10px; font-weight:650; font-size:12px; border-right:1px solid rgba(0,0,0,0.06); }
+  .stripBar{
+    display:grid;
+    grid-template-columns: repeat(var(--days), 1fr);
+    gap:2px;
+    padding:8px 10px;
+    align-items:center;
+    min-width: 520px;
+  }
+  .dayBox{
+    height:14px;
+    border-radius:4px;
+    border:1px solid rgba(0,0,0,0.08);
+  }
+  .day-blank{ opacity:0.12; }
+  .day-available{ background: rgba(46,125,50,0.55); }
+  .day-tentative{ background: rgba(0,121,107,0.55); }
+  .day-booked{ background: rgba(21,101,192,0.55); }
+  .day-other{ background: rgba(66,66,66,0.35); }
+
+  .finderBucket{ margin-top:10px; }
+  .finderBucket h4{ margin:10px 0 6px; font-size:13px; }
+  .finderCard{
+    border:1px solid rgba(0,0,0,0.08);
+    border-radius:12px;
+    padding:8px 10px;
+    margin-bottom:8px;
+    background:#fff;
+  }
+  .finderCard .meta{ font-size:12px; opacity:0.75; margin-top:3px; }
+
+  .filterRow{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .filterRow select{ width:100%; }
+  .miniBtn{
+    -webkit-appearance:none; appearance:none;
+    display:inline-flex; align-items:center; justify-content:center;
+    height:26px; padding:0 10px;
+    border-radius:999px; border:1px solid rgba(0,0,0,0.18);
+    background:#fff; font-size:11px; font-weight:700; cursor:pointer;
+  }
+  .miniBtn:hover{ filter:brightness(0.98); }
+  .miniBtn:active{ transform:translateY(1px); }
+  .miniBtn.danger{ border-color:#b00020; color:#b00020; }
+  .miniBtn.primary{ border-color:#111; background:#111; color:#fff; }
+
+  /* Calendar highlight when in All Doctors view + searching */
+  .fc .bg-hl-dim{ opacity:0.14; }
+  .fc .bg-hl-match{
+    opacity:1 !important;
+    box-shadow: 0 0 0 2px #111 inset;
+  }
+
+</style>
+
+
+</head>
+
+<body>
+<div id="app">
+  
+<div id="topbar" class="topbarFlex">
+  
+  <div class="barGroup">
+    <div class="barTitle">View</div>
+    <div class="btnGroup">
+      <button id="viewCalendarBtn" class="btn primary" type="button">Calendar</button>
+      <button id="viewHeatmapBtn" class="btn" type="button">Heatmap</button>
+      <button id="viewStripsBtn" class="btn" type="button">Strips</button>
+    </div>
+  </div>
+
+  <div class="barGroup">
+    <div class="barTitle">Overlays</div>
+    <div class="btnGroup">
+      <button id="toggleBookingsBtn" class="btn primary" type="button">Bookings ✓</button>
+      <button id="toggleAvailabilityBtn" class="btn primary" type="button">Availability ✓</button>
+    </div>
+  </div>
+
+  <div class="barGroup">
+    <div class="barTitle">Finder</div>
+    <div class="btnGroup">
+      <button id="toggleFinderBtn" class="btn" type="button">Who’s available?</button>
+    </div>
+  </div>
+<div class="barGroup">
+    <span class="groupLabel">Doctor</span>
+    <label class="chip" style="display:flex; gap:8px; align-items:center;">
+      <input type="checkbox" id="replaceToggle" checked style="transform:scale(1.1)"/>
+      Replace existing
+    </label>
+    <button id="addDoctorBtn">Add doctor</button>
+    <button id="editDoctorBtn">Edit doctor</button>
+    <button id="removeDoctorBtn" class="danger">Remove doctor</button>
+  </div>
+
+  <div class="barGroup">
+    <span class="groupLabel">Functions</span>
+    <button class="primary" id="createBtn">Create availability / leave</button>
+    <button id="clearSelectedBtn" class="danger">Clear selected range</button>
+    <button id="undoBtn">Undo</button>
+    <button id="copyAvailBtn" class="ghost">Copy availability</button>
+    <button id="pasteAvailBtn" class="ghost">Paste availability</button>
+  </div>
+
+  <div class="barGroup">
+    <span class="groupLabel">Filters</span>
+    <button id="toggleAllBtn">All doctors view</button>
+    <button id="upcomingAvailBtn">Upcoming availability</button>
+    <input id="upcomingDays" type="number" min="1" step="1" value="30" style="width:92px" title="Days ahead"/>
+    <span class="chip" id="statusChip">No data loaded</span>
+  </div>
+
+  <div class="barGroup">
+    <span class="groupLabel">Upload &amp; Backup</span>
+    <button id="uploadClickUpBtn">Import ClickUp Doctors CSV</button>
+    <input type="file" id="clickupCsvFile" accept=".csv" style="display:none" />
+    <button id="uploadTimesheetsBtn">Import Timesheets CSV</button>
+    <input type="file" id="timesheetsCsvFile" accept=".csv" style="display:none" />
+    <input type="file" id="csvFile" accept=".csv" style="display:none" />
+<button id="uploadBtn" style="display:none">Choose availability CSV</button>
+
+    <button id="exportJsonBtn">Back Up</button>
+    <button id="importJsonBtn">Restore</button>
+    <input type="file" id="importJsonInput" accept="application/json" style="display:none"/>
+
+    <button id="exportBtn">Export CSV</button>
+  </div>
+</div>
+
+
+  <div id="main">
+    <div id="left">
+      <div id="doctorHeader">
+        <div class="title" id="selectedDocTitle">Select a doctor</div>
+        <div class="sub" id="selectedDocSub">Upload CSV, then click a doctor on the left. Dates are interpreted as dd/mm/yy.</div>
+        <div class="row">
+          <span class="badge" id="selectedDocId">AHPRA: —</span>
+          <span class="badge" id="selectedDocPrefs">Prefs: —</span>
+          <span class="badge" id="selectedDocWhere">Where: —</span>
+        </div>
+      </div>
+
+      <div id="doctorListWrap">
+        <input id="doctorSearch" placeholder="Search doctors (name, AHPRA, tags)..." />
+        
+        <div class="filterRow" style="margin-top:8px;">
+          <select id="whereFilter" title="Filter by Where">
+            <option value="__all__">All locations</option>
+          </select>
+          <select id="tagFilter" title="Filter by Tag">
+            <option value="__all__">All tags</option>
+          </select>
+          <button id="clearFiltersBtn" class="miniBtn" type="button" title="Clear filters">Clear</button>
+        </div>
+<div id="doctorList"></div>
+        <div class="hint">
+          Tip: Click & drag on the calendar to add a status block for the selected doctor.
+          Click an existing block to edit or delete it.
+        </div>
+      </div>
+    </div>
+
+    
+<div id="rightViews">
+  <div id="finderPanel" class="panel" style="display:none;">
+    <div class="panelHeader">
+      <div style="font-weight:700;">Who’s available?</div>
+      <div class="muted" id="finderSummary">Pick a date range to rank doctors by availability.</div>
+    </div>
+    <div class="panelBody">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
+        <div class="field">
+          <label for="finderStart">Start</label>
+          <input id="finderStart" type="date">
+        </div>
+        <div class="field">
+          <label for="finderEnd">End</label>
+          <input id="finderEnd" type="date">
+        </div>
+        <div style="display:flex; gap:8px; align-items:end;">
+          <button id="finderRunBtn" class="btn primary" type="button">Find</button>
+          <button id="finderClearBtn" class="btn" type="button">Clear</button>
+        </div>
+      </div>
+
+      <div id="finderResults" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <div id="calendarWrap">
+    <div id="calendar"></div>
+  </div>
+
+  <div id="heatmapWrap" style="display:none;">
+    <div class="viewHeader">
+      <div style="font-weight:700;">Availability heatmap</div>
+
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="hmPrev" type="button">◀</button>
+        <button id="hmToday" type="button">Today</button>
+        <button id="hmNext" type="button">▶</button>
+
+        <button id="hmJumpBtn" type="button">Jump to</button>
+        <input id="hmJumpDate" type="date" style="display:none; width:140px;" title="Pick a date to jump to"/>
+        <button id="hmJumpGo" type="button" style="display:none;">Go</button>
+
+        <select id="hmMode" title="Heatmap view">
+          <option value="weeks">Weeks</option>
+          <option value="months">Months</option>
+        </select>
+      
+        <select id="hmSort" title="Sort heatmap">
+          <option value="alpha">A–Z</option>
+          <option value="avail">Most available (month)</option>
+          <option value="booked">Most booked (month)</option>
+          <option value="consec">Most consecutive availability</option>
+        </select>
+</div>
+    </div>
+
+    <div class="muted" id="heatmapMeta"></div>
+    <div id="heatmapGrid" class="heatmapGrid"></div>
+  </div>
+
+  <div id="stripsWrap" style="display:none;">
+    <div class="viewHeader">
+      <div style="font-weight:700;">Month strips</div>
+
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="stPrev" type="button">◀</button>
+        <button id="stToday" type="button">Today</button>
+        <button id="stNext" type="button">▶</button>
+
+        <button id="stJumpBtn" type="button">Jump to</button>
+        <input id="stJumpDate" type="date" style="display:none; width:140px;" title="Pick a date to jump to"/>
+        <button id="stJumpGo" type="button" style="display:none;">Go</button>
+
+        <select id="stMode" title="Strips mode">
+          <option value="weeks">Weeks</option>
+          <option value="months">Months</option>
+        </select>
+      </div>
+    </div>
+    <div class="muted" id="stripsMeta"></div>
+    <div id="stripsTable" class="stripsTable"></div>
+  </div>
+</div>
+
+  </div>
+</div>
+
+<!-- Event / Doctor Modal -->
+<div class="modalBackdrop" id="modalBackdrop" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modalHeader">
+      <div class="h" id="modalTitle">Edit</div>
+      <button id="modalCloseBtn">Close</button>
+    </div>
+    <div class="modalBody" id="modalBody"></div>
+    <div class="modalFooter" id="modalFooter"></div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY_DOCTORS = "blugibbon_roster_doctors_v1";
+const STORAGE_KEY_EVENTS  = "blugibbon_roster_events_v1";
+
+function loadDoctors(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY_DOCTORS) || "[]") || []; } catch(e){ return []; } }
+function loadEvents(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY_EVENTS) || "[]") || []; } catch(e){ return []; } }
+function saveDoctors(doctors){ localStorage.setItem(STORAGE_KEY_DOCTORS, JSON.stringify(doctors)); }
+function saveEvents(events){ localStorage.setItem(STORAGE_KEY_EVENTS, JSON.stringify(events)); }
+
+function esc(s){
+  return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#39;");
+}
+function splitCSVLine(line){
+  const out=[]; let cur=""; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch === '"'){
+      if(inQ && line[i+1] === '"'){ cur+='"'; i++; }
+      else inQ = !inQ;
+    } else if(ch === ',' && !inQ){
+      out.push(cur); cur="";
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+function parseDateAU(s){
+  if(!s) return null;
+  const t = String(s).trim();
+  if(!t) return null;
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(iso){ return new Date(Date.UTC(+iso[1], +iso[2]-1, +iso[3])); }
+  const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  if(!m) return null;
+  const dd=+m[1], mm=+m[2]; const yy=m[3];
+  const yyyy = (yy.length===2) ? (2000 + (+yy)) : (+yy);
+  return new Date(Date.UTC(yyyy, mm-1, dd));
+}
+function formatDateAU(dateObj){
+  const d = new Date(dateObj);
+  const dd = String(d.getUTCDate()).padStart(2,'0');
+  const mm = String(d.getUTCMonth()+1).padStart(2,'0');
+  const yyyy = String(d.getUTCFullYear());
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatISOToAUShort(iso){
+  const t = String(iso||"").trim();
+  const m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return t;
+  const yy = String(m[1]).slice(-2);
+  return `${m[3]}/${m[2]}/${yy}`;
+}
+function addDaysUTC(dateObj, days){
+  const d = new Date(dateObj);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+function parseISODateUTC(iso){ return new Date(String(iso||"") + "T00:00:00Z"); }
+
+function normalizeToUTCDate(dateObj){
+  // FullCalendar provides local Dates. Convert to a stable UTC-midnight date using the local Y/M/D.
+  const d = new Date(dateObj);
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+
+function buildClickUpUrl(taskId){
+  if(!taskId) return "";
+  const t = String(taskId).trim();
+  if(!t) return "";
+  if(t.startsWith("http://") || t.startsWith("https://")) return t;
+  // Standard ClickUp task URL pattern
+  return "https://app.clickup.com/t/" + encodeURIComponent(t);
+}
+
+function uid(){ return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16); }
+
+function applyRangeOverride(doctorId, startISO, endExISO, newEvent, replaceEventId){
+  // Enforce ONE status per day by removing/splitting any overlapping blocks for this doctor,
+  // then inserting the new block.
+  const updated = [];
+  for(const e of events){
+    if(String(e.ahpra_id) !== String(doctorId)){
+      updated.push(e);
+      continue;
+    }
+    if(replaceEventId && e.id === replaceEventId){
+      // drop the event being edited; it will be re-inserted as newEvent
+      continue;
+    }
+
+    const evStart = String(e.start); // yyyy-mm-dd
+    const evEndEx = String(e.end);   // yyyy-mm-dd exclusive
+
+    // no overlap
+    if(evEndEx <= startISO || evStart >= endExISO){
+      updated.push(e);
+      continue;
+    }
+
+    // overlap exists -> keep left remainder
+    if(evStart < startISO){
+      updated.push({ ...e, id: uid(), start: evStart, end: startISO });
+    }
+    // keep right remainder
+    if(evEndEx > endExISO){
+      updated.push({ ...e, id: uid(), start: endExISO, end: evEndEx });
+    }
+    // middle part is removed (overridden)
+  }
+
+  updated.push(newEvent);
+  // Keep deterministic ordering for display/export (by start date)
+  updated.sort((a,b)=> String(a.start).localeCompare(String(b.start)));
+  events = updated;
+}
+
+const STATUS = [
+  { key:"Available", color:"#2e7d32" },
+  { key:"Tentative", color:"#00796b" },
+  { key:"Booked",    color:"#1565c0" },
+  { key:"Away",      color:"#757575" },
+  { key:"Holiday",   color:"#f9a825" },
+  { key:"Sick",      color:"#c62828" },
+  { key:"Unavailable", color:"#424242" }
+];
+const STATUS_COLOR = Object.fromEntries(STATUS.map(s=>[s.key, s.color]));
+
+let doctors = loadDoctors();
+let events  = loadEvents();
+
+
+
+// -----------------------
+// View modes + overlays
+// -----------------------
+let viewMode = localStorage.getItem("bg_view_mode") || "calendar"; // calendar|heatmap|strips
+let heatmapMode = localStorage.getItem("bg_heatmap_mode") || "weeks";
+let stripsMode  = localStorage.getItem("bg_strips_mode")  || "months";
+let showBookingsOverlay = (localStorage.getItem("bg_show_bookings") ?? "true") === "true";
+let showAvailabilityOverlay = (localStorage.getItem("bg_show_availability") ?? "true") === "true";
+let finderOpen = (localStorage.getItem("bg_finder_open") ?? "false") === "true";
+
+function persistViewPrefs(){
+  localStorage.setItem("bg_view_mode", viewMode);
+  localStorage.setItem("bg_show_bookings", String(showBookingsOverlay));
+  localStorage.setItem("bg_show_availability", String(showAvailabilityOverlay));
+  localStorage.setItem("bg_finder_open", String(finderOpen));
+}
+
+
+// -----------------------
+// Doctor filters + highlight + heatmap sorting
+// -----------------------
+let doctorWhereFilter = localStorage.getItem("bg_filter_where") || "__all__";
+let doctorTagFilter   = localStorage.getItem("bg_filter_tag") || "__all__";
+let heatmapSort       = localStorage.getItem("bg_heatmap_sort") || "alpha";
+
+let highlightQuery = "";
+let highlightIds = new Set();
+
+function persistDoctorFilters(){
+  localStorage.setItem("bg_filter_where", doctorWhereFilter);
+  localStorage.setItem("bg_filter_tag", doctorTagFilter);
+}
+function persistHeatmapSort(){
+  localStorage.setItem("bg_heatmap_sort", heatmapSort);
+}
+
+function normTxt(s){
+  return String(s||"").trim().toLowerCase();
+}
+
+function doctorMatchesFilters(d){
+  // Where filter
+  if(doctorWhereFilter !== "__all__"){
+    if(normTxt(d.where) !== normTxt(doctorWhereFilter)) return false;
+  }
+  // Tag filter (single-select)
+  if(doctorTagFilter !== "__all__"){
+    const tags = (d.tags || []).map(normTxt);
+    if(!tags.includes(normTxt(doctorTagFilter))) return false;
+  }
+  return true;
+}
+
+function doctorMatchesSearch(d, q){
+  if(!q) return true;
+  const hay = [
+    d.ahpra_id, d.name, d.prefs, d.where, d.specialty, d.pgy, d.level,
+    ...(d.tags||[])
+  ].filter(Boolean).join(" ").toLowerCase();
+  return hay.includes(q);
+}
+
+function getFilteredDoctors({ includeSearch=true } = {}){
+  const q = includeSearch ? normTxt(doctorSearch?.value) : "";
+  return doctors
+    .filter(d=>doctorMatchesFilters(d))
+    .filter(d=>doctorMatchesSearch(d, q));
+}
+
+function refreshHighlight(){
+  // Only highlight on the calendar when in All doctors view
+  if(!showAllDoctors){
+    highlightQuery = "";
+    highlightIds = new Set();
+    return;
+  }
+  const q = normTxt(doctorSearch?.value);
+  highlightQuery = q;
+  if(!q){
+    highlightIds = new Set();
+    return;
+  }
+  const ids = new Set();
+  for(const d of doctors){
+    if(doctorMatchesFilters(d) && doctorMatchesSearch(d, q)){
+      ids.add(String(d.ahpra_id));
+    }
+  }
+  highlightIds = ids;
+}
+
+function updateFilterDropdowns(){
+  const whereEl = document.getElementById("whereFilter");
+  const tagEl = document.getElementById("tagFilter");
+  if(!whereEl || !tagEl) return;
+
+  // Build unique Where + Tags lists (preserve original casing)
+  const whereMap = new Map();
+  for(const d of doctors){
+    const k = normTxt(d.where);
+    if(k && !whereMap.has(k)) whereMap.set(k, String(d.where).trim());
+  }
+  const tagMap = new Map();
+  for(const d of doctors){
+    for(const t of (d.tags||[])){
+      const k = normTxt(t);
+      if(k && !tagMap.has(k)) tagMap.set(k, String(t).trim());
+    }
+  }
+  const wheres = Array.from(whereMap.keys()).sort((a,b)=>a.localeCompare(b));
+  const tags = Array.from(tagMap.keys()).sort((a,b)=>a.localeCompare(b));
+
+  // Helper: rebuild while preserving selection
+  function fill(selectEl, values, allLabel){
+    const cur = selectEl.value || "__all__";
+    selectEl.innerHTML = `<option value="__all__">${allLabel}</option>` +
+      values.map(v=>{
+        const label = (selectEl.id==="whereFilter" ? (whereMap.get(v)||v) : (tagMap.get(v)||v));
+        return `<option value="${esc(v)}">${esc(label)}</option>`;
+      }).join("");
+    // restore
+    selectEl.value = values.includes(normTxt(cur)) ? normTxt(cur) : "__all__";
+  }
+
+  fill(whereEl, wheres, "All locations");
+  fill(tagEl, tags, "All tags");
+
+  // set from state
+  whereEl.value = wheres.includes(normTxt(doctorWhereFilter)) ? normTxt(doctorWhereFilter) : "__all__";
+  tagEl.value = tags.includes(normTxt(doctorTagFilter)) ? normTxt(doctorTagFilter) : "__all__";
+}
+
+
+function cleanNameToKey(name){
+  const n = String(name||"").trim().toLowerCase().replace(/\./g,"").replace(/\s+/g," ");
+  return n.replace(/^dr\s+/, "");
+}
+function docKeyFromDoctor(d){
+  const nm = (d?.name||"").trim();
+  const parts = cleanNameToKey(nm).split(" ").filter(Boolean);
+  if(parts.length>=2) return parts[0] + " " + parts[parts.length-1];
+  return cleanNameToKey(nm);
+}
+
+function isoDateUTC(d){
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString().slice(0,10);
+}
+function addDaysISO(iso, days){
+  const [y,m,d]=iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y,m-1,d));
+  dt.setUTCDate(dt.getUTCDate()+days);
+  return dt.toISOString().slice(0,10);
+}
+function clampRangeToMonth(startISO, endISO, monthStartISO, monthEndExISO){
+  const s = startISO < monthStartISO ? monthStartISO : startISO;
+  const e = endISO > monthEndExISO ? monthEndExISO : endISO;
+  return [s,e];
+}
+
+const AVAIL_STATUSES = new Set(["Available","Tentative"]);
+const BOOKED_STATUS = "Booked";
+
+function eventCoversDay(e, dayISO){
+  const s = String(e.start||"");
+  const ex = String(e.end||"");
+  return (s <= dayISO) && (dayISO < ex);
+}
+
+// returns: "booked" | "available" | "tentative" | "other" | "blank"
+function classifyDay(ahpraId, dayISO){
+  const evs = events.filter(ev => String(ev.ahpra_id) === String(ahpraId) && eventCoversDay(ev, dayISO));
+  if(evs.length===0) return "blank";
+  if(evs.some(ev => String(ev.status) === BOOKED_STATUS)) return "booked";
+  if(evs.some(ev => String(ev.status) === "Available")) return "available";
+  if(evs.some(ev => String(ev.status) === "Tentative")) return "tentative";
+  return "other";
+}
+
+function getActiveMonthRange(){
+  // IMPORTANT: FullCalendar runs in local time. Using UTC getters here can shift the month/day
+  // (e.g., Australia timezones), which then makes "clear month" act on the wrong month.
+  // So we take the *local* year/month from the calendar's focus date, then build UTC-midnight
+  // ISO ranges for storage/logic.
+  const baseLocal = calendar?.getDate ? calendar.getDate() : new Date();
+  const y = baseLocal.getFullYear();
+  const m = baseLocal.getMonth();
+  const monthStart = new Date(Date.UTC(y, m, 1));
+  const monthEndEx = new Date(Date.UTC(y, m + 1, 1));
+  return {
+    y, m,
+    monthStartISO: monthStart.toISOString().slice(0,10),
+    monthEndExISO: monthEndEx.toISOString().slice(0,10),
+    daysInMonth: Math.round((monthEndEx - monthStart)/86400000)
+  };
+}
+
+function weekStartsForMonth(){
+  const {monthStartISO, monthEndExISO} = getActiveMonthRange();
+  const [y,m,d]=monthStartISO.split("-").map(Number);
+  const monthStart = new Date(Date.UTC(y,m-1,d));
+  const dow = (monthStart.getUTCDay()+6)%7; // Mon=0..Sun=6
+  const firstMon = new Date(monthStart); firstMon.setUTCDate(firstMon.getUTCDate()-dow);
+  const weeks=[];
+  let cur = firstMon;
+  while(cur.toISOString().slice(0,10) < monthEndExISO){
+    weeks.push(cur.toISOString().slice(0,10));
+    const nxt = new Date(cur); nxt.setUTCDate(nxt.getUTCDate()+7);
+    cur = nxt;
+    if(weeks.length>8) break;
+  }
+  return weeks;
+}
+
+function renderHeatmap(){
+  const grid = document.getElementById("heatmapGrid");
+  const meta = document.getElementById("heatmapMeta");
+  if(!grid) return;
+
+  const {monthStartISO, monthEndExISO, y, m} = getActiveMonthRange();
+  const weeks = (heatmapMode === "months") ? [monthStartISO] : weekStartsForMonth();
+const monthName = new Date(Date.UTC(y,m,1)).toLocaleString("en-AU",{month:"long", year:"numeric", timeZone:"UTC"});
+  meta.textContent = (heatmapMode === "months") ? `${monthName}` : `${monthName} • Weeks shown Monday–Sunday`;
+grid.style.setProperty("--hm-cols", weeks.length);
+
+  let html = `<div class="hmRow hmHead">` +
+    `<div class="hmCell hmWeek">Doctor</div>` +
+    weeks.map(ws=>{
+      const we = addDaysISO(ws,7);
+      const [cs,ce] = clampRangeToMonth(ws,we,monthStartISO,monthEndExISO);
+      return `<div class="hmCell hmWeek">${formatISOToAUShort(cs)} → ${formatISOToAUShort(addDaysISO(ce,-1))}</div>`;
+    }).join("") +
+    `</div>`;
+
+  const docs = getFilteredDoctors({ includeSearch:true }).slice();
+
+  // Compute month stats for sorting
+  const stats = new Map();
+  for(const d of docs){
+    const id = String(d.ahpra_id);
+    let availDays = 0;
+    let bookedDays = 0;
+    let maxConsecAvail = 0;
+    let curRun = 0;
+
+    for(let day = monthStartISO; day < monthEndExISO; day = addDaysISO(day, 1)){
+      const cls = classifyDay(id, day);
+      const isAvail = (cls === "available" || cls === "tentative");
+      if(isAvail){
+        availDays++;
+        curRun++;
+        if(curRun > maxConsecAvail) maxConsecAvail = curRun;
+      }else{
+        curRun = 0;
+      }
+      if(cls === "booked") bookedDays++;
+    }
+    stats.set(id, {availDays, bookedDays, maxConsecAvail});
+  }
+
+  docs.sort((a,b)=>{
+    const an = String(a.name||"").toLowerCase();
+    const bn = String(b.name||"").toLowerCase();
+    const as = stats.get(String(a.ahpra_id)) || {availDays:0, bookedDays:0, maxConsecAvail:0};
+    const bs = stats.get(String(b.ahpra_id)) || {availDays:0, bookedDays:0, maxConsecAvail:0};
+
+    if(heatmapSort === "avail"){
+      if(bs.availDays !== as.availDays) return bs.availDays - as.availDays;
+      return an.localeCompare(bn);
+    }
+    if(heatmapSort === "booked"){
+      if(bs.bookedDays !== as.bookedDays) return bs.bookedDays - as.bookedDays;
+      return an.localeCompare(bn);
+    }
+    if(heatmapSort === "consec"){
+      if(bs.maxConsecAvail !== as.maxConsecAvail) return bs.maxConsecAvail - as.maxConsecAvail;
+      return an.localeCompare(bn);
+    }
+    // alpha
+    return an.localeCompare(bn);
+  });
+  for(const d of docs){
+    const id = d.ahpra_id;
+    const nm = d.name || String(id);
+    html += `<div class="hmRow">`;
+    html += `<div class="hmCell hmName">${esc(nm)}</div>`;
+    for(const ws of weeks){
+      const we = addDaysISO(ws,7);
+      const [cs,ce] = clampRangeToMonth(ws,we,monthStartISO,monthEndExISO);
+      let avail=0, booked=0, other=0, total=0;
+      let day = cs;
+      while(day < ce){
+        total++;
+        const cls = classifyDay(id, day);
+        if(cls==="booked") booked++;
+        else if(cls==="available" || cls==="tentative") avail++;
+        else if(cls==="other") other++;
+        day = addDaysISO(day,1);
+      }
+      let intensity = 0;
+      if(showAvailabilityOverlay) intensity = Math.max(intensity, avail);
+      if(showBookingsOverlay) intensity = Math.max(intensity, booked);
+      const i = Math.max(0, Math.min(7, intensity));
+      const boxClass = `hmBox hm${i}`;
+      const labelParts = [];
+      if(showAvailabilityOverlay) labelParts.push(`${avail} avail`);
+      if(showBookingsOverlay) labelParts.push(`${booked} booked`);
+      const small = labelParts.join(" • ") || "—";
+      html += `<div class="hmCell"><div class="${boxClass}" data-doc="${esc(String(id))}" data-week="${esc(cs)}">` +
+              `<span>${showAvailabilityOverlay?avail:booked}</span>` +
+              `<span class="small">${esc(small)}</span>` +
+              `</div></div>`;
+    }
+    html += `</div>`;
+  }
+  grid.innerHTML = html;
+
+  grid.querySelectorAll(".hmBox").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      const docId = el.getAttribute("data-doc");
+      const weekStart = el.getAttribute("data-week");
+      if(docId){
+        selectedDoctorId = docId;
+        renderDoctorList();
+        if(calendar?.gotoDate) calendar.gotoDate(weekStart);
+      }
+      viewMode = "calendar";
+      updateViews();
+    });
+  });
+}
+
+function getActiveWeekStartISO(){
+  // Monday-start week containing the calendar's current focus date
+  const baseLocal = calendar?.getDate ? calendar.getDate() : new Date();
+  const base = normalizeToUTCDate(baseLocal); // stable UTC date from local Y/M/D
+  const dow = (base.getUTCDay()+6)%7; // Mon=0..Sun=6
+  const mon = new Date(base);
+  mon.setUTCDate(mon.getUTCDate()-dow);
+  return mon.toISOString().slice(0,10);
+}
+
+function ddmmyyFromISO(iso){
+  try{
+    const d = isoToDateUTC(iso);
+    const dd = String(d.getUTCDate()).padStart(2,'0');
+    const mm = String(d.getUTCMonth()+1).padStart(2,'0');
+    const yy = String(d.getUTCFullYear()).slice(-2);
+    return `${dd}/${mm}/${yy}`;
+  }catch(e){ return iso; }
+}
+
+function renderStrips(){
+  const table = document.getElementById("stripsTable");
+  const meta = document.getElementById("stripsMeta");
+  if(!table) return;
+
+  const docs = getFilteredDoctors({ includeSearch:true }).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+  let out = "";
+
+  if((stripsMode||"months")==="weeks"){
+    const startISO = getActiveWeekStartISO();
+    const days = 42; // 6 weeks
+    const endISOInc = addDaysISO(startISO, days-1);
+    meta.textContent = `${ddmmyyFromISO(startISO)} → ${ddmmyyFromISO(endISOInc)} • 6 weeks shown Monday–Sunday`;
+
+    // Header row (week markers)
+    let header = `<div class="stripRow stripHeaderRow">`;
+    header += `<div class="stripName">Doctor</div>`;
+    header += `<div class="stripBar stripHeaderBar" style="--days:${days};">`;
+    let hDay = startISO;
+    for(let i=0;i<days;i++){
+      const isWeekStart = (i % 7) === 0;
+      const label = isWeekStart ? ddmmyyFromISO(hDay) : "";
+      header += `<div class="dayLabel ${isWeekStart?"weekStart mondayTick":""}" title="${esc(ddmmyyFromISO(hDay))}">${esc(label)}</div>`;
+      hDay = addDaysISO(hDay,1);
+    }
+    header += `</div></div>`;
+    out += header;
+
+    for(const d of docs){
+      const id = d.ahpra_id;
+      out += `<div class="stripRow">`;
+      out += `<div class="stripName">${esc(d.name || String(id))}</div>`;
+      out += `<div class="stripBar" style="--days:${days};" data-doc="${esc(String(id))}">`;
+
+      let day = startISO;
+      for(let i=0;i<days;i++){
+        const cls = classifyDay(id, day);
+        let boxClass = "dayBox day-blank";
+        if(cls==="booked") boxClass = "dayBox day-booked";
+        else if(cls==="available") boxClass = "dayBox day-available";
+        else if(cls==="tentative") boxClass = "dayBox day-tentative";
+        else if(cls==="other") boxClass = "dayBox day-other";
+
+        if(!showBookingsOverlay && cls==="booked") boxClass = "dayBox day-blank";
+        if(!showAvailabilityOverlay && (cls==="available" || cls==="tentative")) boxClass = "dayBox day-blank";
+
+        out += `<div class="${boxClass}" title="${esc(ddmmyyFromISO(day))}"></div>`;
+        day = addDaysISO(day,1);
+      }
+      out += `</div></div>`;
+    }
+  } else {
+    const {monthStartISO, daysInMonth, y, m} = getActiveMonthRange();
+    const monthName = new Date(Date.UTC(y,m,1)).toLocaleString("en-AU",{month:"long", year:"numeric", timeZone:"UTC"});
+    meta.textContent = `${monthName} • 1–${daysInMonth}`;
+
+    // Header row (day-of-month numbers)
+    let header = `<div class="stripRow stripHeaderRow">`;
+    header += `<div class="stripName">Doctor</div>`;
+    header += `<div class="stripBar stripHeaderBar" style="--days:${daysInMonth};">`;
+    let hDay = monthStartISO;
+    for(let i=0;i<daysInMonth;i++){
+      const dt = isoToDateUTC(hDay);
+      const isMon = dt.getUTCDay() === 1; // Monday
+      const dayNum = String(dt.getUTCDate());
+      header += `<div class="dayLabel ${isMon?"weekStart mondayTick":""}" title="${esc(ddmmyyFromISO(hDay))}">${esc(dayNum)}</div>`;
+      hDay = addDaysISO(hDay,1);
+    }
+    header += `</div></div>`;
+    out += header;
+
+    for(const d of docs){
+      const id = d.ahpra_id;
+      out += `<div class="stripRow">`;
+      out += `<div class="stripName">${esc(d.name || String(id))}</div>`;
+      out += `<div class="stripBar" style="--days:${daysInMonth};" data-doc="${esc(String(id))}">`;
+      let day = monthStartISO;
+      for(let i=0;i<daysInMonth;i++){
+        const cls = classifyDay(id, day);
+        let boxClass = "dayBox day-blank";
+        if(cls==="booked") boxClass = "dayBox day-booked";
+        else if(cls==="available") boxClass = "dayBox day-available";
+        else if(cls==="tentative") boxClass = "dayBox day-tentative";
+        else if(cls==="other") boxClass = "dayBox day-other";
+        if(!showBookingsOverlay && cls==="booked") boxClass = "dayBox day-blank";
+        if(!showAvailabilityOverlay && (cls==="available" || cls==="tentative")) boxClass = "dayBox day-blank";
+        out += `<div class="${boxClass}" title="${esc(formatDateAU(isoToDateUTC(day)))}"></div>`;
+        day = addDaysISO(day,1);
+      }
+      out += `</div></div>`;
+    }
+  }
+
+  table.innerHTML = out;
+
+  table.querySelectorAll(".stripBar").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      const docId = el.getAttribute("data-doc");
+      if(docId){
+        selectedDoctorId = docId;
+        renderDoctorList();
+        viewMode = "calendar";
+        updateViews();
+      }
+    });
+  });
+}
+
+
+function renderFinderResults(startISO, endISOInclusive){
+  const resultsDiv = document.getElementById("finderResults");
+  const summary = document.getElementById("finderSummary");
+  if(!resultsDiv) return;
+
+  if(!startISO || !endISOInclusive || endISOInclusive < startISO){
+    resultsDiv.innerHTML = `<div class="muted">Choose a valid start/end date.</div>`;
+    return;
+  }
+
+  const endEx = addDaysISO(endISOInclusive, 1);
+
+  const scored = doctors.map(d=>{
+    let avail=0, booked=0, other=0, total=0;
+    let day = startISO;
+    while(day < endEx){
+      total++;
+      const cls = classifyDay(d.ahpra_id, day);
+      if(cls==="booked") booked++;
+      else if(cls==="available" || cls==="tentative") avail++;
+      else if(cls==="other") other++;
+      day = addDaysISO(day,1);
+    }
+    const pct = total ? Math.round((avail/total)*100) : 0;
+    const fully = (avail===total);
+    const any = (avail>0);
+    return { d, avail, booked, other, total, pct, fully, any };
+  });
+
+  const fully = scored.filter(x=>x.fully).sort((a,b)=>b.pct-a.pct);
+  const partial = scored.filter(x=>!x.fully && x.any).sort((a,b)=>b.pct-a.pct);
+  const none = scored.filter(x=>!x.any).sort((a,b)=>String(a.d.name||"").localeCompare(String(b.d.name||"")));
+
+  summary.textContent = `${startISO} → ${endISOInclusive} • ${fully.length} fully available, ${partial.length} partial, ${none.length} unavailable`;
+
+  function card(x){
+    const nm = x.d.name || String(x.d.ahpra_id);
+    return `<div class="finderCard" data-doc="${esc(String(x.d.ahpra_id))}">
+      <div style="display:flex; justify-content:space-between; gap:10px;">
+        <div style="font-weight:650;">${esc(nm)}</div>
+        <div style="font-weight:650;">${x.pct}%</div>
+      </div>
+      <div class="meta">${x.avail} avail • ${x.booked} booked • ${x.other} other • ${x.total} days</div>
+    </div>`;
+  }
+
+  let html = "";
+  html += `<div class="finderBucket"><h4>Fully available</h4>${fully.length? fully.map(card).join("") : `<div class="muted">None</div>`}</div>`;
+  html += `<div class="finderBucket"><h4>Partially available</h4>${partial.length? partial.map(card).join("") : `<div class="muted">None</div>`}</div>`;
+  html += `<div class="finderBucket"><h4>Unavailable</h4>${none.length? none.map(card).join("") : `<div class="muted">None</div>`}</div>`;
+  resultsDiv.innerHTML = html;
+
+  resultsDiv.querySelectorAll(".finderCard").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      const docId = el.getAttribute("data-doc");
+      if(docId){
+        selectedDoctorId = docId;
+        renderDoctorList();
+        if(calendar?.gotoDate) calendar.gotoDate(startISO);
+      }
+      viewMode="calendar";
+      updateViews();
+    });
+  });
+}
+
+function updateViewButtons(){
+  const calBtn = document.getElementById("viewCalendarBtn");
+  const hmBtn = document.getElementById("viewHeatmapBtn");
+  const stBtn = document.getElementById("viewStripsBtn");
+  if(calBtn && hmBtn && stBtn){
+    [calBtn, hmBtn, stBtn].forEach(b=>b.classList.remove("primary"));
+    if(viewMode==="calendar") calBtn.classList.add("primary");
+    if(viewMode==="heatmap") hmBtn.classList.add("primary");
+    if(viewMode==="strips") stBtn.classList.add("primary");
+  }
+
+  const bBtn = document.getElementById("toggleBookingsBtn");
+  const aBtn = document.getElementById("toggleAvailabilityBtn");
+  if(bBtn){
+    bBtn.classList.toggle("primary", showBookingsOverlay);
+    bBtn.textContent = showBookingsOverlay ? "Bookings ✓" : "Bookings";
+  }
+  if(aBtn){
+    aBtn.classList.toggle("primary", showAvailabilityOverlay);
+    aBtn.textContent = showAvailabilityOverlay ? "Availability ✓" : "Availability";
+  }
+
+  const fBtn = document.getElementById("toggleFinderBtn");
+  if(fBtn) fBtn.classList.toggle("primary", finderOpen);
+}
+
+function updateViews(){
+  const calWrap = document.getElementById("calendarWrap");
+  const hmWrap = document.getElementById("heatmapWrap");
+  const stWrap = document.getElementById("stripsWrap");
+  const finder = document.getElementById("finderPanel");
+
+  if(finder) finder.style.display = finderOpen ? "block" : "none";
+  if(calWrap) calWrap.style.display = (viewMode==="calendar") ? "block" : "none";
+  if(hmWrap) hmWrap.style.display = (viewMode==="heatmap") ? "block" : "none";
+  if(stWrap) stWrap.style.display = (viewMode==="strips") ? "block" : "none";
+
+  updateViewButtons();
+  persistViewPrefs();
+
+  if(viewMode==="calendar") renderCalendar();
+  else if(viewMode==="heatmap") renderHeatmap();
+  else if(viewMode==="strips") renderStrips();
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  const calBtn = document.getElementById("viewCalendarBtn");
+  const hmBtn = document.getElementById("viewHeatmapBtn");
+  const stBtn = document.getElementById("viewStripsBtn");
+  const bBtn  = document.getElementById("toggleBookingsBtn");
+  const aBtn  = document.getElementById("toggleAvailabilityBtn");
+  const fBtn  = document.getElementById("toggleFinderBtn");
+
+  if(calBtn) calBtn.addEventListener("click", ()=>{ viewMode="calendar"; updateViews(); });
+  if(hmBtn)  hmBtn.addEventListener("click", ()=>{ viewMode="heatmap"; updateViews(); });
+  if(stBtn)  stBtn.addEventListener("click", ()=>{ viewMode="strips"; updateViews(); });
+
+  if(bBtn) bBtn.addEventListener("click", ()=>{ showBookingsOverlay=!showBookingsOverlay; updateViews(); });
+  if(aBtn) aBtn.addEventListener("click", ()=>{ showAvailabilityOverlay=!showAvailabilityOverlay; updateViews(); });
+
+  if(fBtn) fBtn.addEventListener("click", ()=>{ finderOpen=!finderOpen; updateViews(); });
+
+  const runBtn = document.getElementById("finderRunBtn");
+  const clrBtn = document.getElementById("finderClearBtn");
+  if(runBtn) runBtn.addEventListener("click", ()=>{
+    const s = document.getElementById("finderStart")?.value;
+    const e = document.getElementById("finderEnd")?.value;
+    renderFinderResults(s, e);
+  });
+  if(clrBtn) clrBtn.addEventListener("click", ()=>{
+    const sEl = document.getElementById("finderStart");
+    const eEl = document.getElementById("finderEnd");
+    if(sEl) sEl.value = "";
+    if(eEl) eEl.value = "";
+    const res = document.getElementById("finderResults");
+    if(res) res.innerHTML = "";
+    const sum = document.getElementById("finderSummary");
+    if(sum) sum.textContent = "Pick a date range to rank doctors by availability.";
+  });
+
+  if(calendar?.on){
+    calendar.on("datesSet", ()=>{
+      if(viewMode==="heatmap") renderHeatmap();
+      if(viewMode==="strips") renderStrips();
+    });
+  }
+
+
+  // Filters (Where / Tag)
+  const whereFilterEl = document.getElementById("whereFilter");
+  const tagFilterEl = document.getElementById("tagFilter");
+  const clearFiltersBtn = document.getElementById("clearFiltersBtn");
+  updateFilterDropdowns();
+
+  if(whereFilterEl){
+    whereFilterEl.value = doctorWhereFilter;
+    whereFilterEl.addEventListener("change", ()=>{
+      doctorWhereFilter = whereFilterEl.value || "__all__";
+      persistDoctorFilters();
+      refreshHighlight();
+      renderDoctorList();
+      if(viewMode==="heatmap") renderHeatmap();
+      if(viewMode==="strips") renderStrips();
+      if(showAllDoctors) renderCalendar();
+    });
+  }
+  if(tagFilterEl){
+    tagFilterEl.value = doctorTagFilter;
+    tagFilterEl.addEventListener("change", ()=>{
+      doctorTagFilter = tagFilterEl.value || "__all__";
+      persistDoctorFilters();
+      refreshHighlight();
+      renderDoctorList();
+      if(viewMode==="heatmap") renderHeatmap();
+      if(viewMode==="strips") renderStrips();
+      if(showAllDoctors) renderCalendar();
+    });
+  }
+  if(clearFiltersBtn){
+    clearFiltersBtn.addEventListener("click", ()=>{
+      doctorWhereFilter = "__all__";
+      doctorTagFilter = "__all__";
+      persistDoctorFilters();
+      updateFilterDropdowns();
+      refreshHighlight();
+      renderDoctorList();
+      if(viewMode==="heatmap") renderHeatmap();
+      if(viewMode==="strips") renderStrips();
+      if(showAllDoctors) renderCalendar();
+    });
+  }
+
+  // Heatmap sort
+  const hmSortEl = document.getElementById("hmSort");
+  if(hmSortEl){
+    hmSortEl.value = heatmapSort;
+    hmSortEl.addEventListener("change", ()=>{
+      heatmapSort = hmSortEl.value || "alpha";
+      persistHeatmapSort();
+      if(viewMode==="heatmap") renderHeatmap();
+    });
+  }
+
+  updateViews();
+});
+
+/** -----------------------
+ * Undo stack (snapshots)
+ * ----------------------*/
+const UNDO_KEY = "blugibbon_roster_undo_v1";
+const UNDO_MAX = 40;
+let undoStack = [];
+try { undoStack = JSON.parse(localStorage.getItem(UNDO_KEY) || "[]") || []; } catch(e){ undoStack = []; }
+
+function snapshotState(){
+  return {
+    doctors: JSON.parse(JSON.stringify(doctors || [])),
+    events: JSON.parse(JSON.stringify(events || [])),
+    selectedDoctorId: selectedDoctorId ? String(selectedDoctorId) : null,
+    ts: Date.now()
+  };
+}
+function pushUndo(label){
+  // store pre-change state
+  undoStack.push({ label: label || "Change", state: snapshotState() });
+  if(undoStack.length > UNDO_MAX) undoStack = undoStack.slice(undoStack.length - UNDO_MAX);
+  localStorage.setItem(UNDO_KEY, JSON.stringify(undoStack));
+  updateUndoButton();
+  updateActionButtons();
+if(copyAvailBtn) copyAvailBtn.addEventListener('click', copyAvailability);
+if(pasteAvailBtn) pasteAvailBtn.addEventListener('click', pasteAvailability);
+}
+function applyState(snap){
+  doctors = snap.doctors || [];
+  events = snap.events || [];
+  selectedDoctorId = snap.selectedDoctorId;
+  saveDoctors(doctors);
+  saveEvents(events);
+  renderDoctorList();
+  renderHeader();
+  renderCalendar();
+  updateUndoButton();
+}
+
+function clearSelectedRange(){
+  if(!selectedDoctorId){
+    statusChip.textContent = "Select a doctor first";
+    return;
+  }
+  if(!lastSelection || !lastSelection.start || !lastSelection.end){
+    statusChip.textContent = "Select a date range on the calendar first";
+    return;
+  }
+
+  const selStart = normalizeToUTCDate(lastSelection.start);
+  const selEndEx = normalizeToUTCDate(lastSelection.end); // exclusive
+  if(selEndEx.getTime() <= selStart.getTime()){
+    statusChip.textContent = "Invalid selected range";
+    return;
+  }
+
+  // Normalize to UTC dates (yyyy-mm-dd) because we store events as ISO date strings.
+  const selStartISO = selStart.toISOString().slice(0,10);
+  const selEndISO = selEndEx.toISOString().slice(0,10);
+
+  pushUndo("Clear selected range");
+
+  const updated = [];
+  for(const e of events){
+    if(String(e.ahpra_id) !== String(selectedDoctorId)){
+      updated.push(e);
+      continue;
+    }
+    const evStart = String(e.start); // yyyy-mm-dd
+    const evEndEx = String(e.end);   // yyyy-mm-dd exclusive
+
+    // no overlap
+    if(evEndEx <= selStartISO || evStart >= selEndISO){
+      updated.push(e);
+      continue;
+    }
+
+    // overlap exists; may need to trim/split
+    // Left part: [evStart, min(evEndEx, selStartISO))
+    if(evStart < selStartISO){
+      updated.push({
+        ...e,
+        id: uid(),
+        start: evStart,
+        end: selStartISO
+      });
+    }
+    // Right part: [max(evStart, selEndISO), evEndEx)
+    if(evEndEx > selEndISO){
+      updated.push({
+        ...e,
+        id: uid(),
+        start: selEndISO,
+        end: evEndEx
+      });
+    }
+    // If fully covered, nothing is added (effectively deleted)
+  }
+
+  events = updated;
+  saveEvents(events);
+  renderDoctorList();
+  renderCalendar();
+
+  try{
+    const s = formatDateAU(selStart);
+    const eInc = formatDateAU(addDaysUTC(selEndEx, -1));
+    statusChip.textContent = `Cleared: ${s} → ${eInc}`;
+  } catch(e){
+    statusChip.textContent = "Cleared selected range";
+  }
+}
+
+function undo(){
+  const item = undoStack.pop();
+  localStorage.setItem(UNDO_KEY, JSON.stringify(undoStack));
+  if(!item) return;
+  applyState(item.state);
+  statusChip.textContent = "Undid: " + (item.label || "Change");
+}
+function updateUndoButton(){
+  const btn = document.getElementById("undoBtn");
+  if(!btn) return;
+  btn.disabled = undoStack.length === 0;
+  btn.style.opacity = btn.disabled ? "0.5" : "1";
+  // also refresh other action buttons
+  try{ updateActionButtons(); } catch(e){}
+}
+
+function updateActionButtons(){
+  const hasDoc = !!getSelectedDoctor();
+  if(typeof editDoctorBtn !== "undefined" && editDoctorBtn){
+  editDoctorBtn.disabled = !hasDoc;
+  editDoctorBtn.style.opacity = editDoctorBtn.disabled ? "0.5" : "1";
+}
+if(typeof removeDoctorBtn !== "undefined" && removeDoctorBtn){
+    removeDoctorBtn.disabled = !hasDoc;
+    removeDoctorBtn.style.opacity = removeDoctorBtn.disabled ? "0.5" : "1";
+  }
+  if(typeof createBtn !== "undefined" && createBtn){
+    // create requires a doctor + selection
+    const canCreate = (!showAllDoctors) && hasDoc && lastSelection && lastSelection.start && lastSelection.end;
+    createBtn.disabled = !canCreate;
+    createBtn.style.opacity = createBtn.disabled ? "0.5" : "1";
+  }
+  if(typeof clearSelectedBtn !== "undefined" && clearSelectedBtn){
+    const canClear = (!showAllDoctors) && hasDoc && lastSelection && lastSelection.start && lastSelection.end;
+    clearSelectedBtn.disabled = !canClear;
+    clearSelectedBtn.style.opacity = clearSelectedBtn.disabled ? "0.5" : "1";
+  }
+}
+
+let selectedDoctorId = doctors.length ? String(doctors[0].ahpra_id) : null;
+let lastSelection = null; // {start: Date, end: Date} end is exclusive
+
+let showAllDoctors = false;
+let upcomingOnly = false;
+let upcomingDays = 30;
+
+const statusChip = document.getElementById("statusChip");
+const uploadBtn = document.getElementById("uploadBtn");
+const csvFile = document.getElementById("csvFile");
+const replaceToggle = document.getElementById("replaceToggle");
+const addDoctorBtn = document.getElementById("addDoctorBtn");
+const removeDoctorBtn = document.getElementById("removeDoctorBtn");
+const exportBtn = document.getElementById("exportBtn");
+const exportJsonBtn = document.getElementById("exportJsonBtn");
+const importJsonBtn = document.getElementById("importJsonBtn");
+const importJsonInput = document.getElementById("importJsonInput");
+const undoBtn = document.getElementById("undoBtn");
+const createBtn = document.getElementById("createBtn");
+const clearSelectedBtn = document.getElementById("clearSelectedBtn");
+const copyAvailBtn = document.getElementById("copyAvailBtn");
+const pasteAvailBtn = document.getElementById("pasteAvailBtn");
+const toggleAllBtn = document.getElementById("toggleAllBtn");
+const upcomingDaysInput = document.getElementById("upcomingDays");
+const upcomingAvailBtn = document.getElementById("upcomingAvailBtn");
+
+const doctorSearch = document.getElementById("doctorSearch");
+const doctorList = document.getElementById("doctorList");
+
+const selectedDocTitle = document.getElementById("selectedDocTitle");
+const selectedDocSub   = document.getElementById("selectedDocSub");
+const selectedDocId    = document.getElementById("selectedDocId");
+const selectedDocPrefs = document.getElementById("selectedDocPrefs");
+const selectedDocWhere = document.getElementById("selectedDocWhere");
+
+let modalKeyHandler = null;
+const modalBackdrop = document.getElementById("modalBackdrop");
+const modalBody = document.getElementById("modalBody");
+const modalFooter = document.getElementById("modalFooter");
+const modalTitle = document.getElementById("modalTitle");
+document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+modalBackdrop.addEventListener("click", (e)=>{ if(e.target === modalBackdrop) closeModal(); });
+
+function openModal(){ modalBackdrop.style.display = "flex"; }
+function closeModal(){
+  modalBackdrop.style.display = "none";
+  modalBody.innerHTML="";
+  modalFooter.innerHTML="";
+  if(modalKeyHandler){ document.removeEventListener("keydown", modalKeyHandler); modalKeyHandler = null; }
+}
+
+const calendarEl = document.getElementById('calendar');
+const calendar = new FullCalendar.Calendar(calendarEl, {
+  timeZone: 'local',
+  initialView: 'dayGridMonth',
+  headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridDay,timeGridWeek,dayGridMonth,multiMonthYear' },
+  views: { multiMonthYear: { type: 'multiMonth', duration: { months: 12 } } },
+  selectable: true,
+  selectMirror: true,
+  nowIndicator: true,
+  dayMaxEvents: true,
+  firstDay: 1,
+  select: function(info){
+    // store last selected range (end is exclusive)
+    lastSelection = { start: normalizeToUTCDate(info.start), end: normalizeToUTCDate(info.end) };
+    if(!selectedDoctorId){
+      statusChip.textContent = "Select a doctor first";
+      calendar.unselect();
+      return;
+    }
+    try {
+      const s = formatDateAU(lastSelection.start);
+      const eInc = formatDateAU(addDaysUTC(lastSelection.end, -1));
+      statusChip.textContent = `Selected: ${s} → ${eInc}`;
+      updateActionButtons();
+    } catch(e) {}
+    // Do NOT open editor automatically; user clicks Create button
+  }
+,
+    // Clicking a day sets a 1-day selection (useful for Paste start date)
+    dateClick: function(info){
+      const d0 = normalizeToUTCDate(info.date);
+      const d1 = addDaysUTC(d0, 1);
+      lastSelection = { start: d0, end: d1 };
+      if(typeof renderSelectionPill === "function") renderSelectionPill();
+      if(typeof renderSelectedPill === "function") renderSelectedPill();
+      updateActionButtons();
+      statusChip.textContent = `Start date selected: ${formatDateAU(d0)}`;
+    }
+,
+  eventClick: function(info){
+    const evId = info.event.id;
+    const rec = events.find(e => e.id === evId);
+    if(!rec) return;
+    openEventEditor({ mode:"edit", ...rec, start:new Date(rec.start), end:new Date(rec.end) });
+  },
+  events: [],
+  eventDidMount: function(arg){
+    const tip = document.getElementById("fcTooltip");
+    const e = arg.event.extendedProps || {};
+    const title = arg.event.title || e.status || "Status";
+
+    const lines = [];
+    if(e.doctor_name && showAllDoctors) lines.push(`Doctor: ${e.doctor_name}`);
+    if(e.status) lines.push(`Status: ${e.status}`);
+    if(arg.event.startStr) {
+      // startStr might be ISO; show AU format via helper if available
+      try{
+        const s = parseDateAU(String(arg.event.startStr).slice(0,10)) || new Date(arg.event.start);
+        lines.push(`From: ${formatDateAU(s)}`);
+      } catch(_){}
+    }
+    if(arg.event.endStr){
+      try{
+        // endStr is exclusive; show inclusive
+        const endEx = parseDateAU(String(arg.event.endStr).slice(0,10)) || new Date(arg.event.end);
+        const endInc = addDaysUTC(endEx, -1);
+        lines.push(`To: ${formatDateAU(endInc)}`);
+      } catch(_){}
+    }
+    if(e.location) lines.push(`Where: ${e.location}`);
+    if(e.notes) lines.push(`Notes: ${e.notes}`);
+
+    const content = `<div class="t">${esc(title)}</div>` + lines.map(l=>`<div class="row">${esc(l)}</div>`).join("");
+
+    function show(ev){
+      if(!tip) return;
+      tip.innerHTML = content;
+      tip.style.display = "block";
+      move(ev);
+    }
+    function move(ev){
+      if(!tip) return;
+      const pad = 14;
+      const rect = tip.getBoundingClientRect();
+      let x = ev.clientX + pad;
+      let y = ev.clientY + pad;
+      if(x + rect.width > window.innerWidth - 8) x = ev.clientX - rect.width - pad;
+      if(y + rect.height > window.innerHeight - 8) y = ev.clientY - rect.height - pad;
+      tip.style.left = x + "px";
+      tip.style.top = y + "px";
+    }
+    function hide(){
+      if(!tip) return;
+      tip.style.display = "none";
+    }
+
+    arg.el.addEventListener("mouseenter", show);
+    arg.el.addEventListener("mousemove", move);
+    arg.el.addEventListener("mouseleave", hide);
+  }
+});
+calendar.render();
+// ---- Heatmap navigation + mode ----
+const hmPrev  = document.getElementById("hmPrev");
+const hmNext  = document.getElementById("hmNext");
+const hmToday = document.getElementById("hmToday");
+const hmMode  = document.getElementById("hmMode");
+const hmJumpBtn = document.getElementById("hmJumpBtn");
+const hmJumpDate = document.getElementById("hmJumpDate");
+const hmJumpGo   = document.getElementById("hmJumpGo");
+
+function syncHeatmapControls(){
+  try{
+    if(hmMode) hmMode.value = heatmapMode || "weeks";
+  }catch(e){}
+}
+
+if(hmPrev) hmPrev.addEventListener("click", ()=>{ calendar.prev(); if(viewMode==="heatmap") renderHeatmap(); });
+if(hmNext) hmNext.addEventListener("click", ()=>{ calendar.next(); if(viewMode==="heatmap") renderHeatmap(); });
+if(hmToday) hmToday.addEventListener("click", ()=>{ calendar.today(); if(viewMode==="heatmap") renderHeatmap(); });
+
+if(hmMode){
+  hmMode.value = heatmapMode;
+  hmMode.addEventListener("change", ()=>{
+    heatmapMode = hmMode.value || "weeks";
+    localStorage.setItem("bg_heatmap_mode", heatmapMode);
+    if(viewMode==="heatmap") renderHeatmap();
+  });
+}
+
+
+// Heatmap "Jump to" (pick a date and jump to its week/month)
+function setJumpUi(open){
+  if(!hmJumpDate || !hmJumpGo) return;
+  hmJumpDate.style.display = open ? "inline-flex" : "none";
+  hmJumpGo.style.display   = open ? "inline-flex" : "none";
+  if(open) { try{ hmJumpDate.focus(); }catch(e){} }
+}
+
+function doHeatmapJump(){
+  if(!hmJumpDate || !hmJumpDate.value) return;
+  const iso = String(hmJumpDate.value).trim(); // yyyy-mm-dd
+  if(!iso) return;
+  try{
+    // Use UTC midnight so the intended date is stable regardless of local TZ.
+    const dt = parseISODateUTC(iso);
+    calendar.gotoDate(dt);
+    if(viewMode==="heatmap") renderHeatmap();
+    if(viewMode==="strips") renderStrips();
+  }catch(e){}
+}
+
+if(hmJumpBtn){
+  hmJumpBtn.addEventListener("click", ()=>{
+    const isOpen = hmJumpDate && hmJumpDate.style.display !== "none";
+    setJumpUi(!isOpen);
+  });
+}
+if(hmJumpGo) hmJumpGo.addEventListener("click", doHeatmapJump);
+if(hmJumpDate){
+  hmJumpDate.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){ e.preventDefault(); doHeatmapJump(); }
+    if(e.key === "Escape"){ setJumpUi(false); }
+  });
+}
+
+// Keyboard shortcuts (Heatmap only): ← / → / t
+document.addEventListener("keydown", (e)=>{
+  if(viewMode !== "heatmap" && viewMode !== "strips") return;
+  // avoid hijacking typing in inputs
+  const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
+  if(tag === "input" || tag === "textarea" || tag === "select") return;
+
+  if(e.key === "ArrowLeft"){ calendar.prev(); (viewMode==="heatmap"?renderHeatmap():renderStrips()); }
+  else if(e.key === "ArrowRight"){ calendar.next(); (viewMode==="heatmap"?renderHeatmap():renderStrips()); }
+  else if(e.key.toLowerCase() === "t"){ calendar.today(); (viewMode==="heatmap"?renderHeatmap():renderStrips()); }
+});
+
+
+
+// -----------------------
+// Strips date controls (same as heatmap)
+// -----------------------
+const stPrev  = document.getElementById("stPrev");
+const stNext  = document.getElementById("stNext");
+const stToday = document.getElementById("stToday");
+const stMode  = document.getElementById("stMode");
+const stJumpBtn = document.getElementById("stJumpBtn");
+const stJumpDate = document.getElementById("stJumpDate");
+const stJumpGo   = document.getElementById("stJumpGo");
+
+function syncStripsControls(){
+  try{
+    if(stMode) stMode.value = stripsMode || "months";
+  }catch(e){}
+}
+
+if(stPrev)  stPrev.addEventListener("click", ()=>{ calendar.prev();  if(viewMode==="strips") renderStrips(); });
+if(stNext)  stNext.addEventListener("click", ()=>{ calendar.next();  if(viewMode==="strips") renderStrips(); });
+if(stToday) stToday.addEventListener("click", ()=>{ calendar.today(); if(viewMode==="strips") renderStrips(); });
+
+if(stMode){
+  stMode.value = stripsMode;
+  stMode.addEventListener("change", ()=>{
+    stripsMode = stMode.value || "months";
+    localStorage.setItem("bg_strips_mode", stripsMode);
+    if(viewMode==="strips") renderStrips();
+  });
+}
+
+function setStripsJumpUi(open){
+  if(!stJumpDate || !stJumpGo) return;
+  stJumpDate.style.display = open ? "inline-flex" : "none";
+  stJumpGo.style.display   = open ? "inline-flex" : "none";
+  if(open){
+    const base = normalizeToUTCDate(calendar.getDate());
+    stJumpDate.value = base.toISOString().slice(0,10);
+    stJumpDate.focus();
+  }
+}
+
+if(stJumpBtn){
+  stJumpBtn.addEventListener("click", ()=>{
+    const open = (stJumpDate && stJumpDate.style.display==="none");
+    setStripsJumpUi(open);
+  });
+}
+if(stJumpGo){
+  stJumpGo.addEventListener("click", ()=>{
+    if(!stJumpDate || !stJumpDate.value) return;
+    calendar.gotoDate(stJumpDate.value);
+    if(viewMode==="strips") renderStrips();
+    setStripsJumpUi(false);
+  });
+}
+if(stJumpDate){
+  stJumpDate.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){
+      e.preventDefault();
+      if(stJumpGo) stJumpGo.click();
+    } else if(e.key === "Escape"){
+      e.preventDefault();
+      setStripsJumpUi(false);
+    }
+  });
+}
+
+// Bind JSON backup/restore buttons (init)
+try{
+  if(exportJsonBtn) exportJsonBtn.addEventListener('click', exportJSONBackup);
+  if(importJsonBtn) importJsonBtn.addEventListener('click', ()=>{ if(importJsonInput) importJsonInput.click(); });
+  if(importJsonInput) importJsonInput.addEventListener('change', e=>{
+    if(e.target && e.target.files && e.target.files[0]) importJSONBackup(e.target.files[0]);
+    // reset so selecting same file again still triggers change
+    e.target.value = "";
+  });
+}catch(e){}
+
+
+// Bind copy/paste (robust)
+try{
+  if(copyAvailBtn) copyAvailBtn.addEventListener('click', copyAvailability);
+  if(pasteAvailBtn) pasteAvailBtn.addEventListener('click', pasteAvailability);
+}catch(e){}
+
+
+function doctorLabel(d){ return d.name ? d.name : `Doctor ${d.ahpra_id}`; }
+function getSelectedDoctor(){ return doctors.find(d => String(d.ahpra_id) === String(selectedDoctorId)) || null; }
+
+function renderHeader(){
+  if(showAllDoctors){
+    selectedDocTitle.textContent = "All doctors";
+    selectedDocSub.textContent = upcomingOnly
+      ? `Viewing upcoming availability only (next ${upcomingDays} day(s)).`
+      : "Viewing every doctor’s blocks together on one calendar. Select a doctor to return, or toggle off All doctors view.";
+    selectedDocId.textContent = "AHPRA: —";
+    selectedDocPrefs.textContent = "Prefs: —";
+    selectedDocWhere.textContent = "Where: —";
+    return;
+  }
+  const d = getSelectedDoctor();
+  if(!d){
+    selectedDocTitle.textContent = "Select a doctor";
+    selectedDocSub.textContent = "Upload CSV, then click a doctor on the left. Dates are interpreted as dd/mm/yy.";
+    selectedDocId.textContent = "AHPRA: —";
+    selectedDocPrefs.textContent = "Prefs: —";
+    selectedDocWhere.textContent = "Where: —";
+    return;
+  }
+  selectedDocTitle.textContent = doctorLabel(d);
+  const parts = [];
+  if(d.specialty) parts.push(d.specialty);
+  if(d.pgy) parts.push(`PGY ${d.pgy}`);
+  if(d.level) parts.push(d.level);
+  if(d.tags && d.tags.length) parts.push(`Tags: ${d.tags.join(", ")}`);
+  selectedDocSub.textContent = parts.length ? parts.join(" • ") : "—";
+  selectedDocId.textContent = `AHPRA: ${d.ahpra_id}`;
+  selectedDocPrefs.textContent = `Prefs: ${d.prefs || "—"}`;
+  selectedDocWhere.textContent = `Where: ${d.where || "—"}`;
+}
+
+function renderDoctorList(){
+  const q = (doctorSearch.value||"").trim().toLowerCase();
+
+  // Build upcoming window + counts when in Upcoming Availability (All doctors) mode
+  let upcomingMeta = null; // {startISO,endISO,counts: Map<ahpra_id, daysCount>}
+  if(showAllDoctors && upcomingOnly){
+    const days = Math.max(1, parseInt(upcomingDays, 10) || 30);
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const end = new Date(start); end.setUTCDate(end.getUTCDate() + days);
+    const startISO = start.toISOString().slice(0,10);
+    const endISO = end.toISOString().slice(0,10);
+    const allowed = new Set(["Available","Tentative"]);
+    const counts = new Map();
+
+    // Count overlapping days for each doctor (rough but useful for sorting)
+    for(const e of events){
+      if(!allowed.has(String(e.status||""))) continue;
+      const evStart = String(e.start||"");
+      const evEndEx = String(e.end||""); // exclusive
+      if(!evStart || !evEndEx) continue;
+      if(!(evEndEx > startISO && evStart < endISO)) continue;
+
+      const s = (evStart < startISO) ? startISO : evStart;
+      const ex = (evEndEx > endISO) ? endISO : evEndEx;
+
+      // day count = difference in days between ISO dates (exclusive end)
+      const sD = parseISODateUTC(s);
+      const eD = parseISODateUTC(ex);
+      const dayCount = Math.max(1, Math.round((eD.getTime() - sD.getTime()) / (24*3600*1000)));
+
+      const key = String(e.ahpra_id);
+      counts.set(key, (counts.get(key)||0) + dayCount);
+    }
+
+    upcomingMeta = {startISO, endISO, counts};
+  }
+
+  let list = getFilteredDoctors({ includeSearch:true })
+    .slice()
+    .sort((a,b)=>doctorLabel(a).localeCompare(doctorLabel(b)));
+
+  // If in upcoming mode, show ONLY doctors with upcoming availability and sort by most available first.
+  if(upcomingMeta){
+    list = list
+      .map(d=>{
+        const key = String(d.ahpra_id);
+        return {d, u: (upcomingMeta.counts.get(key)||0)};
+      })
+      .filter(x=>x.u > 0)
+      .sort((a,b)=> (b.u - a.u) || doctorLabel(a.d).localeCompare(doctorLabel(b.d)))
+      .map(x=>x.d);
+  }
+
+  doctorList.innerHTML = "";
+
+  for(const d of list){
+    const countAll = events.filter(e=>String(e.ahpra_id)===String(d.ahpra_id)).length;
+    const uCount = upcomingMeta ? (upcomingMeta.counts.get(String(d.ahpra_id))||0) : 0;
+
+    const div = document.createElement("div");
+    div.className = "docItem" + (String(d.ahpra_id)===String(selectedDoctorId) && !showAllDoctors ? " active" : "");
+    div.innerHTML = `
+      <div class="docLeft">
+        <div class="docName">${esc(d.name || "(no name)")}</div>
+        <div class="docMeta">AHPRA ${esc(d.ahpra_id || "")}</div>
+        <div class="docMeta">${esc([d.specialty, d.prefs, d.pgy ? `PGY ${d.pgy}`:"", d.level].filter(Boolean).join(" • "))}</div>
+        </div>
+      <div class="docRight">
+        <span class="badge">${upcomingMeta ? `${uCount} day(s)` : `${countAll} block(s)`}</span>
+        <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+          <button class="miniBtn" type="button" data-action="copy14" title="Copy this doctor's next 14 days availability">Copy 14d</button>
+          <button class="miniBtn danger" type="button" data-action="clearmonth" title="Clear this doctor's blocks for the visible month">Clear month</button>
+          <button class="miniBtn" type="button" data-action="unavailmonth" title="Set this doctor as Unavailable for the visible month">Unavailable month</button>
+          <button class="miniBtn" type="button" data-action="duplast" title="Duplicate last month's blocks into this month">Duplicate last</button>
+        </div>
+        ${
+          d.clickup_url
+            ? `<div style="margin-top:6px">
+                 <a class="btn-clickup" href="${esc(d.clickup_url)}" target="_blank" rel="noopener noreferrer">Open in ClickUp</a>
+               </div>`
+            : ``
+        }
+      </div>
+    `;
+
+    // Quick actions (row buttons)
+    div.querySelectorAll("button[data-action]").forEach(btn=>{
+      btn.addEventListener("click", (ev)=>{
+        ev.stopPropagation();
+        const action = btn.getAttribute("data-action");
+        handleDoctorRowAction(String(d.ahpra_id), action);
+      });
+    });
+
+    div.addEventListener("click", ()=>{
+      // selecting a doctor exits all-doctors and upcoming modes (existing behavior)
+      upcomingOnly = false;
+      if(upcomingAvailBtn) upcomingAvailBtn.classList.remove("primary");
+      showAllDoctors = false;
+      if(toggleAllBtn) toggleAllBtn.classList.remove("primary");
+      selectedDoctorId = String(d.ahpra_id);
+      renderHeader();
+      renderDoctorList();
+      renderCalendar();
+      updateActionButtons();
+    });
+
+    doctorList.appendChild(div);
+  }
+
+  // If upcoming mode and nothing matched, give a clear hint
+  if(upcomingMeta && list.length === 0){
+    const empty = document.createElement("div");
+    empty.className = "hint";
+    empty.style.padding = "10px";
+    empty.textContent = "No doctors have availability in the selected upcoming window.";
+    doctorList.appendChild(empty);
+  }
+}
+
+
+// ===== Copy / Paste Availability =====
+let copiedAvailabilityBuffer = null; // {sourceStartISO, items:[{relStart, relEnd, status, title, location, notes}]}
+
+function isoToDateUTC(iso){
+  return new Date(String(iso) + "T00:00:00Z");
+}
+function addDaysISO(iso, days){
+  const d = isoToDateUTC(iso);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0,10);
+}
+function diffDaysISO(aISO, bISO){
+  // returns (a - b) in whole days
+  const a = isoToDateUTC(aISO).getTime();
+  const b = isoToDateUTC(bISO).getTime();
+  return Math.round((a - b) / (24*3600*1000));
+}
+
+function copyAvailability(){
+  const d = getSelectedDoctor();
+  if(!d || !selectedDoctorId){
+    statusChip.textContent = "Select a doctor first.";
+    return;
+  }
+  if(!lastSelection || !lastSelection.start || !lastSelection.end){
+    statusChip.textContent = "Select a date range first.";
+    return;
+  }
+
+  const sourceStartISO = normalizeToUTCDate(lastSelection.start).toISOString().slice(0,10);
+  const sourceEndISO   = normalizeToUTCDate(lastSelection.end).toISOString().slice(0,10); // exclusive
+
+  // Copy ONLY this doctor's blocks that overlap the selected range
+  const sel = events
+    .filter(e => String(e.ahpra_id) === String(selectedDoctorId))
+    .filter(e => e.start < sourceEndISO && e.end > sourceStartISO);
+
+  if(!sel.length){
+    statusChip.textContent = "No blocks in selected range for this doctor.";
+    return;
+  }
+
+  // Store as relative offsets from the selected range start, preserving exact start/end
+  const items = sel.map(e=>({
+    relStart: diffDaysISO(e.start, sourceStartISO),
+    relEnd: diffDaysISO(e.end, sourceStartISO), // exclusive
+    status: e.status,
+    title: e.title,
+    location: e.location,
+    notes: e.notes
+  })).sort((a,b)=>a.relStart-b.relStart);
+
+  copiedAvailabilityBuffer = { sourceStartISO, items };
+
+  // Best-effort: also put on clipboard (may be blocked when running from file://)
+  const payloadForClipboard = { type:"bg_availability_v1", sourceStartISO, items };
+  try{
+    navigator.clipboard.writeText(JSON.stringify(payloadForClipboard, null, 2));
+    statusChip.textContent = `Copied ${items.length} block(s) (${diffDaysISO(sourceEndISO, sourceStartISO)} day window)`;
+  }catch{
+    statusChip.textContent = `Copied ${items.length} block(s) (saved in tool)`;
+  }
+}
+
+async function pasteAvailability(){
+  const d = getSelectedDoctor();
+  if(!d || !selectedDoctorId){
+    statusChip.textContent = "Select a doctor first.";
+    return;
+  }
+  let targetStartISO;
+  if(!lastSelection || !lastSelection.start){
+    // Fallback: use the calendar's current focus date
+    try{
+      const d0 = normalizeToUTCDate(calendar.getDate());
+      const d1 = addDaysUTC(d0,1);
+      lastSelection = {start:d0, end:d1};
+      if(typeof renderSelectionPill === "function") renderSelectionPill();
+      if(typeof renderSelectedPill === "function") renderSelectedPill();
+      targetStartISO = d0.toISOString().slice(0,10);
+      statusChip.textContent = `No start date selected — using ${formatDateAU(d0)}.`;
+    }catch(e){
+      statusChip.textContent = "Select the START date (click a day) then paste.";
+      return;
+    }
+  } else {
+    targetStartISO = normalizeToUTCDate(lastSelection.start).toISOString().slice(0,10);
+  }
+
+  // Prefer in-tool buffer; fallback to clipboard
+  let buf = copiedAvailabilityBuffer;
+  if(!buf){
+    try{
+      const text = await navigator.clipboard.readText();
+      const parsed = JSON.parse(text);
+      if(parsed && parsed.type === "bg_availability_v1" && Array.isArray(parsed.items)){
+        buf = { sourceStartISO: parsed.sourceStartISO, items: parsed.items };
+      }
+    }catch(e){}
+  }
+  if(!buf || !buf.items || !buf.items.length){
+    statusChip.textContent = "Nothing to paste. Copy availability first.";
+    return;
+  }
+
+  pushUndo("Paste availability");
+
+  let created = 0;
+  for(const it of buf.items){
+    const startISO = addDaysISO(targetStartISO, it.relStart);
+    const endISO   = addDaysISO(targetStartISO, it.relEnd); // exclusive
+
+    const ev = {
+      id: uid(),
+      ahpra_id: String(selectedDoctorId),
+      status: it.status,
+      title: it.title,
+      location: it.location,
+      notes: it.notes,
+      start: startISO,
+      end: endISO
+    };
+
+    // Override anything overlapping for this doctor in that range
+    applyRangeOverride(String(selectedDoctorId), startISO, endISO, ev, null);
+    created++;
+  }
+
+  saveEvents(events);
+  renderDoctorList();
+  renderCalendar();
+  statusChip.textContent = `Pasted ${created} block(s) starting ${targetStartISO}`;
+}
+
+
+
+// ===== Doctor quick actions =====
+function getVisibleMonthRangeISO(){
+  const {monthStartISO, monthEndExISO, y, m} = getActiveMonthRange();
+  const monthName = new Date(Date.UTC(y,m,1)).toLocaleString("en-AU",{month:"long", year:"numeric", timeZone:"UTC"});
+  return { monthStartISO, monthEndExISO, monthName };
+}
+
+function clearRangeForDoctor(doctorId, startISO, endExISO){
+  const updated = [];
+  for(const e of events){
+    if(String(e.ahpra_id) !== String(doctorId)){
+      updated.push(e);
+      continue;
+    }
+    const evStart = String(e.start);
+    const evEndEx = String(e.end);
+
+    // no overlap
+    if(evEndEx <= startISO || evStart >= endExISO){
+      updated.push(e);
+      continue;
+    }
+    // overlap -> keep left part
+    if(evStart < startISO){
+      updated.push({ ...e, id: uid(), start: evStart, end: startISO });
+    }
+    // keep right part
+    if(evEndEx > endExISO){
+      updated.push({ ...e, id: uid(), start: endExISO, end: evEndEx });
+    }
+  }
+  events = updated;
+}
+
+function setUnavailableMonth(doctorId){
+  const {monthStartISO, monthEndExISO, monthName} = getVisibleMonthRangeISO();
+  pushUndo("Set unavailable for month");
+
+  // Clear anything in month then set one block
+  clearRangeForDoctor(doctorId, monthStartISO, monthEndExISO);
+
+  const ev = {
+    id: uid(),
+    ahpra_id: String(doctorId),
+    status: "Unavailable",
+    title: "Unavailable",
+    location: "",
+    notes: "",
+    start: monthStartISO,
+    end: monthEndExISO
+  };
+  applyRangeOverride(String(doctorId), monthStartISO, monthEndExISO, ev, null);
+
+  saveEvents(events);
+  renderDoctorList();
+  renderCalendar();
+  statusChip.textContent = `Set Unavailable: ${monthName}`;
+}
+
+function clearMonth(doctorId){
+  const {monthStartISO, monthEndExISO, monthName} = getVisibleMonthRangeISO();
+  pushUndo("Clear month");
+  clearRangeForDoctor(doctorId, monthStartISO, monthEndExISO);
+  saveEvents(events);
+  renderDoctorList();
+  renderCalendar();
+  statusChip.textContent = `Cleared: ${monthName}`;
+}
+
+function copyNext14Days(doctorId){
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const endEx = new Date(start); endEx.setUTCDate(endEx.getUTCDate()+14);
+  const startISO = start.toISOString().slice(0,10);
+  const endISO = endEx.toISOString().slice(0,10);
+
+  const sel = events
+    .filter(e => String(e.ahpra_id) === String(doctorId))
+    .filter(e => e.start < endISO && e.end > startISO);
+
+  if(!sel.length){
+    statusChip.textContent = "No blocks in next 14 days for this doctor.";
+    return;
+  }
+
+  const items = sel.map(e=>({
+    relStart: diffDaysISO(e.start, startISO),
+    relEnd: diffDaysISO(e.end, startISO),
+    status: e.status,
+    title: e.title,
+    location: e.location,
+    notes: e.notes
+  })).sort((a,b)=>a.relStart-b.relStart);
+
+  copiedAvailabilityBuffer = { sourceStartISO: startISO, items };
+
+  try{
+    navigator.clipboard.writeText(JSON.stringify({type:"bg_availability_v1", sourceStartISO:startISO, items}, null, 2));
+    statusChip.textContent = `Copied ${items.length} block(s) (next 14 days)`;
+  }catch{
+    statusChip.textContent = `Copied ${items.length} block(s) (next 14 days)`;
+  }
+}
+
+function duplicateLastMonth(doctorId){
+  const baseLocal = calendar?.getDate ? calendar.getDate() : new Date();
+  const y = baseLocal.getFullYear();
+  const m = baseLocal.getMonth();
+
+  const curStart = new Date(Date.UTC(y,m,1));
+  const curEndEx = new Date(Date.UTC(y,m+1,1));
+  const prevStart = new Date(Date.UTC(y,m-1,1));
+  const prevEndEx = new Date(Date.UTC(y,m,1));
+
+  const curStartISO = curStart.toISOString().slice(0,10);
+  const curEndISO = curEndEx.toISOString().slice(0,10);
+  const prevStartISO = prevStart.toISOString().slice(0,10);
+  const prevEndISO = prevEndEx.toISOString().slice(0,10);
+
+  const shiftDays = diffDaysISO(curStartISO, prevStartISO);
+
+  // Take blocks that overlap prev month, clamp to prev month, then shift into current month and clamp.
+  const src = events
+    .filter(e=>String(e.ahpra_id)===String(doctorId))
+    .filter(e=> String(e.end) > prevStartISO && String(e.start) < prevEndISO);
+
+  if(!src.length){
+    statusChip.textContent = "Nothing to duplicate from last month for this doctor.";
+    return;
+  }
+
+  pushUndo("Duplicate last month");
+
+  let created = 0;
+  for(const e of src){
+    const s = String(e.start);
+    const ex = String(e.end);
+    const [cs, ce] = clampRangeToMonth(s, ex, prevStartISO, prevEndISO);
+    if(!(ce > cs)) continue;
+
+    let ns = addDaysISO(cs, shiftDays);
+    let ne = addDaysISO(ce, shiftDays);
+
+    // Clamp into current month
+    if(ne <= curStartISO || ns >= curEndISO) continue;
+    ns = ns < curStartISO ? curStartISO : ns;
+    ne = ne > curEndISO ? curEndISO : ne;
+    if(!(ne > ns)) continue;
+
+    const ev = {
+      id: uid(),
+      ahpra_id: String(doctorId),
+      status: e.status,
+      title: e.title,
+      location: e.location,
+      notes: e.notes,
+      start: ns,
+      end: ne
+    };
+    applyRangeOverride(String(doctorId), ns, ne, ev, null);
+    created++;
+  }
+
+  saveEvents(events);
+  renderDoctorList();
+  renderCalendar();
+
+  const monthName = new Date(Date.UTC(y,m,1)).toLocaleString("en-AU",{month:"long", year:"numeric", timeZone:"UTC"});
+  statusChip.textContent = `Duplicated ${created} block(s) into ${monthName}`;
+}
+
+function handleDoctorRowAction(doctorId, action){
+  if(!doctorId || !action) return;
+  // Keep current view, but ensure we can perform actions without leaving All Doctors.
+  if(action === "copy14") return copyNext14Days(doctorId);
+  if(action === "clearmonth") return clearMonth(doctorId);
+  if(action === "unavailmonth") return setUnavailableMonth(doctorId);
+  if(action === "duplast") return duplicateLastMonth(doctorId);
+}
+
+// ===== JSON Backup / Restore =====
+function exportJSONBackup(){
+  const payload = {
+    version: "bg_availability_v1",
+    exportedAt: new Date().toISOString(),
+    doctors,
+    events
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `blugibbon_availability_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  statusChip.textContent = "JSON backup downloaded";
+}
+
+function importJSONBackup(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data || !Array.isArray(data.doctors) || !Array.isArray(data.events)){
+        throw new Error("Invalid");
+      }
+      pushUndo("Restore JSON backup");
+      doctors = data.doctors;
+      events = data.events;
+      saveDoctors(doctors);
+      saveEvents(events);
+      selectedDoctorId = null;
+      showAllDoctors = false;
+      upcomingOnly = false;
+      renderHeader();
+      renderDoctorList();
+      renderCalendar();
+      updateActionButtons();
+      statusChip.textContent = "JSON backup restored successfully";
+    }catch(err){
+      alert("Invalid JSON backup file");
+    }
+  };
+  reader.readAsText(file);
+}
+function renderCalendar(){
+  const d = getSelectedDoctor();
+  const docById = new Map(doctors.map(x=>[String(x.ahpra_id), x]));
+  let shown = showAllDoctors ? events : (d ? events.filter(e => String(e.ahpra_id) === String(d.ahpra_id)) : []);
+  if(showAllDoctors && upcomingOnly){
+    const days = Math.max(1, parseInt(upcomingDays, 10) || 30);
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const end = new Date(start); end.setUTCDate(end.getUTCDate() + days);
+    const startISO = start.toISOString().slice(0,10);
+    const endISO = end.toISOString().slice(0,10);
+    const allowed = new Set(["Available","Tentative"]); // "availability"
+    shown = shown.filter(e=>{
+      const st = String(e.status||"");
+      if(!allowed.has(st)) return false;
+      const evStart = String(e.start||"");
+      const evEndEx = String(e.end||"");
+      // overlap with [startISO, endISO)
+      return (evEndEx > startISO) && (evStart < endISO);
+    });
+  }
+
+  // Apply overlay toggles (Bookings vs Availability)
+  shown = shown.filter(e=>{
+    const st = String(e.status||"");
+    if(st === BOOKED_STATUS) return showBookingsOverlay;
+    return showAvailabilityOverlay;
+  });
+
+  calendar.removeAllEvents();
+  for(const e of shown){
+    calendar.addEvent({
+      id: e.id,
+      title: (showAllDoctors
+        ? (()=>{
+            const dd = docById.get(String(e.ahpra_id)) || {};
+            const nm = (dd.name || dd.ahpra_id || "Doctor");
+            const base = (e.title ? (e.location ? `${e.title} - ${e.location}` : e.title) : (e.location ? `${e.status} - ${e.location}` : (e.status || "Status")));
+            return `${nm}: ${base}`;
+          })()
+        : (e.title ? (e.location ? `${e.title} - ${e.location}` : e.title) : (e.location ? `${e.status} - ${e.location}` : (e.status || "Status")))
+      ),
+      start: e.start,
+      end: e.end,
+      classNames: (showAllDoctors && highlightQuery && highlightIds && highlightIds.size ? [(highlightIds.has(String(e.ahpra_id))) ? "bg-hl-match" : "bg-hl-dim"] : []),
+      backgroundColor: STATUS_COLOR[e.status] || "#111",
+      borderColor: STATUS_COLOR[e.status] || "#111",
+      textColor: "#fff",
+      extendedProps: { status: e.status, notes: e.notes, location: e.location, doctor_name: (docById.get(String(e.ahpra_id))?.name || String(e.ahpra_id)) }
+    });
+  }
+}
+
+function openEventEditor(payload){
+  const d = doctors.find(x => String(x.ahpra_id) === String(payload.ahpra_id));
+  if(!d) return;
+
+  const mode = payload.mode;
+  const start = payload.start;
+  const end = payload.end;
+
+  modalTitle.textContent = (mode === "create") ? "Add status block" : "Edit status block";
+
+  const statusOptions = STATUS.map(s => `<option value="${esc(s.key)}">${esc(s.key)}</option>`).join("");
+  const startStr = formatDateAU(start);
+  const endStrExclusive = formatDateAU(addDaysUTC(end, -1));
+
+  const defaultStatus = payload.status || "Booked";
+  const defaultLocation = payload.location || "";
+  const defaultNotes = payload.notes || "";
+  const defaultTitle = payload.title || "";
+
+  modalBody.innerHTML = `
+    <div class="field full">
+      <label>Doctor</label>
+      <input value="${esc(doctorLabel(d))} (AHPRA ${esc(d.ahpra_id)})" disabled />
+    </div>
+    <div class="field">
+      <label>Start (dd/mm/yyyy)</label>
+      <input id="evStart" value="${esc(startStr)}" />
+    </div>
+    <div class="field">
+      <label>End (dd/mm/yyyy)</label>
+      <input id="evEnd" value="${esc(endStrExclusive)}" />
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <select id="evStatus">${statusOptions}</select>
+    </div>
+    <div class="field">
+      <label>Title (optional)</label>
+      <input id="evTitle" value="${esc(defaultTitle)}" placeholder="e.g., Booked – Port Hedland" />
+    </div>
+    <div class="field full">
+      <label>Where / working location (optional)</label>
+      <input id="evLocation" value="${esc(defaultLocation)}" placeholder="e.g., Port Hedland, WA • ED" />
+    </div>
+    <div class="field full">
+      <label>Notes (optional)</label>
+      <textarea id="evNotes" placeholder="Why off, roster notes, contact details...">${esc(defaultNotes)}</textarea>
+    </div>
+    
+    ${mode === "create" ? `
+    <div class="field full" style="border-top:1px dashed #e7e7e7; padding-top:10px; margin-top:6px;">
+      <label style="margin-bottom:6px;">Recurring pattern (optional)</label>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <select id="evRecurrence" style="flex:1; min-width:220px;">
+          <option value="none">No recurrence</option>
+          <option value="1on1off">Week on / week off</option>
+          <option value="2on2off">2 weeks on / 2 weeks off</option>
+          <option value="custom">Custom on/off</option>
+        </select>
+        <input id="evRepeatCycles" type="number" min="1" step="1" value="1" style="width:140px;" title="Number of ON blocks to create" />
+        <div id="evCustomWrap" style="display:none; width:100%; margin-top:8px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <input id="evOnLen" type="number" min="1" step="1" value="7" style="width:120px;" title="ON length" />
+            <span class="hint" style="margin:0;">ON</span>
+            <input id="evOffLen" type="number" min="0" step="1" value="7" style="width:120px;" title="OFF length" />
+            <span class="hint" style="margin:0;">OFF</span>
+            <select id="evLenUnit" style="width:140px;">
+              <option value="days">days</option>
+              <option value="weeks">weeks</option>
+            </select>
+            <span class="hint" style="margin:0;">(ON range auto-updates End date)</span>
+          </div>
+        </div>
+      </div>
+      <div class="hint" style="margin-top:6px;">
+        How it works: select your ON date range above, then choose a pattern and set how many ON blocks to create (e.g., 6).
+      </div>
+    </div>
+    ` : ``}
+
+    <div class="hint full">End date is inclusive here. Internally we store end as “next day”.</div>
+  `;
+  document.getElementById("evStatus").value = defaultStatus;
+
+  // Recurrence UI wiring (create mode only)
+  if(mode === "create"){
+    const recSel = document.getElementById("evRecurrence");
+    const customWrap = document.getElementById("evCustomWrap");
+    const onLenEl = document.getElementById("evOnLen");
+    const offLenEl = document.getElementById("evOffLen");
+    const unitEl = document.getElementById("evLenUnit");
+    const startEl = document.getElementById("evStart");
+    const endEl = document.getElementById("evEnd");
+
+    function toDays(v, unit){
+      const n = Math.max(0, parseInt(v, 10) || 0);
+      return (unit === "weeks") ? (n * 7) : n;
+    }
+    function updateEndFromCustom(){
+      if(!recSel || recSel.value !== "custom") return;
+      const s = parseDateAU(startEl?.value);
+      if(!s) return;
+      const unit = unitEl?.value || "days";
+      const onDays = Math.max(1, toDays(onLenEl?.value, unit));
+      const endInc = addDaysUTC(normalizeToUTCDate(s), onDays - 1);
+      endEl.value = formatDateAU(endInc);
+    }
+    function syncPresetToCustomDefaults(){
+      // When choosing a preset, set custom defaults to match (for easy tweaking)
+      const s = parseDateAU(startEl?.value);
+      const e = parseDateAU(endEl?.value);
+      if(!s || !e) return;
+      const onDays = Math.max(1, Math.round((normalizeToUTCDate(addDaysUTC(e,1)).getTime() - normalizeToUTCDate(s).getTime()) / (24*3600*1000)));
+      onLenEl.value = String(onDays);
+      offLenEl.value = String(onDays);
+      unitEl.value = "days";
+    }
+    function applyRecUI(){
+      if(!recSel) return;
+      const isCustom = recSel.value === "custom";
+      if(customWrap) customWrap.style.display = isCustom ? "block" : "none";
+      if(!isCustom){
+        // keep defaults aligned
+        syncPresetToCustomDefaults();
+      } else {
+        updateEndFromCustom();
+      }
+      updateActionButtons();
+    }
+    recSel?.addEventListener("change", applyRecUI);
+    onLenEl?.addEventListener("input", updateEndFromCustom);
+    unitEl?.addEventListener("change", updateEndFromCustom);
+    startEl?.addEventListener("change", updateEndFromCustom);
+    applyRecUI();
+  }
+
+  modalFooter.innerHTML = `
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+      ${mode === "edit" ? `<button class="danger" id="deleteBtn">Delete</button>` : `<span class="hint"> </span>`}
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="ghost" id="cancelBtn">Cancel</button>
+      <button class="primary" id="saveBtn">Save</button>
+    </div>
+  `;
+
+  document.getElementById("cancelBtn").addEventListener("click", ()=>{ closeModal(); calendar.unselect(); });
+  document.getElementById("saveBtn").addEventListener("click", ()=>{
+    /* save handled below */
+    const sStart = parseDateAU(document.getElementById("evStart").value);
+    const sEndInc = parseDateAU(document.getElementById("evEnd").value);
+    if(!sStart || !sEndInc){ statusChip.textContent = "Invalid date(s). Use dd/mm/yyyy."; return; }
+    const sEndEx = addDaysUTC(sEndInc, 1);
+    if(sEndEx.getTime() <= sStart.getTime()){ statusChip.textContent = "End must be after start."; return; }
+
+    const __onDays = Math.round((normalizeToUTCDate(sEndEx).getTime() - normalizeToUTCDate(sStart).getTime()) / (24*3600*1000));
+    if(__onDays <= 0){ statusChip.textContent = "Select at least 1 day."; return; }
+
+    const status = document.getElementById("evStatus").value;
+    const title = (document.getElementById("evTitle").value||"").trim();
+    const location = (document.getElementById("evLocation").value||"").trim();
+    const notes = (document.getElementById("evNotes").value||"").trim();
+
+    // Recurrence (create mode only)
+    const recMode = (mode === "create" && document.getElementById("evRecurrence")) ? document.getElementById("evRecurrence").value : "none";
+    const repeatCycles = (mode === "create" && document.getElementById("evRepeatCycles")) ? Math.max(1, parseInt(document.getElementById("evRepeatCycles").value, 10) || 1) : 1;
+
+    pushUndo(mode === "create" ? "Add/override block" : "Edit/override block");
+
+    const startISO = normalizeToUTCDate(sStart).toISOString().slice(0,10);
+    const endISO = normalizeToUTCDate(sEndEx).toISOString().slice(0,10); // exclusive
+
+    // Build one or many ON blocks
+    let onDays = Math.round((normalizeToUTCDate(sEndEx).getTime() - normalizeToUTCDate(sStart).getTime()) / (24*3600*1000));
+    let offDays = 0;
+
+    if(recMode === "custom"){
+      const unit = (document.getElementById("evLenUnit")?.value || "days");
+      const toDays = (v)=>{
+        const n = Math.max(0, parseInt(v, 10) || 0);
+        return (unit === "weeks") ? (n * 7) : n;
+      };
+      onDays = Math.max(1, toDays(document.getElementById("evOnLen")?.value));
+      offDays = Math.max(0, toDays(document.getElementById("evOffLen")?.value));
+    } else if(recMode === "1on1off" || recMode === "2on2off"){
+      // Presets: OFF equals ON length (based on your selected ON range)
+      offDays = onDays;
+    }
+
+    const stepDays = onDays + offDays;
+
+    const blocksToCreate = (recMode === "none") ? 1 : repeatCycles;
+
+    for(let k=0; k<blocksToCreate; k++){
+      const blkStart = addDaysUTC(normalizeToUTCDate(sStart), k * stepDays);
+      const blkEndEx = addDaysUTC(blkStart, onDays);
+
+      const blkStartISO = blkStart.toISOString().slice(0,10);
+      const blkEndISO   = blkEndEx.toISOString().slice(0,10);
+
+      const newId = (mode === "edit" && payload.id && k===0) ? payload.id : uid();
+
+      const newEvent = {
+        id: newId,
+        ahpra_id: String(payload.ahpra_id),
+        status,
+        title: title || status,
+        location,
+        notes,
+        start: blkStartISO,
+        end: blkEndISO
+      };
+
+      // Enforce only one status per day: override any overlapping blocks for this doctor.
+      applyRangeOverride(String(payload.ahpra_id), blkStartISO, blkEndISO, newEvent, (mode === "edit" && k===0 ? payload.id : null));
+    }
+
+    saveEvents(events);
+    closeModal();
+    calendar.unselect();
+    renderDoctorList();
+    renderCalendar();
+
+    if(recMode !== "none" && blocksToCreate > 1){
+      statusChip.textContent = `Saved ${blocksToCreate} recurring block(s)`;
+    } else {
+      statusChip.textContent = "Saved";
+    }
+  });
+
+
+  if(mode === "edit"){
+    document.getElementById("deleteBtn").addEventListener("click", ()=>{
+      pushUndo("Delete block");
+      events = events.filter(e => e.id !== payload.id);
+      saveEvents(events);
+      closeModal();
+      renderDoctorList();
+      renderCalendar();
+      statusChip.textContent = "Deleted";
+    });
+  }
+  // Keyboard shortcut: Ctrl+Enter (Windows/Linux) or Cmd+Enter (Mac) to Save
+  if(modalKeyHandler){ document.removeEventListener("keydown", modalKeyHandler); }
+  modalKeyHandler = function(ev){
+    if((ev.ctrlKey || ev.metaKey) && (ev.key === "Enter" || ev.code === "Enter" || ev.code === "NumpadEnter")){
+      ev.preventDefault();
+      const btn = document.getElementById("saveBtn");
+      if(btn && !btn.disabled){ btn.click(); }
+    }
+  };
+  document.addEventListener("keydown", modalKeyHandler);
+
+  openModal();
+}
+
+function openDoctorEditor(existing){
+  const isEdit = !!existing;
+  modalTitle.textContent = isEdit ? "Edit doctor" : "Add doctor";
+
+  modalBody.innerHTML = `
+    <div class="field">
+      <label>AHPRA Registration (unique ID)</label>
+      <input id="docId" value="${esc(existing?.ahpra_id || "")}" placeholder="e.g., MED0001234567" ${isEdit ? "disabled" : ""}/>
+    </div>
+    <div class="field">
+      <label>Name</label>
+      <input id="docName" value="${esc(existing?.name || "")}" placeholder="e.g., Dr Jane Smith"/>
+    </div>
+    <div class="field full">
+      <label>ClickUp Task URL (optional)</label>
+      <input
+        id="docClickUp"
+        value="${esc(existing?.clickup_url || "")}"
+        placeholder="https://app.clickup.com/t/xxxxxxxx"
+      />
+    </div>
+    <div class="field full">
+      <label>Preferences (optional)</label>
+      <input id="docPrefs" value="${esc(existing?.prefs || "")}" placeholder="e.g., ED • nights ok • solo RG"/>
+    </div>
+    <div class="field full">
+      <label>Where they want to work (optional)</label>
+      <input id="docWhere" value="${esc(existing?.where || "")}" placeholder="e.g., NSW rural • WA Pilbara • coastal"/>
+    </div>
+    <div class="field">
+      <label>Specialty (e.g., ED, GP, MED, ICU)</label>
+      <input id="docSpec" value="${esc(existing?.specialty || "")}" placeholder="e.g., ED, GP, MED"/>
+    </div>
+    <div class="field">
+      <label>PGY (optional)</label>
+      <input id="docPgy" value="${esc(existing?.pgy || "")}" placeholder="e.g., 3 or 10+"/>
+    </div>
+    <div class="field">
+      <label>Level</label>
+      <select id="docLevel">
+        <option value="Junior">Junior</option>
+        <option value="Senior">Senior</option>
+        <option value="Specialist">Specialist</option>
+      </select>
+    </div>
+    <div class="field full">
+      <label>Tags (comma separated)</label>
+      <input id="docTags" value="${esc((existing?.tags || []).join(", "))}" placeholder="e.g., ED, GP, Rural Gen, NSW, WA"/>
+    </div>
+  `;
+
+  modalFooter.innerHTML = `
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+      ${isEdit ? `<button class="danger" id="deleteDocBtn">Delete doctor</button>` : `<span class="hint"> </span>`}
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="ghost" id="cancelDocBtn">Cancel</button>
+      <button class="primary" id="saveDocBtn">Save</button>
+    </div>
+  `;
+
+  // default Level selection
+  try{ document.getElementById("docLevel").value = (existing?.level || "Senior"); } catch(e) {}
+
+  document.getElementById("cancelDocBtn").addEventListener("click", closeModal);
+  document.getElementById("saveDocBtn").addEventListener("click", ()=>{
+    const ahpra = (document.getElementById("docId").value||"").trim();
+    const name = (document.getElementById("docName").value||"").trim();
+    if(!isEdit && !ahpra){ statusChip.textContent = "AHPRA Registration is required."; return; }
+    const clickup_url = (document.getElementById("docClickUp").value||"").trim();
+    const prefs = (document.getElementById("docPrefs").value||"").trim();
+    const where = (document.getElementById("docWhere").value||"").trim();
+    const specialty = (document.getElementById("docSpec").value||"").trim();
+    const pgy = (document.getElementById("docPgy").value||"").trim();
+    const level = (document.getElementById("docLevel").value||"").trim();
+    const tags = (document.getElementById("docTags").value||"").split(",").map(s=>s.trim()).filter(Boolean);
+
+    pushUndo(isEdit ? "Edit doctor" : "Add doctor");
+
+    if(isEdit){
+      const idx = doctors.findIndex(d=>String(d.ahpra_id)===String(existing.ahpra_id));
+      if(idx>=0){ doctors[idx] = { ...doctors[idx], name, clickup_url, prefs, where, specialty, pgy, level, tags }; }
+    } else {
+      if(doctors.some(d=>String(d.ahpra_id)===String(ahpra))){ statusChip.textContent = "That AHPRA ID already exists."; return; }
+      doctors.push({ ahpra_id: ahpra, name, clickup_url, prefs, where, specialty, pgy, level, tags });
+    }
+
+    saveDoctors(doctors);
+    closeModal();
+    renderDoctorList();
+    renderHeader();
+    statusChip.textContent = "Doctor saved";
+  });
+
+  if(isEdit){
+    document.getElementById("deleteDocBtn").addEventListener("click", ()=>{
+      pushUndo("Delete doctor");
+      const id = String(existing.ahpra_id);
+      doctors = doctors.filter(d=>String(d.ahpra_id)!==id);
+      events = events.filter(e=>String(e.ahpra_id)!==id);
+      saveDoctors(doctors); saveEvents(events);
+      if(String(selectedDoctorId)===id) selectedDoctorId = null;
+      closeModal();
+      renderDoctorList();
+      renderHeader();
+      renderCalendar();
+      statusChip.textContent = "Doctor deleted";
+    });
+  }
+
+  
+  // Keyboard shortcut: Ctrl+Enter (Windows/Linux) or Cmd+Enter (Mac) to Save
+  function keyHandler(ev){
+    if((ev.ctrlKey || ev.metaKey) && ev.key === "Enter"){
+      ev.preventDefault();
+      const btn = document.getElementById("saveBtn");
+      if(btn && !btn.disabled){ btn.click(); }
+    }
+  }
+  document.addEventListener("keydown", keyHandler, { once: true });
+
+  openModal();
+}
+
+function parseAvailabilityCSV(text){
+  const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+  if(!lines.length) return {doctors:[], events:[]};
+
+  const header = splitCSVLine(lines[0]).map(h=>h.trim().replace(/^"|"$/g,""));
+  const headerLower = header.map(h=>h.toLowerCase());
+  const col = (...names) => {
+    for(const n of names){
+      const i = headerLower.findIndex(h=>h===n.toLowerCase());
+      if(i>=0) return i;
+    }
+    return -1;
+  };
+
+  const iId = col("ahpra_id","ahpra","registration","registration_number","doctor_id","id");
+  const iName = col("doctor","doctor_name","name");
+  const iStart = col("start","start_date","from","date_from");
+  const iEnd = col("end","end_date","to","date_to");
+  const iStatus = col("status");
+  const iNotes = col("notes","note","reason");
+  const iWhere = col("where","location","working_location","work_location");
+  const iPrefs = col("preferences","prefs","preference");
+  const iSpec = col("specialty","speciality","spec");
+  const iPgy = col("pgy");
+  const iLevel = col("level","seniority");
+  const iTags = col("tags","tag");
+
+  if(iId<0 || iStart<0 || iEnd<0){
+    throw new Error("CSV must include at least: AHPRA_ID, Start, End (dd/mm/yy) columns.");
+  }
+
+  const newDoctorsMap = new Map();
+  const newEvents = [];
+
+  for(let i=1;i<lines.length;i++){
+    const cols = splitCSVLine(lines[i]).map(c=>c.trim().replace(/^"|"$/g,""));
+    const ahpra = (cols[iId]||"").trim();
+    if(!ahpra) continue;
+
+    const name = iName>=0 ? (cols[iName]||"").trim() : "";
+    const start = parseDateAU(cols[iStart]);
+    const endInc = parseDateAU(cols[iEnd]);
+    if(!start || !endInc) continue;
+    const endEx = addDaysUTC(endInc, 1);
+
+    const status = iStatus>=0 ? (cols[iStatus]||"").trim() : "Available";
+    const notes = iNotes>=0 ? (cols[iNotes]||"").trim() : "";
+    const where = iWhere>=0 ? (cols[iWhere]||"").trim() : "";
+    const prefs = iPrefs>=0 ? (cols[iPrefs]||"").trim() : "";
+    const specialty = iSpec>=0 ? (cols[iSpec]||"").trim() : "";
+    const pgy = iPgy>=0 ? (cols[iPgy]||"").trim() : "";
+    const level = iLevel>=0 ? (cols[iLevel]||"").trim() : "";
+    const tags = iTags>=0 ? (cols[iTags]||"").split(",").map(s=>s.trim()).filter(Boolean) : [];
+
+    if(!newDoctorsMap.has(ahpra)){
+      newDoctorsMap.set(ahpra, { ahpra_id: ahpra, name, prefs, where, specialty, pgy, level, tags });
+    } else {
+      const d = newDoctorsMap.get(ahpra);
+      if(!d.name && name) d.name = name;
+      if(!d.prefs && prefs) d.prefs = prefs;
+      if(!d.where && where) d.where = where;
+      if(!d.specialty && specialty) d.specialty = specialty;
+      if(!d.pgy && pgy) d.pgy = pgy;
+      if(!d.level && level) d.level = level;
+      if((!d.tags || !d.tags.length) && tags.length) d.tags = tags;
+    }
+
+    newEvents.push({
+      id: uid(),
+      ahpra_id: ahpra,
+      status: status || "Available",
+      title: status || "Status",
+      location: where,
+      notes,
+      start: start.toISOString().slice(0,10),
+      end: endEx.toISOString().slice(0,10)
+    });
+  }
+  return { doctors: Array.from(newDoctorsMap.values()), events: newEvents };
+}
+
+
+
+
+function cleanBrackets(s){
+  return String(s||"").replace(/[\[\]]/g,"").trim();
+}
+function normalizeHeader(h){
+  return String(h||"")
+    .replace(/\uFEFF/g,"")                 // BOM
+    .replace(/[\u{1F300}-\u{1FAFF}]/gu,"")// emojis
+    .replace(/[#()]/g," ")
+    .replace(/\s+/g," ")
+    .trim()
+    .toLowerCase();
+}
+function findCol(headersNorm, ...needles){
+  // Returns first column index whose normalized header contains ALL needle substrings.
+  for(let i=0;i<headersNorm.length;i++){
+    const h = headersNorm[i];
+    if(!h) continue;
+    let ok = true;
+    for(const n of needles){
+      const nn = String(n).toLowerCase();
+      if(!h.includes(nn)){ ok=false; break; }
+    }
+    if(ok) return i;
+  }
+  return -1;
+}
+function parseClickUpDoctorsCSV(text){
+  const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+  if(!lines.length) return [];
+
+  const headerRaw = splitCSVLine(lines[0]).map(h=>h.trim().replace(/^"|"$/g,""));
+  const headerNorm = headerRaw.map(normalizeHeader);
+
+  // Flexible matching for ClickUp exports
+  const iTaskId = findCol(headerNorm, "task", "id");
+  const iName   = findCol(headerNorm, "task", "name");
+
+  // MED Reg can appear as "MED Reg", "Med Registration", "Dr Med Registration #", etc.
+  let iAHPRA = findCol(headerNorm, "med", "reg");
+  if(iAHPRA < 0) iAHPRA = findCol(headerNorm, "med", "registration");
+  if(iAHPRA < 0) iAHPRA = findCol(headerNorm, "registration"); // last resort
+
+  // Desired specialty: might be "Desired Specialities/ Department"
+  let iPrefs = findCol(headerNorm, "desired", "special");
+  if(iPrefs < 0) iPrefs = findCol(headerNorm, "specialit"); // fallback
+
+  const iLevel = findCol(headerNorm, "grade", "level");
+  const iPGY   = findCol(headerNorm, "pgy");
+  const iTags  = findCol(headerNorm, "tags");
+
+  if(iAHPRA < 0 || iName < 0){
+    throw new Error("ClickUp CSV must include at least: Task Name, MED Reg (or Med Registration).");
+  }
+
+  const out = [];
+  for(let i=1;i<lines.length;i++){
+    const cols = splitCSVLine(lines[i]).map(c=>c.trim().replace(/^"|"$/g,""));
+    const ahpra = (cols[iAHPRA]||"").trim();
+    if(!ahpra) continue;
+
+    const taskId = (iTaskId>=0 ? (cols[iTaskId]||"").trim() : "");
+    const prefs  = cleanBrackets(iPrefs>=0 ? (cols[iPrefs]||"").trim() : "");
+    let level  = (iLevel>=0 ? (cols[iLevel]||"").trim() : "");
+    const pgy    = (iPGY>=0 ? (cols[iPGY]||"").trim() : "");
+    // Normalize Level: if ClickUp says "Consultant", default to "Specialist"
+    if(String(level||"").trim().toLowerCase() === "consultant") level = "Specialist";
+    const tagsRaw = cleanBrackets(iTags>=0 ? (cols[iTags]||"").trim() : "");
+    const tags = tagsRaw ? tagsRaw.split(",").map(s=>s.trim()).filter(Boolean) : [];
+
+    out.push({
+      ahpra_id: ahpra,
+      name: (cols[iName]||"").trim(),
+      prefs: prefs,
+      level: level,
+      pgy: pgy,
+      tags: tags,
+      clickup_url: buildClickUpUrl(taskId)
+    });
+  }
+  return out;
+}
+
+
+function exportCSV(){
+  const header = ["AHPRA_ID","Doctor_Name","Specialty","PGY","Level","Start","End","Status","Where","Notes","Preferences","Tags"];
+  const lines = [header.join(",")];
+  const docById = new Map(doctors.map(d=>[String(d.ahpra_id), d]));
+
+  for(const e of events){
+    const d = docById.get(String(e.ahpra_id)) || {};
+    const startAU = formatDateAU(parseDateAU(e.start) || new Date(e.start));
+    const endAU = formatDateAU(addDaysUTC(parseDateAU(e.end) || new Date(e.end), -1));
+    const vals = [
+      e.ahpra_id, d.name || "", d.specialty || "", d.pgy || "", d.level || "", startAU, endAU,
+      e.status || "", e.location || "", e.notes || "",
+      d.prefs || "", (d.tags || []).join(", ")
+    ].map(v => `"${String(v||"").replaceAll('"','""')}"`);
+    lines.push(vals.join(","));
+  }
+
+  const blob = new Blob([lines.join("\n")], {type:"text/csv"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "blugibbon_availability_roster_export.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+doctorSearch.addEventListener("input", ()=>{
+  refreshHighlight();
+  renderDoctorList();
+  if(viewMode==="heatmap") renderHeatmap();
+  if(viewMode==="strips") renderStrips();
+  if(showAllDoctors) renderCalendar();
+});
+
+if(toggleAllBtn){
+  toggleAllBtn.addEventListener("click", ()=>{
+    showAllDoctors = !showAllDoctors;
+    refreshHighlight();
+    toggleAllBtn.classList.toggle("primary", showAllDoctors);
+    // When enabling all-doctors view, keep selection but disable create/clear actions.
+    renderHeader();
+    renderDoctorList();
+    renderCalendar();
+    statusChip.textContent = showAllDoctors ? "All doctors view enabled" : "All doctors view disabled";
+    updateActionButtons();
+  });
+}
+
+if(upcomingDaysInput){
+  upcomingDaysInput.addEventListener("change", ()=>{
+    const v = Math.max(1, parseInt(upcomingDaysInput.value, 10) || 30);
+    upcomingDays = v;
+    if(upcomingOnly && showAllDoctors){
+      renderHeader();
+      renderDoctorList();
+      renderCalendar();
+      statusChip.textContent = `Upcoming availability: next ${upcomingDays} day(s)`;
+    }
+  });
+}
+
+if(upcomingAvailBtn){
+  upcomingAvailBtn.addEventListener("click", ()=>{
+    const v = Math.max(1, parseInt(upcomingDaysInput?.value, 10) || 30);
+    upcomingDays = v;
+    // Toggle upcoming-only mode. Enabling forces All doctors view.
+    upcomingOnly = !upcomingOnly;
+    if(upcomingOnly){
+      showAllDoctors = true;
+      if(toggleAllBtn) toggleAllBtn.classList.add("primary");
+      upcomingAvailBtn.classList.add("primary");
+      statusChip.textContent = `Upcoming availability: next ${upcomingDays} day(s)`;
+    } else {
+      upcomingAvailBtn.classList.remove("primary");
+      statusChip.textContent = showAllDoctors ? "All doctors view enabled" : "All doctors view disabled";
+    }
+    renderHeader();
+    renderDoctorList();
+    renderCalendar();
+    updateActionButtons();
+  });
+}
+
+uploadBtn.addEventListener("click", ()=>csvFile.click());
+csvFile.addEventListener("change", async (ev)=>{
+  const file = ev.target.files && ev.target.files[0];
+  if(!file) return;
+  const text = await file.text();
+  try{
+    const parsed = parseAvailabilityCSV(text);
+
+    pushUndo(replaceToggle.checked ? "Import (replace)" : "Import (merge)");
+
+    if(replaceToggle.checked){
+      doctors = parsed.doctors;
+      events = parsed.events;
+      selectedDoctorId = doctors.length ? String(doctors[0].ahpra_id) : null;
+    } else {
+      const existingMap = new Map(doctors.map(d=>[String(d.ahpra_id), d]));
+      for(const d of parsed.doctors){
+        const key = String(d.ahpra_id);
+        if(!existingMap.has(key)) existingMap.set(key, d);
+        else {
+          const ex = existingMap.get(key);
+          if(!ex.name && d.name) ex.name = d.name;
+          if(!ex.prefs && d.prefs) ex.prefs = d.prefs;
+          if(!ex.where && d.where) ex.where = d.where;
+          if((!ex.tags || !ex.tags.length) && d.tags?.length) ex.tags = d.tags;
+        }
+      }
+      doctors = Array.from(existingMap.values());
+      events = events.concat(parsed.events);
+      if(!selectedDoctorId && doctors.length) selectedDoctorId = String(doctors[0].ahpra_id);
+    }
+
+    saveDoctors(doctors);
+    saveEvents(events);
+
+    renderDoctorList();
+    renderHeader();
+    renderCalendar();
+
+    statusChip.textContent = `Loaded ${parsed.doctors.length} doctor(s) and ${parsed.events.length} block(s)`;
+  } catch(e){
+    statusChip.textContent = "Import error: " + e.message;
+  }
+  csvFile.value = "";
+});
+
+addDoctorBtn.addEventListener("click", ()=>openDoctorEditor(null));
+const editDoctorBtn = document.getElementById("editDoctorBtn");
+if(editDoctorBtn){
+  editDoctorBtn.addEventListener("click", ()=>{
+    const d = getSelectedDoctor();
+    if(!d){ statusChip.textContent = "Select a doctor first"; return; }
+    openDoctorEditor(d);
+  });
+}
+
+removeDoctorBtn.addEventListener("click", ()=>{
+  const d = getSelectedDoctor();
+  if(!d){ statusChip.textContent = "Select a doctor first"; return; }
+  const name = doctorLabel(d);
+  const ok = confirm(`Remove ${name} (AHPRA ${d.ahpra_id}) and ALL their blocks? This can be undone with Undo.`);
+  if(!ok) return;
+  pushUndo("Remove doctor");
+  const id = String(d.ahpra_id);
+  doctors = doctors.filter(x=>String(x.ahpra_id)!==id);
+  events = events.filter(e=>String(e.ahpra_id)!==id);
+  saveDoctors(doctors);
+  saveEvents(events);
+  selectedDoctorId = doctors.length ? String(doctors[0].ahpra_id) : null;
+  renderDoctorList();
+  renderHeader();
+  renderCalendar();
+  statusChip.textContent = "Doctor removed";
+});
+exportBtn.addEventListener("click", exportCSV);
+undoBtn.addEventListener("click", undo);
+clearSelectedBtn.addEventListener("click", clearSelectedRange);
+
+const uploadClickUpBtn = document.getElementById("uploadClickUpBtn");
+const clickupCsvFile = document.getElementById("clickupCsvFile");
+
+if(uploadClickUpBtn && clickupCsvFile){
+  uploadClickUpBtn.addEventListener("click", ()=>clickupCsvFile.click());
+  clickupCsvFile.addEventListener("change", async (ev)=>{
+    const file = ev.target.files && ev.target.files[0];
+    if(!file) return;
+    const text = await file.text();
+    try{
+      const imported = parseClickUpDoctorsCSV(text);
+      if(!imported.length){
+        statusChip.textContent = "No valid doctors found in ClickUp CSV";
+        return;
+      }
+
+      pushUndo("Import ClickUp doctors");
+
+      const map = new Map(doctors.map(d=>[String(d.ahpra_id), d]));
+      for(const d of imported){
+        const key = String(d.ahpra_id);
+        if(!map.has(key)){
+          map.set(key, {
+            ahpra_id: d.ahpra_id,
+            name: d.name,
+            prefs: d.prefs,
+            where: "",
+            specialty: "",
+            pgy: d.pgy,
+            level: d.level || "Senior",
+            tags: d.tags || [],
+            clickup_url: d.clickup_url
+          });
+        } else {
+          const ex = map.get(key);
+          if(d.name) ex.name = d.name;
+          if(d.prefs) ex.prefs = d.prefs;
+          if(d.pgy) ex.pgy = d.pgy;
+          if(d.level) ex.level = d.level;
+          if(d.tags && d.tags.length){
+            const set = new Set([...(ex.tags||[]), ...d.tags]);
+            ex.tags = Array.from(set);
+          }
+          if(d.clickup_url) ex.clickup_url = d.clickup_url;
+        }
+      }
+
+      doctors = Array.from(map.values());
+      saveDoctors(doctors);
+      updateFilterDropdowns();
+      renderDoctorList();
+      renderHeader();
+      statusChip.textContent = `Imported ${imported.length} doctor(s) from ClickUp CSV`;
+    } catch(e){
+      statusChip.textContent = "ClickUp import error: " + e.message;
+    }
+    clickupCsvFile.value = "";
+  });
+
+// Timesheets CSV import (ClickUp)
+const uploadTimesheetsBtn = document.getElementById("uploadTimesheetsBtn");
+const timesheetsCsvFile = document.getElementById("timesheetsCsvFile");
+
+function normalizeDoctorName(name){
+  return String(name||"")
+    .replace(/^dr\.?\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function parseClickUpLongDate(s){
+  if(!s) return null;
+  let t = String(s).trim();
+  if(!t) return null;
+  // Remove weekday prefix if present: "Monday, ..."
+  if(t.includes(",")) t = t.split(",").slice(1).join(",").trim();
+  // Remove ordinal suffix: 1st/2nd/3rd/4th...
+  t = t.replace(/(\d{1,2})(st|nd|rd|th)/gi, "$1");
+
+  const m = t.match(/^([A-Za-z]+)\s+(\d{1,2})\s+(\d{4})$/);
+  if(!m){
+    // fallback to Date.parse
+    const d0 = new Date(t);
+    if(isNaN(d0.getTime())) return null;
+    return new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate()));
+  }
+  const monthName = m[1].toLowerCase();
+  const day = parseInt(m[2], 10);
+  const year = parseInt(m[3], 10);
+  const months = { january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,september:8,october:9,november:10,december:11 };
+  if(!(monthName in months)) return null;
+  return new Date(Date.UTC(year, months[monthName], day));
+}
+
+function makeTempAhpraId(){
+  // MED + 6 digits
+  let id;
+  do{
+    id = "MED" + String(Math.floor(100000 + Math.random()*900000));
+  }while(doctors.some(d => String(d.ahpra_id) === id));
+  return id;
+}
+
+function parseTimesheetsCSV(text){
+  const lines = String(text||"")
+    .replace(/\r\n/g,"\n")
+    .replace(/\r/g,"\n")
+    .split("\n")
+    .filter(l => l.trim().length);
+
+  if(lines.length < 2) return [];
+
+  const header = splitCSVLine(lines[0]).map(h => String(h||"").trim());
+  const headerLower = header.map(h => h.toLowerCase());
+
+  const col = (...names)=>{
+    for(const n of names){
+      const i = headerLower.findIndex(h => h === String(n).toLowerCase());
+      if(i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const iTaskId   = col("Task ID");
+  const iTaskName = col("Task Name");
+  const iDoctor   = col("Doctor's Name (short text)");
+  const iSite     = col("Site Name (short text)");
+  const iStart    = col("Start Locum  (date)", "Start Locum (date)");
+  const iEnd      = col("End Locum (date)");
+
+  if(iDoctor < 0 || iSite < 0 || iStart < 0 || iEnd < 0){
+    throw new Error("Timesheets CSV missing required columns (Doctor's Name, Site Name, Start Locum, End Locum)");
+  }
+
+  const out = [];
+  for(let li=1; li<lines.length; li++){
+    const row = splitCSVLine(lines[li]);
+    if(row.length < Math.max(iEnd, iStart, iSite, iDoctor) + 1) continue;
+
+    const docName = String(row[iDoctor]||"").trim();
+    const siteName = String(row[iSite]||"").trim();
+    if(!docName || !siteName) continue;
+
+    const dStart = parseClickUpLongDate(row[iStart]);
+    const dEndInc = parseClickUpLongDate(row[iEnd]);
+    if(!dStart || !dEndInc) continue;
+
+    const startISO = dStart.toISOString().slice(0,10);
+    const endISO = dEndInc.toISOString().slice(0,10);
+    const endExISO = addDaysISO(endISO, 1); // make exclusive
+
+    const taskId = (iTaskId>=0 ? String(row[iTaskId]||"").trim() : "");
+    const taskName = (iTaskName>=0 ? String(row[iTaskName]||"").trim() : "");
+
+    out.push({ taskId, taskName, docName, siteName, startISO, endExISO });
+  }
+  return out;
+}
+
+if(uploadTimesheetsBtn && timesheetsCsvFile){
+  uploadTimesheetsBtn.addEventListener("click", ()=>timesheetsCsvFile.click());
+
+  timesheetsCsvFile.addEventListener("change", async (ev)=>{
+    const file = ev.target.files && ev.target.files[0];
+    if(!file) return;
+
+    const text = await file.text();
+
+    try{
+      const rows = parseTimesheetsCSV(text);
+      if(!rows.length){
+        statusChip.textContent = "No valid timesheet rows found";
+        return;
+      }
+
+      pushUndo("Import timesheets");
+
+      const byName = new Map();
+      for(const d of doctors){
+        byName.set(normalizeDoctorName(d.name), d);
+      }
+
+      let newDoctors = 0;
+      let upserted = 0;
+
+      const eventMap = new Map(events.map(e => [String(e.id), e]));
+
+/**
+ * Deduplication rules:
+ * - ClickUp timesheets exports can contain multiple rows for the same doctor/site/date-range (eg different unit types)
+ * - We only want ONE booking block per unique (doctor name + site + start + end).
+ */
+const normalizeSiteKey = (s)=> String(s||"").trim().toLowerCase().replace(/\s+/g," ");
+const makeTsKey = (docKey, site, startISO, endExISO)=> `${docKey}|${normalizeSiteKey(site)}|${startISO}|${endExISO}`;
+
+// Map existing timesheet events to their ts_key so re-import updates instead of duplicating
+const tsKeyToId = new Map();
+for (const e of events){
+  if(!e) continue;
+  if(String(e.source||"") !== "timesheets") continue;
+
+  // Prefer stored key, otherwise infer from fields
+  const docKey = normalizeDoctorName(getDoctorByAhpra(e.ahpra_id)?.name || "");
+  const inferred = makeTsKey(docKey, e.location || "", e.start || "", e.end || "");
+  tsKeyToId.set(String(e.ts_key || inferred), String(e.id));
+}
+
+const seenThisImport = new Set();
+
+for(const r of rows){
+  const keyName = normalizeDoctorName(r.docName);
+  let doc = byName.get(keyName);
+
+  if(!doc){
+    const newId = makeTempAhpraId();
+    doc = {
+      ahpra_id: newId,
+      name: r.docName.replace(/\s+/g," ").trim(),
+      prefs: "",
+      where: "",
+      specialty: "",
+      pgy: "",
+      level: "Senior",
+      tags: [],
+      clickup_url: ""
+    };
+    doctors.push(doc);
+    byName.set(keyName, doc);
+    newDoctors++;
+  }
+
+  // Build a stable key for this booking block
+  const tsKey = makeTsKey(keyName, r.siteName, r.startISO, r.endExISO);
+
+  // If this CSV includes repeated lines for the same booking block, skip duplicates
+  if(seenThisImport.has(tsKey)) continue;
+  seenThisImport.add(tsKey);
+
+  // If we already have an event with this tsKey, update it; otherwise create a new one
+  const existingId = tsKeyToId.get(tsKey);
+  const evId = existingId || uid();
+
+  const rec = {
+    id: evId,
+    ahpra_id: String(doc.ahpra_id),
+    status: "Booked",
+    title: "Timesheet",
+    location: r.siteName,
+    notes: r.taskName ? ("Imported from timesheets: " + r.taskName) : "Imported from timesheets",
+    start: r.startISO,
+    end: r.endExISO,
+    source: "timesheets",
+    ts_key: tsKey,
+    task_id: r.taskId || "",
+    task_name: r.taskName || ""
+  };
+
+  eventMap.set(String(evId), rec);
+  upserted++;
+}
+
+events = Array.from(eventMap.values());
+      saveDoctors(doctors);
+      saveEvents(events);
+
+      renderDoctorList();
+      renderHeader();
+      renderCalendar();
+      updateUndoButton();
+
+      statusChip.textContent = `Timesheets imported: ${upserted} booking(s) (${newDoctors} new doctor(s))`;
+
+    }catch(err){
+      console.error(err);
+      statusChip.textContent = "Timesheets import failed: " + (err && err.message ? err.message : String(err));
+    } finally {
+      timesheetsCsvFile.value = "";
+    }
+  });
+}
+
+}
+
+createBtn.addEventListener("click", ()=>{
+  if(!selectedDoctorId){
+    statusChip.textContent = "Select a doctor first";
+    return;
+  }
+  if(!lastSelection || !lastSelection.start || !lastSelection.end){
+    statusChip.textContent = "Select a date range on the calendar first";
+    return;
+  }
+  openEventEditor({
+    mode: "create",
+    id: null,
+    ahpra_id: selectedDoctorId,
+    start: normalizeToUTCDate(lastSelection.start),
+    end: normalizeToUTCDate(lastSelection.end)
+  });
+});
+
+
+document.getElementById("doctorHeader").addEventListener("dblclick", ()=>{
+  const d = getSelectedDoctor();
+  if(d) openDoctorEditor(d);
+});
+
+(function init(){
+  renderDoctorList();
+  renderHeader();
+  renderCalendar();
+  statusChip.textContent = doctors.length ? `Loaded ${doctors.length} doctor(s) from local storage` : "No data loaded";
+  updateUndoButton();
+})();
+</script>
+<div class="fc-tooltip" id="fcTooltip"></div>
+</body>
+</html>
