@@ -2937,11 +2937,20 @@ function parseClickUpDoctorsCSV(text){
     throw new Error("ClickUp CSV must include at least: Task Name, MED Reg (or Med Registration).");
   }
 
+  // Allow blank MED Reg: assign a temporary unique ID so the doctor can still be imported.
+  const usedIds = new Set((doctors||[]).map(d=>String(d.ahpra_id)));
+
   const out = [];
   for(let i=1;i<lines.length;i++){
     const cols = splitCSVLine(lines[i]).map(c=>c.trim().replace(/^"|"$/g,""));
-    const ahpra = (cols[iAHPRA]||"").trim();
-    if(!ahpra) continue;
+    let ahpra = (cols[iAHPRA]||"").trim();
+    if(!ahpra){
+      // Generate a temp ID unique across existing doctors AND within this import.
+      let tmp;
+      do{ tmp = makeTempAhpraId(); }while(usedIds.has(String(tmp)));
+      ahpra = tmp;
+    }
+    usedIds.add(String(ahpra));
 
     const taskId = (iTaskId>=0 ? (cols[iTaskId]||"").trim() : "");
     const prefs  = cleanBrackets(iPrefs>=0 ? (cols[iPrefs]||"").trim() : "");
