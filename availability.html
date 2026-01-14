@@ -1957,6 +1957,7 @@ function renderDoctorList(){
         <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
           <button class="miniBtn" type="button" data-action="copy14" title="Copy this doctor's next 14 days availability">Copy 14d</button>
           <button class="miniBtn danger" type="button" data-action="clearmonth" title="Clear this doctor's blocks for the visible month">Clear month</button>
+          <button class="miniBtn danger" type="button" data-action="clearavail" title="Clear ALL availability/unavailability for this doctor (keeps bookings)">Clear avail</button>
           <button class="miniBtn" type="button" data-action="unavailmonth" title="Set this doctor as Unavailable for the visible month">Unavailable month</button>
           <button class="miniBtn" type="button" data-action="duplast" title="Duplicate last month's blocks into this month">Duplicate last</button>
         </div>
@@ -2211,6 +2212,68 @@ function clearMonth(doctorId){
   statusChip.textContent = `Cleared: ${monthName}`;
 }
 
+function clearAllAvailability(doctorId){
+  if(!doctorId) return;
+  const d = doctors.find(x=>String(x.ahpra_id)===String(doctorId));
+  const name = d ? d.name : "this doctor";
+  const ok = confirm(`Clear ALL availability/unavailability blocks for ${name}?\n\nBookings will be kept.`);
+  if(!ok) return;
+
+  pushUndo("Clear all availability (keep bookings)");
+
+  const before = events.length;
+
+  // Be robust to legacy schemas: doctor id might be stored under different keys.
+  const getDoctorId = (ev)=>{
+    return (
+      ev.ahpra_id ??
+      ev.doctor_id ??
+      ev.doctorId ??
+      (ev.extendedProps ? ev.extendedProps.ahpra_id : undefined) ??
+      (ev.extendedProps ? ev.extendedProps.doctor_id : undefined) ??
+      (ev.extendedProps ? ev.extendedProps.doctorId : undefined) ??
+      ev.med_reg ??
+      ev.medReg ??
+      ev.doctor
+    );
+  };
+
+  const getStatus = (ev)=>{
+    return (
+      ev.status ??
+      (ev.extendedProps ? ev.extendedProps.status : undefined) ??
+      ev.type ??
+      ev.kind ??
+      ""
+    );
+  };
+
+  events = events.filter(ev => {
+    const evDocId = getDoctorId(ev);
+    if(String(evDocId) !== String(doctorId)) return true;
+
+    const statusLower = String(getStatus(ev)).trim().toLowerCase();
+
+    // KEEP bookings only (handle minor legacy variants safely)
+    const isBooking = statusLower === "booked" || statusLower.startsWith("book");
+    return isBooking;
+  });
+
+  const removed = before - events.length;
+
+  saveEvents(events);
+
+  renderDoctorList();
+  renderHeader();
+  renderCalendar();
+  if(viewMode==="heatmap") renderHeatmap();
+  if(viewMode==="strips") renderStrips();
+
+  statusChip.textContent = removed ? "Availability cleared (bookings kept)" : "No availability blocks to clear (bookings kept)";
+}
+
+
+
 function copyNext14Days(doctorId){
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -2318,6 +2381,7 @@ function handleDoctorRowAction(doctorId, action){
   // Keep current view, but ensure we can perform actions without leaving All Doctors.
   if(action === "copy14") return copyNext14Days(doctorId);
   if(action === "clearmonth") return clearMonth(doctorId);
+  if(action === "clearavail") return clearAllAvailability(doctorId);
   if(action === "unavailmonth") return setUnavailableMonth(doctorId);
   if(action === "duplast") return duplicateLastMonth(doctorId);
 }
@@ -3116,20 +3180,35 @@ if(editDoctorBtn){
 removeDoctorBtn.addEventListener("click", ()=>{
   const d = getSelectedDoctor();
   if(!d){ statusChip.textContent = "Select a doctor first"; return; }
+
+  // Safety: avoid removing while in All Doctors view to reduce confusion
+  if(showAllDoctors){
+    statusChip.textContent = "Turn off All doctors view to remove a doctor";
+    return;
+  }
+
   const name = doctorLabel(d);
   const ok = confirm(`Remove ${name} (AHPRA ${d.ahpra_id}) and ALL their blocks? This can be undone with Undo.`);
   if(!ok) return;
+
   pushUndo("Remove doctor");
+
   const id = String(d.ahpra_id);
   doctors = doctors.filter(x=>String(x.ahpra_id)!==id);
-  events = events.filter(e=>String(e.ahpra_id)!==id);
+  events  = events.filter(e=>String(e.ahpra_id)!==id);
+
   saveDoctors(doctors);
   saveEvents(events);
+
   selectedDoctorId = doctors.length ? String(doctors[0].ahpra_id) : null;
   renderDoctorList();
   renderHeader();
-  renderCalendar();
-  statusChip.textContent = "Doctor removed";
+  if(viewMode === "calendar") renderCalendar();
+  if(viewMode === "heatmap") renderHeatmap();
+  if(viewMode === "strips") renderStrips();
+  try{ updateActionButtons(); } catch(e){}
+
+  statusChip.textContent = `Doctor removed: ${name}`;
 });
 exportBtn.addEventListener("click", exportCSV);
 undoBtn.addEventListener("click", undo);
