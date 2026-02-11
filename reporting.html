@@ -1,0 +1,1239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>BLUGIBBON Timesheet Reporting</title>
+
+  <style>
+    :root {
+      --border: #e6e6e6;
+      --text: #111;
+      --muted: #666;
+      --bg: #fff;
+      --panel: #fafafa;
+      --radius: 14px;
+      --shadow: 0 8px 24px rgba(0,0,0,0.08);
+      --font: -apple-system, Segoe UI, Roboto, Arial;
+      --green: #22c55e;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --amber: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; background: var(--bg); }
+    #app {
+      min-height: 100%; display: flex; flex-direction: column;
+      font-family: var(--font); color: var(--text);
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+      background: #fff; z-index: 10;
+    }
+    .label { font-weight: 700; }
+    .chip {
+      font-size: 12px; padding: 6px 10px;
+      border: 1px solid #ddd; border-radius: 999px;
+      background: #fff; color: var(--muted);
+    }
+    select, input[type="text"], input[type="search"] {
+      padding: 7px 10px; border: 1px solid #ccc;
+      border-radius: 12px; background: white;
+      font-size: 14px; outline: none;
+    }
+    button {
+      padding: 7px 14px; border: 1px solid #ccc;
+      border-radius: 12px; background: #fff;
+      font-size: 14px; cursor: pointer;
+    }
+    button.primary { background: #111; color: #fff; border-color: #111; }
+    button.primary:hover { background: #333; }
+    button:hover { background: #f5f5f5; }
+    button.active { background: #111; color: #fff; border-color: #111; }
+
+    /* ── Drop zone ── */
+    #dropZone {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px; padding: 60px 20px;
+    }
+    #dropZone.has-data { display: none; }
+    .drop-area {
+      width: 100%; max-width: 560px; padding: 60px 40px;
+      border: 2px dashed #ccc; border-radius: var(--radius);
+      text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .drop-area:hover, .drop-area.dragover {
+      border-color: #111; background: #fafafa;
+    }
+    .drop-area h2 { margin: 0 0 8px; font-size: 20px; font-weight: 800; }
+    .drop-area p { margin: 0; color: var(--muted); font-size: 14px; }
+    #fileInput { display: none; }
+
+    /* ── Dashboard ── */
+    #dashboard { display: none; flex: 1; flex-direction: column; }
+    #dashboard.visible { display: flex; }
+
+    /* Filters bar */
+    #filtersBar {
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      background: var(--panel);
+    }
+    #filtersBar select { min-width: 140px; }
+    #filtersBar input[type="search"] { min-width: 200px; }
+
+    /* KPI cards */
+    #kpiRow {
+      padding: 16px; display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .kpi {
+      background: #fff; border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 16px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+    }
+    .kpi .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
+    .kpi .v { font-size: 22px; font-weight: 800; margin-top: 4px; }
+    .kpi .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+
+    /* Tab nav */
+    #tabNav {
+      padding: 0 16px; display: flex; gap: 0;
+      border-bottom: 1px solid var(--border); background: #fff;
+    }
+    .tab-btn {
+      padding: 10px 18px; border: none; border-bottom: 2px solid transparent;
+      background: none; font-size: 14px; font-weight: 600;
+      color: var(--muted); cursor: pointer; border-radius: 0;
+    }
+    .tab-btn:hover { color: var(--text); background: none; }
+    .tab-btn.active {
+      color: var(--text); border-bottom-color: #111; background: none;
+    }
+
+    /* Tab content */
+    #tabContent {
+      flex: 1; overflow: auto; padding: 16px;
+    }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Tables */
+    .report-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      background: #fff; border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .report-table thead { background: var(--panel); position: sticky; top: 0; z-index: 2; }
+    .report-table th {
+      text-align: left; padding: 10px 12px; font-weight: 700;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+      cursor: pointer; white-space: nowrap; user-select: none;
+    }
+    .report-table th:hover { color: var(--text); }
+    .report-table th .sort-arrow { margin-left: 4px; font-size: 10px; }
+    .report-table td {
+      padding: 9px 12px; border-bottom: 1px solid #f0f0f0;
+      white-space: nowrap;
+    }
+    .report-table tbody tr:hover { background: #fafcff; }
+    .report-table tbody tr:last-child td { border-bottom: none; }
+    .right { text-align: right; }
+    .mono { font-family: 'SF Mono', Menlo, monospace; font-size: 12px; }
+    .bold { font-weight: 700; }
+
+    /* Inline bar */
+    .bar-cell { position: relative; min-width: 120px; }
+    .bar-bg {
+      position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+      height: 20px; border-radius: 4px; opacity: 0.15;
+    }
+    .bar-val { position: relative; z-index: 1; }
+
+    /* Badge */
+    .badge {
+      display: inline-block; font-size: 11px; padding: 2px 8px;
+      border: 1px solid #ddd; border-radius: 999px;
+      color: var(--muted); background: #fff;
+    }
+    .badge.processed { border-color: var(--green); color: var(--green); }
+    .badge.pending { border-color: var(--amber); color: var(--amber); }
+
+    /* Section headers inside tabs */
+    .section-title {
+      font-size: 16px; font-weight: 800; margin: 24px 0 12px;
+    }
+    .section-title:first-child { margin-top: 0; }
+    .section-sub { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+
+    /* Drill-down panel */
+    .drill-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+      z-index: 100; display: flex; justify-content: flex-end;
+    }
+    .drill-panel {
+      width: 640px; max-width: 90vw; background: #fff;
+      height: 100%; overflow: auto; padding: 24px;
+      box-shadow: -8px 0 30px rgba(0,0,0,0.12);
+    }
+    .drill-panel h2 { margin: 0 0 16px; font-size: 18px; font-weight: 800; }
+    .drill-close {
+      float: right; background: none; border: none;
+      font-size: 20px; cursor: pointer; padding: 4px 8px;
+      border-radius: 8px;
+    }
+    .drill-close:hover { background: #f0f0f0; }
+
+    /* Summary row in tables */
+    .report-table tfoot td {
+      padding: 10px 12px; font-weight: 800;
+      border-top: 2px solid var(--border); background: var(--panel);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #kpiRow { grid-template-columns: repeat(2, 1fr); }
+      .drill-panel { width: 100%; max-width: 100%; }
+    }
+
+    /* ── Variance sparkline ── */
+    .variance-bar {
+      display: inline-block; height: 8px; border-radius: 4px;
+      vertical-align: middle; margin-right: 6px;
+    }
+
+    /* Export button */
+    .export-btn {
+      margin-left: auto; font-size: 12px;
+      padding: 5px 12px; border-radius: 8px;
+    }
+
+    /* Table wrapper for scroll */
+    .table-wrap {
+      overflow-x: auto; border: 1px solid var(--border);
+      border-radius: var(--radius); background: #fff;
+    }
+    .table-wrap .report-table { border: none; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Top Bar -->
+  <div id="topbar">
+    <span class="label" style="font-size:15px; font-weight:900;">BLUGIBBON</span>
+    <span class="chip">Timesheet Reporting</span>
+    <span style="flex:1"></span>
+    <span class="chip" id="rowCount" style="display:none">0 timesheets</span>
+    <button id="clearBtn" style="display:none; font-size:12px;" onclick="clearData()">Clear & Upload New</button>
+  </div>
+
+  <!-- Drop Zone (shown before data) -->
+  <div id="dropZone">
+    <div class="drop-area" id="dropArea">
+      <h2>Drop ClickUp Timesheet CSV</h2>
+      <p>Drag and drop your exported timesheet CSV here, or click to browse</p>
+    </div>
+    <input type="file" id="fileInput" accept=".csv"/>
+    <p style="color:var(--muted); font-size:13px;">Exports from ClickUp &rarr; Blugibbon Clients &rarr; Client Database &rarr; Timesheets</p>
+  </div>
+
+  <!-- Dashboard (shown after data loaded) -->
+  <div id="dashboard">
+
+    <!-- Filters -->
+    <div id="filtersBar">
+      <span class="label">Filters</span>
+      <select id="filterYear"><option value="">All Years</option></select>
+      <select id="filterRecruiter"><option value="">All Recruiters</option></select>
+      <select id="filterSite"><option value="">All Sites</option></select>
+      <select id="filterDoctor"><option value="">All Doctors</option></select>
+      <select id="filterStatus">
+        <option value="">All Statuses</option>
+        <option value="processed">Processed</option>
+        <option value="pending">Pending</option>
+      </select>
+      <input type="search" id="globalSearch" placeholder="Search..."/>
+      <button class="export-btn" onclick="exportCurrentView()">Export CSV</button>
+    </div>
+
+    <!-- KPI Cards -->
+    <div id="kpiRow"></div>
+
+    <!-- Tab Navigation -->
+    <div id="tabNav">
+      <button class="tab-btn active" data-tab="overview">Overview</button>
+      <button class="tab-btn" data-tab="bySite">By Site</button>
+      <button class="tab-btn" data-tab="byDoctor">By Doctor</button>
+      <button class="tab-btn" data-tab="byRecruiter">By Recruiter</button>
+      <button class="tab-btn" data-tab="rankings">Rankings</button>
+      <button class="tab-btn" data-tab="returning">Returning Doctors</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div id="tabContent">
+      <div class="tab-pane active" id="pane-overview"></div>
+      <div class="tab-pane" id="pane-bySite"></div>
+      <div class="tab-pane" id="pane-byDoctor"></div>
+      <div class="tab-pane" id="pane-byRecruiter"></div>
+      <div class="tab-pane" id="pane-rankings"></div>
+      <div class="tab-pane" id="pane-returning"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Drill-down container -->
+<div id="drillOverlay" class="drill-overlay" style="display:none" onclick="if(event.target===this)closeDrill()">
+  <div class="drill-panel" id="drillPanel"></div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════
+   BLUGIBBON Timesheet Reporting Tool
+   ════════════════════════════════════════════ */
+
+// ── Global state ──
+let RAW = [];        // all parsed rows
+let FILTERED = [];   // after filters applied
+
+// ── Column mapping (fuzzy match from CSV headers) ──
+const COL_MAP = {
+  siteName:              ['site name', 'site_name', 'sitename', 'site'],
+  doctorName:            ["doctor's name", 'doctors name', 'doctor_name', 'doctorname', 'doctor name', 'doctor'],
+  startLocum:            ['start locum', 'start_locum', 'startlocum'],
+  endLocum:              ['end locum', 'end_locum', 'endlocum'],
+  estMargin:             ['estimated week ending margin', 'est margin', 'estimated margin', 'est_margin', 'estimated_week_ending_margin', 'estimated week ending marging'],
+  actualMargin:          ['actual week ending margin', 'actual margin', 'actual_margin', 'actual_week_ending_margin'],
+  weekNumber:            ['week number', 'week_number', 'weeknumber', 'week'],
+  dueDate:               ['due date', 'due_date', 'duedate'],
+  year:                  ['year'],
+  bgTeammate:            ['bg teammate', 'bg_teammate', 'bgteammate', 'recruiter', 'bg team mate', 'bg teamate'],
+  doctorPayType:         ['doctor pay type', 'doctor_pay_type', 'pay type', 'paytype'],
+  marginPerUnit:         ['margin per unit', 'margin_per_unit', 'marginperunit'],
+  estUnits:              ['estimated units per week', 'est units', 'estimated_units', 'estimated units'],
+  actualUnits:           ['actual units', 'actual_units', 'actualunits'],
+  actualTotalMargin:     ['actual week ending total margin', 'actual total margin', 'actual_total_margin'],
+  recruiterStatus:       ['recruiter timesheet status', 'recruiter_timesheet_status', 'recruiter status', 'recuirter timesheet status'],
+  accountsStatus:        ['accounts timesheet status', 'accounts_timesheet_status', 'accounts status', 'accounts time sheet status'],
+  payIncSuper:           ['pay inc super', 'pay_inc_super', 'payincsuper', "pay inc super (dr's pay)", 'pay including super'],
+  estVsActualMargin:     ['estimated vs actual margin', 'est vs actual margin', 'est_vs_actual', 'estimated vs actual', 'est vs actual'],
+};
+
+// ── CSV parsing ──
+function parseCSV(text) {
+  const lines = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQuotes && text[i + 1] === '"') { current += '"'; i++; }
+      else { inQuotes = !inQuotes; }
+    } else if ((c === ',' || c === '\n' || c === '\r') && !inQuotes) {
+      if (c === ',') {
+        lines.length === 0 ? (lines.push([current])) : lines[lines.length - 1].push(current);
+        current = '';
+      } else {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        if (lines.length === 0) lines.push([current]); else lines[lines.length - 1].push(current);
+        current = '';
+        lines.push([]);
+      }
+    } else {
+      current += c;
+    }
+  }
+  if (current || (lines.length && lines[lines.length - 1].length > 0)) {
+    if (lines.length === 0) lines.push([current]); else lines[lines.length - 1].push(current);
+  }
+  // Remove empty trailing rows
+  while (lines.length && lines[lines.length - 1].every(c => c.trim() === '')) lines.pop();
+  return lines;
+}
+
+function mapColumns(headers) {
+  const norm = headers.map(h => h.toLowerCase().trim());
+  const mapping = {};
+  for (const [key, aliases] of Object.entries(COL_MAP)) {
+    let idx = -1;
+    for (const a of aliases) {
+      idx = norm.indexOf(a);
+      if (idx >= 0) break;
+    }
+    if (idx === -1) {
+      // partial match
+      for (let i = 0; i < norm.length; i++) {
+        for (const a of aliases) {
+          if (norm[i].includes(a) || a.includes(norm[i])) { idx = i; break; }
+        }
+        if (idx >= 0) break;
+      }
+    }
+    mapping[key] = idx;
+  }
+  return mapping;
+}
+
+function parseNum(v) {
+  if (v === undefined || v === null || v === '') return 0;
+  const s = String(v).replace(/[$,\s]/g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function parseDate(v) {
+  if (!v) return null;
+  // Try various date formats
+  const s = String(v).trim();
+  let d = new Date(s);
+  if (!isNaN(d)) return d;
+  // dd/mm/yyyy
+  const parts = s.split(/[\/\-\.]/);
+  if (parts.length === 3) {
+    if (parts[0].length <= 2 && parseInt(parts[0]) > 12) {
+      d = new Date(parts[2], parseInt(parts[1]) - 1, parseInt(parts[0]));
+    } else if (parts[0].length <= 2) {
+      d = new Date(parts[2], parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+    if (!isNaN(d)) return d;
+  }
+  return null;
+}
+
+function loadCSV(text) {
+  const lines = parseCSV(text);
+  if (lines.length < 2) { alert('CSV appears empty or has no data rows.'); return; }
+
+  const headers = lines[0];
+  const colMap = mapColumns(headers);
+
+  // Check we got at least a few key columns
+  const found = Object.entries(colMap).filter(([, v]) => v >= 0).map(([k]) => k);
+  if (!found.includes('siteName') && !found.includes('doctorName')) {
+    alert('Could not identify key columns (Site Name, Doctor\'s Name). Please check your CSV format.');
+    return;
+  }
+
+  RAW = [];
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i];
+    if (row.every(c => c.trim() === '')) continue;
+    const g = (key) => colMap[key] >= 0 ? (row[colMap[key]] || '').trim() : '';
+    RAW.push({
+      siteName:          g('siteName'),
+      doctorName:        g('doctorName'),
+      startLocum:        parseDate(g('startLocum')),
+      endLocum:          parseDate(g('endLocum')),
+      estMargin:         parseNum(g('estMargin')),
+      actualMargin:      parseNum(g('actualMargin')),
+      weekNumber:        parseInt(g('weekNumber')) || 0,
+      dueDate:           parseDate(g('dueDate')),
+      year:              g('year'),
+      bgTeammate:        g('bgTeammate'),
+      doctorPayType:     g('doctorPayType'),
+      marginPerUnit:     parseNum(g('marginPerUnit')),
+      estUnits:          parseNum(g('estUnits')),
+      actualUnits:       parseNum(g('actualUnits')),
+      actualTotalMargin: parseNum(g('actualTotalMargin')),
+      recruiterStatus:   g('recruiterStatus').toLowerCase(),
+      accountsStatus:    g('accountsStatus').toLowerCase(),
+      payIncSuper:       parseNum(g('payIncSuper')),
+      estVsActualMargin: parseNum(g('estVsActualMargin')),
+      _raw: row,
+    });
+  }
+
+  if (RAW.length === 0) { alert('No data rows found.'); return; }
+
+  // Populate filters
+  populateFilters();
+  applyFilters();
+  showDashboard();
+}
+
+// ── Filters ──
+function unique(arr) { return [...new Set(arr)].filter(Boolean).sort(); }
+
+function populateFilters() {
+  fill('filterYear', unique(RAW.map(r => r.year)));
+  fill('filterRecruiter', unique(RAW.map(r => r.bgTeammate)));
+  fill('filterSite', unique(RAW.map(r => r.siteName)));
+  fill('filterDoctor', unique(RAW.map(r => r.doctorName)));
+}
+
+function fill(id, values) {
+  const sel = document.getElementById(id);
+  const first = sel.options[0].textContent;
+  sel.innerHTML = `<option value="">${first}</option>`;
+  values.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    sel.appendChild(o);
+  });
+}
+
+function applyFilters() {
+  const y = document.getElementById('filterYear').value;
+  const r = document.getElementById('filterRecruiter').value;
+  const s = document.getElementById('filterSite').value;
+  const d = document.getElementById('filterDoctor').value;
+  const st = document.getElementById('filterStatus').value;
+  const q = document.getElementById('globalSearch').value.toLowerCase();
+
+  FILTERED = RAW.filter(row => {
+    if (y && row.year !== y) return false;
+    if (r && row.bgTeammate !== r) return false;
+    if (s && row.siteName !== s) return false;
+    if (d && row.doctorName !== d) return false;
+    if (st) {
+      if (st === 'processed' && !row.recruiterStatus.includes('process')) return false;
+      if (st === 'pending' && !row.recruiterStatus.includes('pending')) return false;
+    }
+    if (q) {
+      const haystack = [row.siteName, row.doctorName, row.bgTeammate, row.doctorPayType, row.year].join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('rowCount').textContent = `${FILTERED.length} timesheets`;
+  renderAll();
+}
+
+// Set up filter listeners
+['filterYear','filterRecruiter','filterSite','filterDoctor','filterStatus'].forEach(id => {
+  document.getElementById(id).addEventListener('change', applyFilters);
+});
+document.getElementById('globalSearch').addEventListener('input', applyFilters);
+
+// ── Show/hide ──
+function showDashboard() {
+  document.getElementById('dropZone').classList.add('has-data');
+  document.getElementById('dashboard').classList.add('visible');
+  document.getElementById('rowCount').style.display = '';
+  document.getElementById('clearBtn').style.display = '';
+}
+
+function clearData() {
+  RAW = []; FILTERED = [];
+  document.getElementById('dropZone').classList.remove('has-data');
+  document.getElementById('dashboard').classList.remove('visible');
+  document.getElementById('rowCount').style.display = 'none';
+  document.getElementById('clearBtn').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+}
+
+// ── Formatting helpers ──
+function fmt(n) {
+  if (n === 0) return '$0';
+  return '$' + n.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function fmt2(n) {
+  return '$' + n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtPct(n) {
+  return (n >= 0 ? '+' : '') + n.toFixed(1) + '%';
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function varianceClass(n) { return n >= 0 ? 'positive' : 'negative'; }
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ── KPI rendering ──
+function renderKPIs() {
+  const data = FILTERED;
+  const totalEst = data.reduce((s, r) => s + r.estMargin, 0);
+  const totalActual = data.reduce((s, r) => s + r.actualMargin, 0);
+  const variance = totalActual - totalEst;
+  const processed = data.filter(r => r.recruiterStatus.includes('process')).length;
+  const pending = data.filter(r => r.recruiterStatus.includes('pending')).length;
+  const totalPay = data.reduce((s, r) => s + r.payIncSuper, 0);
+  const uniqueDocs = new Set(data.map(r => r.doctorName).filter(Boolean)).size;
+  const uniqueSites = new Set(data.map(r => r.siteName).filter(Boolean)).size;
+  const totalWeeks = data.length;
+  const avgMarginPerWeek = totalWeeks > 0 ? totalActual / totalWeeks : 0;
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi">
+      <div class="k">Estimated Margin</div>
+      <div class="v">${fmt(totalEst)}</div>
+    </div>
+    <div class="kpi">
+      <div class="k">Actual Margin</div>
+      <div class="v">${fmt(totalActual)}</div>
+    </div>
+    <div class="kpi">
+      <div class="k">Variance</div>
+      <div class="v ${varianceClass(variance)}">${fmt(variance)}</div>
+      <div class="sub">${totalEst > 0 ? fmtPct((variance / totalEst) * 100) : '—'}</div>
+    </div>
+    <div class="kpi">
+      <div class="k">Avg Margin / Week</div>
+      <div class="v">${fmt(avgMarginPerWeek)}</div>
+    </div>
+    <div class="kpi">
+      <div class="k">Total Timesheets</div>
+      <div class="v">${totalWeeks}</div>
+      <div class="sub">${processed} processed · ${pending} pending</div>
+    </div>
+    <div class="kpi">
+      <div class="k">Doctors</div>
+      <div class="v">${uniqueDocs}</div>
+    </div>
+    <div class="kpi">
+      <div class="k">Sites</div>
+      <div class="v">${uniqueSites}</div>
+    </div>
+    <div class="kpi">
+      <div class="k">Total Dr Pay (inc super)</div>
+      <div class="v">${fmt(totalPay)}</div>
+    </div>
+  `;
+}
+
+// ── Render all tabs ──
+function renderAll() {
+  renderKPIs();
+  renderOverview();
+  renderBySite();
+  renderByDoctor();
+  renderByRecruiter();
+  renderRankings();
+  renderReturning();
+}
+
+// ── Helper: group ──
+function groupBy(arr, keyFn) {
+  const map = {};
+  arr.forEach(r => {
+    const k = keyFn(r) || '(blank)';
+    if (!map[k]) map[k] = [];
+    map[k].push(r);
+  });
+  return map;
+}
+
+function sumField(arr, f) { return arr.reduce((s, r) => s + r[f], 0); }
+
+// ── Sortable table helper ──
+let sortState = {};
+
+function sortableTable(id, headers, rows, defaultSort = 0, defaultDir = 'desc') {
+  if (!sortState[id]) sortState[id] = { col: defaultSort, dir: defaultDir };
+  const st = sortState[id];
+
+  // Sort rows
+  const sorted = [...rows].sort((a, b) => {
+    let va = a[st.col], vb = b[st.col];
+    if (typeof va === 'string') { va = va.toLowerCase(); vb = (vb || '').toLowerCase(); }
+    if (va < vb) return st.dir === 'asc' ? -1 : 1;
+    if (va > vb) return st.dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const ths = headers.map((h, i) => {
+    const arrow = st.col === i ? (st.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    const cls = h.align === 'right' ? ' class="right"' : '';
+    return `<th${cls} data-table="${id}" data-col="${i}">${escHtml(h.label)}<span class="sort-arrow">${arrow}</span></th>`;
+  }).join('');
+
+  const trs = sorted.map(row => {
+    return '<tr>' + row.map((cell, i) => {
+      const cls = headers[i].align === 'right' ? ' class="right mono"' : '';
+      return `<td${cls}>${cell}</td>`;
+    }).join('') + '</tr>';
+  }).join('');
+
+  return `<div class="table-wrap"><table class="report-table" id="${id}"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+}
+
+// Global click handler for sort
+document.addEventListener('click', e => {
+  const th = e.target.closest('th[data-table]');
+  if (!th) return;
+  const id = th.dataset.table;
+  const col = parseInt(th.dataset.col);
+  if (!sortState[id]) sortState[id] = { col, dir: 'desc' };
+  if (sortState[id].col === col) {
+    sortState[id].dir = sortState[id].dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortState[id].col = col;
+    sortState[id].dir = 'desc';
+  }
+  renderAll();
+});
+
+// ── Tab: Overview ──
+function renderOverview() {
+  const data = FILTERED;
+  // Weekly trend (by week number)
+  const byWeek = groupBy(data, r => `W${r.weekNumber} ${r.year}`);
+  const weekKeys = Object.keys(byWeek).sort();
+
+  let weekRows = weekKeys.map(w => {
+    const rows = byWeek[w];
+    const est = sumField(rows, 'estMargin');
+    const act = sumField(rows, 'actualMargin');
+    const variance = act - est;
+    const docs = new Set(rows.map(r => r.doctorName).filter(Boolean)).size;
+    return [w, fmt(est), fmt(act), `<span class="${varianceClass(variance)}">${fmt(variance)}</span>`, docs, est, act];
+  });
+
+  // Status breakdown
+  const processed = data.filter(r => r.recruiterStatus.includes('process'));
+  const pending = data.filter(r => r.recruiterStatus.includes('pending'));
+
+  const pane = document.getElementById('pane-overview');
+  pane.innerHTML = `
+    <div class="section-title">Weekly Margin Summary</div>
+    <div class="section-sub">Each row is one week across all doctors and sites</div>
+    ${sortableTable('tbl-weekly', [
+      {label: 'Week', align: 'left'},
+      {label: 'Estimated Margin', align: 'right'},
+      {label: 'Actual Margin', align: 'right'},
+      {label: 'Variance', align: 'right'},
+      {label: 'Doctors', align: 'right'},
+    ], weekRows.map(r => r.slice(0, 5)), 0, 'asc')}
+
+    <div class="section-title" style="margin-top:32px;">Timesheet Status Breakdown</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; max-width:500px;">
+      <div class="kpi">
+        <div class="k">Recruiter Processed</div>
+        <div class="v positive">${processed.length}</div>
+        <div class="sub">Margin: ${fmt(sumField(processed, 'actualMargin'))}</div>
+      </div>
+      <div class="kpi">
+        <div class="k">Recruiter Pending</div>
+        <div class="v" style="color:var(--amber)">${pending.length}</div>
+        <div class="sub">Est Margin: ${fmt(sumField(pending, 'estMargin'))}</div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Tab: By Site ──
+function renderBySite() {
+  const data = FILTERED;
+  const bySite = groupBy(data, r => r.siteName);
+  const maxMargin = Math.max(...Object.values(bySite).map(rows => Math.abs(sumField(rows, 'actualMargin'))), 1);
+
+  const rows = Object.entries(bySite).map(([site, rows]) => {
+    const est = sumField(rows, 'estMargin');
+    const act = sumField(rows, 'actualMargin');
+    const variance = act - est;
+    const weeks = rows.length;
+    const docs = new Set(rows.map(r => r.doctorName).filter(Boolean)).size;
+    const pct = (Math.abs(act) / maxMargin * 100).toFixed(0);
+    const barColor = act >= 0 ? 'var(--green)' : 'var(--red)';
+
+    return [
+      `<span class="bold" style="cursor:pointer;text-decoration:underline" onclick="drillSite('${escHtml(site)}')">${escHtml(site)}</span>`,
+      fmt(est), fmt(act),
+      `<span class="${varianceClass(variance)}">${fmt(variance)}</span>`,
+      weeks, docs,
+      `<div class="bar-cell"><div class="bar-bg" style="width:${pct}%;background:${barColor}"></div><span class="bar-val">${fmt(act)}</span></div>`,
+      act, est
+    ];
+  });
+
+  document.getElementById('pane-bySite').innerHTML = `
+    <div class="section-title">Margin by Site</div>
+    <div class="section-sub">Click a site name to drill down into doctors and weekly breakdown</div>
+    ${sortableTable('tbl-site', [
+      {label: 'Site', align: 'left'},
+      {label: 'Est Margin', align: 'right'},
+      {label: 'Actual Margin', align: 'right'},
+      {label: 'Variance', align: 'right'},
+      {label: 'Weeks', align: 'right'},
+      {label: 'Doctors', align: 'right'},
+      {label: 'Visual', align: 'left'},
+    ], rows.map(r => r.slice(0, 7)), 2, 'desc')}
+  `;
+}
+
+// ── Tab: By Doctor ──
+function renderByDoctor() {
+  const data = FILTERED;
+  const byDoc = groupBy(data, r => r.doctorName);
+
+  const rows = Object.entries(byDoc).map(([doc, rows]) => {
+    const est = sumField(rows, 'estMargin');
+    const act = sumField(rows, 'actualMargin');
+    const variance = act - est;
+    const weeks = rows.length;
+    const sites = new Set(rows.map(r => r.siteName).filter(Boolean)).size;
+    const pay = sumField(rows, 'payIncSuper');
+    const startDates = rows.map(r => r.startLocum).filter(Boolean);
+    const endDates = rows.map(r => r.endLocum).filter(Boolean);
+    const earliest = startDates.length ? new Date(Math.min(...startDates)) : null;
+    const latest = endDates.length ? new Date(Math.max(...endDates)) : null;
+
+    return [
+      `<span class="bold" style="cursor:pointer;text-decoration:underline" onclick="drillDoctor('${escHtml(doc)}')">${escHtml(doc)}</span>`,
+      fmt(est), fmt(act),
+      `<span class="${varianceClass(variance)}">${fmt(variance)}</span>`,
+      weeks, sites, fmt(pay),
+      fmtDate(earliest), fmtDate(latest),
+      act, est
+    ];
+  });
+
+  document.getElementById('pane-byDoctor').innerHTML = `
+    <div class="section-title">Margin by Doctor</div>
+    <div class="section-sub">Click a doctor name to see sites worked, weekly breakdown, and pay details</div>
+    ${sortableTable('tbl-doctor', [
+      {label: 'Doctor', align: 'left'},
+      {label: 'Est Margin', align: 'right'},
+      {label: 'Actual Margin', align: 'right'},
+      {label: 'Variance', align: 'right'},
+      {label: 'Weeks', align: 'right'},
+      {label: 'Sites', align: 'right'},
+      {label: 'Pay (inc super)', align: 'right'},
+      {label: 'First Start', align: 'left'},
+      {label: 'Last End', align: 'left'},
+    ], rows.map(r => r.slice(0, 9)), 2, 'desc')}
+  `;
+}
+
+// ── Tab: By Recruiter ──
+function renderByRecruiter() {
+  const data = FILTERED;
+  const byRec = groupBy(data, r => r.bgTeammate);
+
+  const rows = Object.entries(byRec).map(([rec, rows]) => {
+    const est = sumField(rows, 'estMargin');
+    const act = sumField(rows, 'actualMargin');
+    const variance = act - est;
+    const weeks = rows.length;
+    const docs = new Set(rows.map(r => r.doctorName).filter(Boolean)).size;
+    const sites = new Set(rows.map(r => r.siteName).filter(Boolean)).size;
+    const processed = rows.filter(r => r.recruiterStatus.includes('process')).length;
+    const pending = rows.filter(r => r.recruiterStatus.includes('pending')).length;
+    const variancePct = est !== 0 ? ((variance / est) * 100) : 0;
+
+    return [
+      `<span class="bold" style="cursor:pointer;text-decoration:underline" onclick="drillRecruiter('${escHtml(rec)}')">${escHtml(rec)}</span>`,
+      fmt(est), fmt(act),
+      `<span class="${varianceClass(variance)}">${fmt(variance)} (${fmtPct(variancePct)})</span>`,
+      weeks, docs, sites,
+      `<span class="badge processed">${processed}</span> <span class="badge pending">${pending}</span>`,
+      act, est
+    ];
+  });
+
+  document.getElementById('pane-byRecruiter').innerHTML = `
+    <div class="section-title">Recruiter Performance</div>
+    <div class="section-sub">Estimated vs actual margin, forecast accuracy, and placement stats per recruiter</div>
+    ${sortableTable('tbl-recruiter', [
+      {label: 'Recruiter', align: 'left'},
+      {label: 'Est Margin', align: 'right'},
+      {label: 'Actual Margin', align: 'right'},
+      {label: 'Variance', align: 'right'},
+      {label: 'Weeks', align: 'right'},
+      {label: 'Doctors', align: 'right'},
+      {label: 'Sites', align: 'right'},
+      {label: 'Status', align: 'left'},
+    ], rows.map(r => r.slice(0, 8)), 2, 'desc')}
+  `;
+}
+
+// ── Tab: Rankings ──
+function renderRankings() {
+  const data = FILTERED;
+
+  // Top/bottom sites
+  const bySite = groupBy(data, r => r.siteName);
+  const siteRank = Object.entries(bySite).map(([name, rows]) => ({
+    name, margin: sumField(rows, 'actualMargin'), weeks: rows.length,
+    avg: rows.length > 0 ? sumField(rows, 'actualMargin') / rows.length : 0,
+  })).sort((a, b) => b.margin - a.margin);
+
+  const topSites = siteRank.slice(0, 10);
+  const bottomSites = [...siteRank].sort((a, b) => a.margin - b.margin).slice(0, 10);
+
+  // Top/bottom doctors
+  const byDoc = groupBy(data, r => r.doctorName);
+  const docRank = Object.entries(byDoc).map(([name, rows]) => ({
+    name, margin: sumField(rows, 'actualMargin'), weeks: rows.length,
+    avg: rows.length > 0 ? sumField(rows, 'actualMargin') / rows.length : 0,
+  })).sort((a, b) => b.margin - a.margin);
+
+  const topDocs = docRank.slice(0, 10);
+  const bottomDocs = [...docRank].sort((a, b) => a.margin - b.margin).slice(0, 10);
+
+  const maxSiteMargin = Math.max(...siteRank.map(s => Math.abs(s.margin)), 1);
+  const maxDocMargin = Math.max(...docRank.map(d => Math.abs(d.margin)), 1);
+
+  function rankTable(id, items, maxVal) {
+    return sortableTable(id, [
+      {label: 'Rank', align: 'right'},
+      {label: 'Name', align: 'left'},
+      {label: 'Total Margin', align: 'right'},
+      {label: 'Weeks', align: 'right'},
+      {label: 'Avg/Week', align: 'right'},
+      {label: '', align: 'left'},
+    ], items.map((item, i) => {
+      const pct = (Math.abs(item.margin) / maxVal * 100).toFixed(0);
+      const color = item.margin >= 0 ? 'var(--green)' : 'var(--red)';
+      return [
+        i + 1,
+        `<span class="bold">${escHtml(item.name)}</span>`,
+        `<span class="${varianceClass(item.margin)}">${fmt(item.margin)}</span>`,
+        item.weeks,
+        fmt(item.avg),
+        `<div class="bar-cell"><div class="bar-bg" style="width:${pct}%;background:${color}"></div></div>`,
+      ];
+    }), 0, 'asc');
+  }
+
+  document.getElementById('pane-rankings').innerHTML = `
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+      <div>
+        <div class="section-title">Top Sites by Margin</div>
+        ${rankTable('tbl-topSites', topSites, maxSiteMargin)}
+      </div>
+      <div>
+        <div class="section-title">Bottom Sites by Margin</div>
+        ${rankTable('tbl-botSites', bottomSites, maxSiteMargin)}
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:24px;">
+      <div>
+        <div class="section-title">Top Doctors by Margin</div>
+        ${rankTable('tbl-topDocs', topDocs, maxDocMargin)}
+      </div>
+      <div>
+        <div class="section-title">Bottom Doctors by Margin</div>
+        ${rankTable('tbl-botDocs', bottomDocs, maxDocMargin)}
+      </div>
+    </div>
+  `;
+}
+
+// ── Tab: Returning Doctors ──
+function renderReturning() {
+  const data = FILTERED;
+  const byDoc = groupBy(data, r => r.doctorName);
+  const now = new Date();
+  const sixMonthsAgo = new Date(now);
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+  const returning = [];
+  for (const [doc, rows] of Object.entries(byDoc)) {
+    const endDates = rows.map(r => r.endLocum).filter(Boolean).sort((a, b) => b - a);
+    if (endDates.length === 0) continue;
+
+    const lastEnd = endDates[0];
+    const startDates = rows.map(r => r.startLocum).filter(Boolean).sort((a, b) => a - b);
+
+    // Find gaps > 6 months between placements
+    const sortedEnds = rows.map(r => r.endLocum).filter(Boolean).sort((a, b) => a - b);
+    const sortedStarts = rows.map(r => r.startLocum).filter(Boolean).sort((a, b) => a - b);
+
+    // Check if last end locum is > 6 months ago (inactive doctor)
+    const daysSinceLastEnd = Math.floor((now - lastEnd) / (1000 * 60 * 60 * 24));
+    const totalMargin = sumField(rows, 'actualMargin');
+    const sites = [...new Set(rows.map(r => r.siteName).filter(Boolean))];
+    const weeks = rows.length;
+
+    // Consider "returning" if gap > 6 months OR if they had a gap > 6 months between placements
+    let hasLongGap = false;
+    let longestGapDays = 0;
+    if (sortedEnds.length > 1) {
+      for (let i = 1; i < sortedStarts.length; i++) {
+        const prevEnd = sortedEnds[i - 1];
+        const nextStart = sortedStarts[i];
+        if (prevEnd && nextStart) {
+          const gap = Math.floor((nextStart - prevEnd) / (1000 * 60 * 60 * 24));
+          if (gap > longestGapDays) longestGapDays = gap;
+          if (gap > 180) hasLongGap = true;
+        }
+      }
+    }
+
+    const inactive = daysSinceLastEnd > 180;
+
+    if (inactive || hasLongGap) {
+      returning.push({
+        doc, lastEnd, daysSinceLastEnd, totalMargin, sites, weeks,
+        inactive, hasLongGap, longestGapDays,
+      });
+    }
+  }
+
+  returning.sort((a, b) => b.daysSinceLastEnd - a.daysSinceLastEnd);
+
+  const rows = returning.map(r => [
+    `<span class="bold">${escHtml(r.doc)}</span>`,
+    fmtDate(r.lastEnd),
+    `${r.daysSinceLastEnd} days`,
+    r.inactive ? '<span class="badge pending">Inactive</span>' : '<span class="badge processed">Had gap</span>',
+    `${r.longestGapDays} days`,
+    fmt(r.totalMargin),
+    r.weeks,
+    r.sites.map(s => escHtml(s)).join(', '),
+    r.daysSinceLastEnd,
+  ]);
+
+  document.getElementById('pane-returning').innerHTML = `
+    <div class="section-title">Returning & Inactive Doctors</div>
+    <div class="section-sub">Doctors who haven't worked for over 6 months since their last end locum date, or who had a gap of 6+ months between placements</div>
+    ${returning.length === 0 ? '<p style="color:var(--muted)">No doctors match the 6-month inactivity criteria in the current data.</p>' :
+    sortableTable('tbl-returning', [
+      {label: 'Doctor', align: 'left'},
+      {label: 'Last End Locum', align: 'left'},
+      {label: 'Days Since', align: 'right'},
+      {label: 'Status', align: 'left'},
+      {label: 'Longest Gap', align: 'right'},
+      {label: 'Total Margin', align: 'right'},
+      {label: 'Weeks Worked', align: 'right'},
+      {label: 'Sites', align: 'left'},
+    ], rows.map(r => r.slice(0, 8)), 2, 'desc')}
+  `;
+}
+
+// ── Drill-down panels ──
+function openDrill(html) {
+  document.getElementById('drillPanel').innerHTML = `<button class="drill-close" onclick="closeDrill()">&times;</button>` + html;
+  document.getElementById('drillOverlay').style.display = 'flex';
+}
+function closeDrill() {
+  document.getElementById('drillOverlay').style.display = 'none';
+}
+
+function drillSite(site) {
+  const rows = FILTERED.filter(r => r.siteName === site);
+  const est = sumField(rows, 'estMargin');
+  const act = sumField(rows, 'actualMargin');
+  const variance = act - est;
+  const byDoc = groupBy(rows, r => r.doctorName);
+
+  let docTable = Object.entries(byDoc).map(([doc, dRows]) => {
+    const dEst = sumField(dRows, 'estMargin');
+    const dAct = sumField(dRows, 'actualMargin');
+    return `<tr>
+      <td class="bold">${escHtml(doc)}</td>
+      <td class="right mono">${fmt(dEst)}</td>
+      <td class="right mono">${fmt(dAct)}</td>
+      <td class="right mono"><span class="${varianceClass(dAct - dEst)}">${fmt(dAct - dEst)}</span></td>
+      <td class="right">${dRows.length}</td>
+    </tr>`;
+  }).join('');
+
+  openDrill(`
+    <h2>${escHtml(site)}</h2>
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;">
+      <div class="kpi"><div class="k">Est Margin</div><div class="v">${fmt(est)}</div></div>
+      <div class="kpi"><div class="k">Actual Margin</div><div class="v">${fmt(act)}</div></div>
+      <div class="kpi"><div class="k">Variance</div><div class="v ${varianceClass(variance)}">${fmt(variance)}</div></div>
+    </div>
+    <div class="section-title">Doctors at this site</div>
+    <div class="table-wrap"><table class="report-table">
+      <thead><tr><th>Doctor</th><th class="right">Est Margin</th><th class="right">Actual Margin</th><th class="right">Variance</th><th class="right">Weeks</th></tr></thead>
+      <tbody>${docTable}</tbody>
+    </table></div>
+  `);
+}
+
+function drillDoctor(doc) {
+  const rows = FILTERED.filter(r => r.doctorName === doc);
+  const est = sumField(rows, 'estMargin');
+  const act = sumField(rows, 'actualMargin');
+  const variance = act - est;
+  const pay = sumField(rows, 'payIncSuper');
+  const bySite = groupBy(rows, r => r.siteName);
+
+  let siteTable = Object.entries(bySite).map(([site, sRows]) => {
+    const sEst = sumField(sRows, 'estMargin');
+    const sAct = sumField(sRows, 'actualMargin');
+    const sPay = sumField(sRows, 'payIncSuper');
+    return `<tr>
+      <td class="bold">${escHtml(site)}</td>
+      <td class="right mono">${fmt(sEst)}</td>
+      <td class="right mono">${fmt(sAct)}</td>
+      <td class="right mono"><span class="${varianceClass(sAct - sEst)}">${fmt(sAct - sEst)}</span></td>
+      <td class="right">${sRows.length}</td>
+      <td class="right mono">${fmt(sPay)}</td>
+    </tr>`;
+  }).join('');
+
+  // Weekly detail
+  let weekDetail = rows.sort((a, b) => a.weekNumber - b.weekNumber).map(r => `<tr>
+    <td>W${r.weekNumber}</td>
+    <td>${r.year}</td>
+    <td class="right mono">${fmt(r.estMargin)}</td>
+    <td class="right mono">${fmt(r.actualMargin)}</td>
+    <td class="right mono">${fmt(r.payIncSuper)}</td>
+    <td>${r.recruiterStatus.includes('process') ? '<span class="badge processed">Processed</span>' : '<span class="badge pending">Pending</span>'}</td>
+  </tr>`).join('');
+
+  openDrill(`
+    <h2>${escHtml(doc)}</h2>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
+      <div class="kpi"><div class="k">Est Margin</div><div class="v">${fmt(est)}</div></div>
+      <div class="kpi"><div class="k">Actual Margin</div><div class="v">${fmt(act)}</div></div>
+      <div class="kpi"><div class="k">Variance</div><div class="v ${varianceClass(variance)}">${fmt(variance)}</div></div>
+      <div class="kpi"><div class="k">Total Pay</div><div class="v">${fmt(pay)}</div></div>
+    </div>
+    <div class="section-title">Sites worked</div>
+    <div class="table-wrap"><table class="report-table">
+      <thead><tr><th>Site</th><th class="right">Est Margin</th><th class="right">Actual Margin</th><th class="right">Variance</th><th class="right">Weeks</th><th class="right">Pay</th></tr></thead>
+      <tbody>${siteTable}</tbody>
+    </table></div>
+    <div class="section-title" style="margin-top:20px;">Weekly Detail</div>
+    <div class="table-wrap"><table class="report-table">
+      <thead><tr><th>Week</th><th>Year</th><th class="right">Est Margin</th><th class="right">Actual Margin</th><th class="right">Pay</th><th>Status</th></tr></thead>
+      <tbody>${weekDetail}</tbody>
+    </table></div>
+  `);
+}
+
+function drillRecruiter(rec) {
+  const rows = FILTERED.filter(r => r.bgTeammate === rec);
+  const est = sumField(rows, 'estMargin');
+  const act = sumField(rows, 'actualMargin');
+  const variance = act - est;
+  const byDoc = groupBy(rows, r => r.doctorName);
+  const bySite = groupBy(rows, r => r.siteName);
+
+  let docTable = Object.entries(byDoc).sort((a, b) => sumField(b[1], 'actualMargin') - sumField(a[1], 'actualMargin')).map(([doc, dRows]) => {
+    const dAct = sumField(dRows, 'actualMargin');
+    const dEst = sumField(dRows, 'estMargin');
+    return `<tr>
+      <td class="bold">${escHtml(doc)}</td>
+      <td class="right mono">${fmt(dEst)}</td>
+      <td class="right mono">${fmt(dAct)}</td>
+      <td class="right mono"><span class="${varianceClass(dAct - dEst)}">${fmt(dAct - dEst)}</span></td>
+      <td class="right">${dRows.length}</td>
+    </tr>`;
+  }).join('');
+
+  let siteTable = Object.entries(bySite).sort((a, b) => sumField(b[1], 'actualMargin') - sumField(a[1], 'actualMargin')).map(([site, sRows]) => {
+    const sAct = sumField(sRows, 'actualMargin');
+    const sEst = sumField(sRows, 'estMargin');
+    return `<tr>
+      <td class="bold">${escHtml(site)}</td>
+      <td class="right mono">${fmt(sEst)}</td>
+      <td class="right mono">${fmt(sAct)}</td>
+      <td class="right">${sRows.length}</td>
+    </tr>`;
+  }).join('');
+
+  openDrill(`
+    <h2>${escHtml(rec)}</h2>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
+      <div class="kpi"><div class="k">Est Margin</div><div class="v">${fmt(est)}</div></div>
+      <div class="kpi"><div class="k">Actual Margin</div><div class="v">${fmt(act)}</div></div>
+      <div class="kpi"><div class="k">Variance</div><div class="v ${varianceClass(variance)}">${fmt(variance)}</div></div>
+      <div class="kpi"><div class="k">Placements</div><div class="v">${rows.length}</div></div>
+    </div>
+    <div class="section-title">Doctors placed</div>
+    <div class="table-wrap"><table class="report-table">
+      <thead><tr><th>Doctor</th><th class="right">Est Margin</th><th class="right">Actual Margin</th><th class="right">Variance</th><th class="right">Weeks</th></tr></thead>
+      <tbody>${docTable}</tbody>
+    </table></div>
+    <div class="section-title" style="margin-top:20px;">Sites</div>
+    <div class="table-wrap"><table class="report-table">
+      <thead><tr><th>Site</th><th class="right">Est Margin</th><th class="right">Actual Margin</th><th class="right">Weeks</th></tr></thead>
+      <tbody>${siteTable}</tbody>
+    </table></div>
+  `);
+}
+
+// ── Export ──
+function exportCurrentView() {
+  const data = FILTERED;
+  const headers = ['Site Name', "Doctor's Name", 'Start Locum', 'End Locum', 'Estimated Margin', 'Actual Margin',
+    'Week Number', 'Due Date', 'Year', 'BG Teammate', 'Doctor Pay Type', 'Margin Per Unit',
+    'Est Units', 'Actual Units', 'Actual Total Margin', 'Recruiter Status', 'Accounts Status',
+    'Pay Inc Super', 'Est vs Actual Margin'];
+
+  const csvRows = [headers.join(',')];
+  data.forEach(r => {
+    csvRows.push([
+      `"${r.siteName}"`, `"${r.doctorName}"`, fmtDate(r.startLocum), fmtDate(r.endLocum),
+      r.estMargin, r.actualMargin, r.weekNumber, fmtDate(r.dueDate), r.year,
+      `"${r.bgTeammate}"`, `"${r.doctorPayType}"`, r.marginPerUnit,
+      r.estUnits, r.actualUnits, r.actualTotalMargin,
+      `"${r.recruiterStatus}"`, `"${r.accountsStatus}"`,
+      r.payIncSuper, r.estVsActualMargin,
+    ].join(','));
+  });
+
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `blugibbon-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Tab switching ──
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Drag & Drop + File Input ──
+const dropArea = document.getElementById('dropArea');
+const fileInput = document.getElementById('fileInput');
+
+dropArea.addEventListener('click', () => fileInput.click());
+
+dropArea.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropArea.classList.add('dragover');
+});
+dropArea.addEventListener('dragleave', () => {
+  dropArea.classList.remove('dragover');
+});
+dropArea.addEventListener('drop', e => {
+  e.preventDefault();
+  dropArea.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) readFile(file);
+});
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) readFile(file);
+});
+
+function readFile(file) {
+  if (!file.name.endsWith('.csv')) {
+    alert('Please upload a .csv file');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => loadCSV(e.target.result);
+  reader.readAsText(file);
+}
+
+// ── Keyboard shortcut: Escape closes drill ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeDrill();
+});
+
+</script>
+</body>
+</html>
