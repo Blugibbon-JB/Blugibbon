@@ -557,30 +557,39 @@ function escHtml(s) {
 // ── KPI rendering ──
 function renderKPIs() {
   const data = FILTERED;
-  const totalEst = data.reduce((s, r) => s + r.estMargin, 0);
-  const totalActual = data.reduce((s, r) => s + r.actualMargin, 0);
-  const variance = totalActual - totalEst;
-  const processed = data.filter(r => r.recruiterStatus.includes('process')).length;
-  const pending = data.filter(r => r.recruiterStatus.includes('pending')).length;
+  const processedRows = data.filter(isProcessed);
+  const pendingRows = data.filter(isPending);
+  const totalForecast = sumForecast(data);       // pending est margin
+  const totalActual = sumActual(data);            // processed actual total margin
+  const totalCombined = totalForecast + totalActual;
+  const variance = sumVariance(data);             // processed: actual - est
+  const estOnProcessed = processedRows.reduce((s, r) => s + r.estMargin, 0);
   const totalPay = data.reduce((s, r) => s + r.payIncSuper, 0);
   const uniqueDocs = new Set(data.map(r => r.doctorName).filter(Boolean)).size;
   const uniqueSites = new Set(data.map(r => r.siteName).filter(Boolean)).size;
   const totalWeeks = data.length;
-  const avgMarginPerWeek = totalWeeks > 0 ? totalActual / totalWeeks : 0;
+  const avgMarginPerWeek = totalWeeks > 0 ? totalCombined / totalWeeks : 0;
 
   document.getElementById('kpiRow').innerHTML = `
     <div class="kpi">
-      <div class="k">Estimated Margin</div>
-      <div class="v">${fmt(totalEst)}</div>
+      <div class="k">Forecasted Margin</div>
+      <div class="v">${fmt(totalForecast)}</div>
+      <div class="sub">${pendingRows.length} pending timesheets</div>
     </div>
     <div class="kpi">
       <div class="k">Actual Margin</div>
       <div class="v">${fmt(totalActual)}</div>
+      <div class="sub">${processedRows.length} processed timesheets</div>
     </div>
     <div class="kpi">
-      <div class="k">Variance</div>
+      <div class="k">Combined Margin</div>
+      <div class="v">${fmt(totalCombined)}</div>
+      <div class="sub">Forecast + Actual</div>
+    </div>
+    <div class="kpi">
+      <div class="k">Variance (Processed)</div>
       <div class="v ${varianceClass(variance)}">${fmt(variance)}</div>
-      <div class="sub">${totalEst > 0 ? fmtPct((variance / totalEst) * 100) : '—'}</div>
+      <div class="sub">${estOnProcessed > 0 ? fmtPct((variance / estOnProcessed) * 100) + ' vs forecast' : '—'}</div>
     </div>
     <div class="kpi">
       <div class="k">Avg Margin / Week</div>
@@ -589,7 +598,7 @@ function renderKPIs() {
     <div class="kpi">
       <div class="k">Total Timesheets</div>
       <div class="v">${totalWeeks}</div>
-      <div class="sub">${processed} processed · ${pending} pending</div>
+      <div class="sub">${processedRows.length} processed · ${pendingRows.length} pending</div>
     </div>
     <div class="kpi">
       <div class="k">Doctors</div>
@@ -629,6 +638,18 @@ function groupBy(arr, keyFn) {
 }
 
 function sumField(arr, f) { return arr.reduce((s, r) => s + r[f], 0); }
+
+// ── Status-aware margin helpers ──
+// Pending timesheets  → use Estimated Week Ending Margin
+// Processed timesheets → use Actual Week Ending Total Margin
+function isProcessed(r) { return r.recruiterStatus.includes('process'); }
+function isPending(r) { return !isProcessed(r); }
+function marginForRow(r) { return isProcessed(r) ? r.actualTotalMargin : r.estMargin; }
+function sumMargin(arr) { return arr.reduce((s, r) => s + marginForRow(r), 0); }
+function sumForecast(arr) { return arr.filter(isPending).reduce((s, r) => s + r.estMargin, 0); }
+function sumActual(arr) { return arr.filter(isProcessed).reduce((s, r) => s + r.actualTotalMargin, 0); }
+// Variance: for processed rows only, how much actual differed from estimate
+function sumVariance(arr) { return arr.filter(isProcessed).reduce((s, r) => s + (r.actualTotalMargin - r.estMargin), 0); }
 
 // ── Sortable table helper ──
 let sortState = {};
@@ -687,40 +708,47 @@ function renderOverview() {
 
   let weekRows = weekKeys.map(w => {
     const rows = byWeek[w];
-    const est = sumField(rows, 'estMargin');
-    const act = sumField(rows, 'actualMargin');
-    const variance = act - est;
+    const forecast = sumForecast(rows);
+    const actual = sumActual(rows);
+    const combined = forecast + actual;
+    const variance = sumVariance(rows);
     const docs = new Set(rows.map(r => r.doctorName).filter(Boolean)).size;
-    return [w, fmt(est), fmt(act), `<span class="${varianceClass(variance)}">${fmt(variance)}</span>`, docs, est, act];
+    const proc = rows.filter(isProcessed).length;
+    const pend = rows.filter(isPending).length;
+    return [w, fmt(forecast), fmt(actual), fmt(combined),
+      `<span class="${varianceClass(variance)}">${fmt(variance)}</span>`,
+      docs, `${proc}/${pend}`, combined];
   });
 
   // Status breakdown
-  const processed = data.filter(r => r.recruiterStatus.includes('process'));
-  const pending = data.filter(r => r.recruiterStatus.includes('pending'));
+  const processedRows = data.filter(isProcessed);
+  const pendingRows = data.filter(isPending);
 
   const pane = document.getElementById('pane-overview');
   pane.innerHTML = `
     <div class="section-title">Weekly Margin Summary</div>
-    <div class="section-sub">Each row is one week across all doctors and sites</div>
+    <div class="section-sub">Forecasted = pending timesheets (est margin) · Actual = processed timesheets (actual total margin)</div>
     ${sortableTable('tbl-weekly', [
       {label: 'Week', align: 'left'},
-      {label: 'Estimated Margin', align: 'right'},
-      {label: 'Actual Margin', align: 'right'},
+      {label: 'Forecasted', align: 'right'},
+      {label: 'Actual', align: 'right'},
+      {label: 'Combined', align: 'right'},
       {label: 'Variance', align: 'right'},
       {label: 'Doctors', align: 'right'},
-    ], weekRows.map(r => r.slice(0, 5)), 0, 'asc')}
+      {label: 'Proc/Pend', align: 'right'},
+    ], weekRows.map(r => r.slice(0, 7)), 0, 'asc')}
 
     <div class="section-title" style="margin-top:32px;">Timesheet Status Breakdown</div>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; max-width:500px;">
       <div class="kpi">
         <div class="k">Recruiter Processed</div>
-        <div class="v positive">${processed.length}</div>
-        <div class="sub">Margin: ${fmt(sumField(processed, 'actualMargin'))}</div>
+        <div class="v positive">${processedRows.length}</div>
+        <div class="sub">Actual Margin: ${fmt(sumActual(data))}</div>
       </div>
       <div class="kpi">
         <div class="k">Recruiter Pending</div>
-        <div class="v" style="color:var(--amber)">${pending.length}</div>
-        <div class="sub">Est Margin: ${fmt(sumField(pending, 'estMargin'))}</div>
+        <div class="v" style="color:var(--amber)">${pendingRows.length}</div>
+        <div class="sub">Forecasted Margin: ${fmt(sumForecast(data))}</div>
       </div>
     </div>
   `;
@@ -730,39 +758,43 @@ function renderOverview() {
 function renderBySite() {
   const data = FILTERED;
   const bySite = groupBy(data, r => r.siteName);
-  const maxMargin = Math.max(...Object.values(bySite).map(rows => Math.abs(sumField(rows, 'actualMargin'))), 1);
+  const maxMargin = Math.max(...Object.values(bySite).map(rows => Math.abs(sumMargin(rows))), 1);
 
   const rows = Object.entries(bySite).map(([site, rows]) => {
-    const est = sumField(rows, 'estMargin');
-    const act = sumField(rows, 'actualMargin');
-    const variance = act - est;
+    const forecast = sumForecast(rows);
+    const actual = sumActual(rows);
+    const combined = forecast + actual;
+    const variance = sumVariance(rows);
     const weeks = rows.length;
     const docs = new Set(rows.map(r => r.doctorName).filter(Boolean)).size;
-    const pct = (Math.abs(act) / maxMargin * 100).toFixed(0);
-    const barColor = act >= 0 ? 'var(--green)' : 'var(--red)';
+    const proc = rows.filter(isProcessed).length;
+    const pend = rows.filter(isPending).length;
+    const pct = (Math.abs(combined) / maxMargin * 100).toFixed(0);
+    const barColor = combined >= 0 ? 'var(--green)' : 'var(--red)';
 
     return [
       `<span class="bold" style="cursor:pointer;text-decoration:underline" onclick="drillSite('${escHtml(site)}')">${escHtml(site)}</span>`,
-      fmt(est), fmt(act),
+      fmt(forecast), fmt(actual), fmt(combined),
       `<span class="${varianceClass(variance)}">${fmt(variance)}</span>`,
-      weeks, docs,
-      `<div class="bar-cell"><div class="bar-bg" style="width:${pct}%;background:${barColor}"></div><span class="bar-val">${fmt(act)}</span></div>`,
-      act, est
+      weeks, `${proc}/${pend}`,
+      `<div class="bar-cell"><div class="bar-bg" style="width:${pct}%;background:${barColor}"></div><span class="bar-val">${fmt(combined)}</span></div>`,
+      combined
     ];
   });
 
   document.getElementById('pane-bySite').innerHTML = `
     <div class="section-title">Margin by Site</div>
-    <div class="section-sub">Click a site name to drill down into doctors and weekly breakdown</div>
+    <div class="section-sub">Forecasted (pending est) + Actual (processed actual total). Click a site to drill down.</div>
     ${sortableTable('tbl-site', [
       {label: 'Site', align: 'left'},
-      {label: 'Est Margin', align: 'right'},
-      {label: 'Actual Margin', align: 'right'},
+      {label: 'Forecasted', align: 'right'},
+      {label: 'Actual', align: 'right'},
+      {label: 'Combined', align: 'right'},
       {label: 'Variance', align: 'right'},
       {label: 'Weeks', align: 'right'},
-      {label: 'Doctors', align: 'right'},
+      {label: 'Proc/Pend', align: 'right'},
       {label: 'Visual', align: 'left'},
-    ], rows.map(r => r.slice(0, 7)), 2, 'desc')}
+    ], rows.map(r => r.slice(0, 8)), 3, 'desc')}
   `;
 }
 
@@ -772,9 +804,10 @@ function renderByDoctor() {
   const byDoc = groupBy(data, r => r.doctorName);
 
   const rows = Object.entries(byDoc).map(([doc, rows]) => {
-    const est = sumField(rows, 'estMargin');
-    const act = sumField(rows, 'actualMargin');
-    const variance = act - est;
+    const forecast = sumForecast(rows);
+    const actual = sumActual(rows);
+    const combined = forecast + actual;
+    const variance = sumVariance(rows);
     const weeks = rows.length;
     const sites = new Set(rows.map(r => r.siteName).filter(Boolean)).size;
     const pay = sumField(rows, 'payIncSuper');
@@ -785,11 +818,11 @@ function renderByDoctor() {
 
     return [
       `<span class="bold" style="cursor:pointer;text-decoration:underline" onclick="drillDoctor('${escHtml(doc)}')">${escHtml(doc)}</span>`,
-      fmt(est), fmt(act),
+      fmt(forecast), fmt(actual), fmt(combined),
       `<span class="${varianceClass(variance)}">${fmt(variance)}</span>`,
       weeks, sites, fmt(pay),
       fmtDate(earliest), fmtDate(latest),
-      act, est
+      combined
     ];
   });
 
@@ -798,15 +831,16 @@ function renderByDoctor() {
     <div class="section-sub">Click a doctor name to see sites worked, weekly breakdown, and pay details</div>
     ${sortableTable('tbl-doctor', [
       {label: 'Doctor', align: 'left'},
-      {label: 'Est Margin', align: 'right'},
-      {label: 'Actual Margin', align: 'right'},
+      {label: 'Forecasted', align: 'right'},
+      {label: 'Actual', align: 'right'},
+      {label: 'Combined', align: 'right'},
       {label: 'Variance', align: 'right'},
       {label: 'Weeks', align: 'right'},
       {label: 'Sites', align: 'right'},
       {label: 'Pay (inc super)', align: 'right'},
       {label: 'First Start', align: 'left'},
       {label: 'Last End', align: 'left'},
-    ], rows.map(r => r.slice(0, 9)), 2, 'desc')}
+    ], rows.map(r => r.slice(0, 10)), 3, 'desc')}
   `;
 }
 
@@ -816,39 +850,42 @@ function renderByRecruiter() {
   const byRec = groupBy(data, r => r.bgTeammate);
 
   const rows = Object.entries(byRec).map(([rec, rows]) => {
-    const est = sumField(rows, 'estMargin');
-    const act = sumField(rows, 'actualMargin');
-    const variance = act - est;
+    const forecast = sumForecast(rows);
+    const actual = sumActual(rows);
+    const combined = forecast + actual;
+    const variance = sumVariance(rows);
+    const estOnProc = rows.filter(isProcessed).reduce((s, r) => s + r.estMargin, 0);
+    const variancePct = estOnProc !== 0 ? ((variance / estOnProc) * 100) : 0;
     const weeks = rows.length;
     const docs = new Set(rows.map(r => r.doctorName).filter(Boolean)).size;
     const sites = new Set(rows.map(r => r.siteName).filter(Boolean)).size;
-    const processed = rows.filter(r => r.recruiterStatus.includes('process')).length;
-    const pending = rows.filter(r => r.recruiterStatus.includes('pending')).length;
-    const variancePct = est !== 0 ? ((variance / est) * 100) : 0;
+    const proc = rows.filter(isProcessed).length;
+    const pend = rows.filter(isPending).length;
 
     return [
       `<span class="bold" style="cursor:pointer;text-decoration:underline" onclick="drillRecruiter('${escHtml(rec)}')">${escHtml(rec)}</span>`,
-      fmt(est), fmt(act),
+      fmt(forecast), fmt(actual), fmt(combined),
       `<span class="${varianceClass(variance)}">${fmt(variance)} (${fmtPct(variancePct)})</span>`,
       weeks, docs, sites,
-      `<span class="badge processed">${processed}</span> <span class="badge pending">${pending}</span>`,
-      act, est
+      `<span class="badge processed">${proc}</span> <span class="badge pending">${pend}</span>`,
+      combined
     ];
   });
 
   document.getElementById('pane-byRecruiter').innerHTML = `
     <div class="section-title">Recruiter Performance</div>
-    <div class="section-sub">Estimated vs actual margin, forecast accuracy, and placement stats per recruiter</div>
+    <div class="section-sub">Forecasted (pending est) + Actual (processed actual total). Variance shows forecast accuracy on processed timesheets.</div>
     ${sortableTable('tbl-recruiter', [
       {label: 'Recruiter', align: 'left'},
-      {label: 'Est Margin', align: 'right'},
-      {label: 'Actual Margin', align: 'right'},
+      {label: 'Forecasted', align: 'right'},
+      {label: 'Actual', align: 'right'},
+      {label: 'Combined', align: 'right'},
       {label: 'Variance', align: 'right'},
       {label: 'Weeks', align: 'right'},
       {label: 'Doctors', align: 'right'},
       {label: 'Sites', align: 'right'},
       {label: 'Status', align: 'left'},
-    ], rows.map(r => r.slice(0, 8)), 2, 'desc')}
+    ], rows.map(r => r.slice(0, 9)), 3, 'desc')}
   `;
 }
 
@@ -856,22 +893,22 @@ function renderByRecruiter() {
 function renderRankings() {
   const data = FILTERED;
 
-  // Top/bottom sites
+  // Top/bottom sites — using status-aware margin
   const bySite = groupBy(data, r => r.siteName);
-  const siteRank = Object.entries(bySite).map(([name, rows]) => ({
-    name, margin: sumField(rows, 'actualMargin'), weeks: rows.length,
-    avg: rows.length > 0 ? sumField(rows, 'actualMargin') / rows.length : 0,
-  })).sort((a, b) => b.margin - a.margin);
+  const siteRank = Object.entries(bySite).map(([name, rows]) => {
+    const m = sumMargin(rows);
+    return { name, margin: m, weeks: rows.length, avg: rows.length > 0 ? m / rows.length : 0 };
+  }).sort((a, b) => b.margin - a.margin);
 
   const topSites = siteRank.slice(0, 10);
   const bottomSites = [...siteRank].sort((a, b) => a.margin - b.margin).slice(0, 10);
 
-  // Top/bottom doctors
+  // Top/bottom doctors — using status-aware margin
   const byDoc = groupBy(data, r => r.doctorName);
-  const docRank = Object.entries(byDoc).map(([name, rows]) => ({
-    name, margin: sumField(rows, 'actualMargin'), weeks: rows.length,
-    avg: rows.length > 0 ? sumField(rows, 'actualMargin') / rows.length : 0,
-  })).sort((a, b) => b.margin - a.margin);
+  const docRank = Object.entries(byDoc).map(([name, rows]) => {
+    const m = sumMargin(rows);
+    return { name, margin: m, weeks: rows.length, avg: rows.length > 0 ? m / rows.length : 0 };
+  }).sort((a, b) => b.margin - a.margin);
 
   const topDocs = docRank.slice(0, 10);
   const bottomDocs = [...docRank].sort((a, b) => a.margin - b.margin).slice(0, 10);
@@ -947,7 +984,7 @@ function renderReturning() {
 
     // Check if last end locum is > 6 months ago (inactive doctor)
     const daysSinceLastEnd = Math.floor((now - lastEnd) / (1000 * 60 * 60 * 24));
-    const totalMargin = sumField(rows, 'actualMargin');
+    const totalMargin = sumMargin(rows);
     const sites = [...new Set(rows.map(r => r.siteName).filter(Boolean))];
     const weeks = rows.length;
 
@@ -1018,33 +1055,38 @@ function closeDrill() {
 
 function drillSite(site) {
   const rows = FILTERED.filter(r => r.siteName === site);
-  const est = sumField(rows, 'estMargin');
-  const act = sumField(rows, 'actualMargin');
-  const variance = act - est;
+  const forecast = sumForecast(rows);
+  const actual = sumActual(rows);
+  const combined = forecast + actual;
+  const variance = sumVariance(rows);
   const byDoc = groupBy(rows, r => r.doctorName);
 
   let docTable = Object.entries(byDoc).map(([doc, dRows]) => {
-    const dEst = sumField(dRows, 'estMargin');
-    const dAct = sumField(dRows, 'actualMargin');
+    const dF = sumForecast(dRows);
+    const dA = sumActual(dRows);
+    const dC = dF + dA;
+    const dV = sumVariance(dRows);
     return `<tr>
       <td class="bold">${escHtml(doc)}</td>
-      <td class="right mono">${fmt(dEst)}</td>
-      <td class="right mono">${fmt(dAct)}</td>
-      <td class="right mono"><span class="${varianceClass(dAct - dEst)}">${fmt(dAct - dEst)}</span></td>
+      <td class="right mono">${fmt(dF)}</td>
+      <td class="right mono">${fmt(dA)}</td>
+      <td class="right mono">${fmt(dC)}</td>
+      <td class="right mono"><span class="${varianceClass(dV)}">${fmt(dV)}</span></td>
       <td class="right">${dRows.length}</td>
     </tr>`;
   }).join('');
 
   openDrill(`
     <h2>${escHtml(site)}</h2>
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;">
-      <div class="kpi"><div class="k">Est Margin</div><div class="v">${fmt(est)}</div></div>
-      <div class="kpi"><div class="k">Actual Margin</div><div class="v">${fmt(act)}</div></div>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
+      <div class="kpi"><div class="k">Forecasted</div><div class="v">${fmt(forecast)}</div></div>
+      <div class="kpi"><div class="k">Actual</div><div class="v">${fmt(actual)}</div></div>
+      <div class="kpi"><div class="k">Combined</div><div class="v">${fmt(combined)}</div></div>
       <div class="kpi"><div class="k">Variance</div><div class="v ${varianceClass(variance)}">${fmt(variance)}</div></div>
     </div>
     <div class="section-title">Doctors at this site</div>
     <div class="table-wrap"><table class="report-table">
-      <thead><tr><th>Doctor</th><th class="right">Est Margin</th><th class="right">Actual Margin</th><th class="right">Variance</th><th class="right">Weeks</th></tr></thead>
+      <thead><tr><th>Doctor</th><th class="right">Forecasted</th><th class="right">Actual</th><th class="right">Combined</th><th class="right">Variance</th><th class="right">Weeks</th></tr></thead>
       <tbody>${docTable}</tbody>
     </table></div>
   `);
@@ -1052,52 +1094,60 @@ function drillSite(site) {
 
 function drillDoctor(doc) {
   const rows = FILTERED.filter(r => r.doctorName === doc);
-  const est = sumField(rows, 'estMargin');
-  const act = sumField(rows, 'actualMargin');
-  const variance = act - est;
+  const forecast = sumForecast(rows);
+  const actual = sumActual(rows);
+  const combined = forecast + actual;
+  const variance = sumVariance(rows);
   const pay = sumField(rows, 'payIncSuper');
   const bySite = groupBy(rows, r => r.siteName);
 
   let siteTable = Object.entries(bySite).map(([site, sRows]) => {
-    const sEst = sumField(sRows, 'estMargin');
-    const sAct = sumField(sRows, 'actualMargin');
+    const sF = sumForecast(sRows);
+    const sA = sumActual(sRows);
+    const sC = sF + sA;
     const sPay = sumField(sRows, 'payIncSuper');
     return `<tr>
       <td class="bold">${escHtml(site)}</td>
-      <td class="right mono">${fmt(sEst)}</td>
-      <td class="right mono">${fmt(sAct)}</td>
-      <td class="right mono"><span class="${varianceClass(sAct - sEst)}">${fmt(sAct - sEst)}</span></td>
+      <td class="right mono">${fmt(sF)}</td>
+      <td class="right mono">${fmt(sA)}</td>
+      <td class="right mono">${fmt(sC)}</td>
       <td class="right">${sRows.length}</td>
       <td class="right mono">${fmt(sPay)}</td>
     </tr>`;
   }).join('');
 
-  // Weekly detail
-  let weekDetail = rows.sort((a, b) => a.weekNumber - b.weekNumber).map(r => `<tr>
+  // Weekly detail — show the correct margin column based on status
+  let weekDetail = rows.sort((a, b) => a.weekNumber - b.weekNumber).map(r => {
+    const proc = isProcessed(r);
+    const margin = proc ? r.actualTotalMargin : r.estMargin;
+    const label = proc ? 'Actual' : 'Forecast';
+    return `<tr>
     <td>W${r.weekNumber}</td>
     <td>${r.year}</td>
-    <td class="right mono">${fmt(r.estMargin)}</td>
-    <td class="right mono">${fmt(r.actualMargin)}</td>
+    <td class="right mono">${fmt(margin)}</td>
+    <td>${proc ? '<span class="badge processed">Processed</span>' : '<span class="badge pending">Pending</span>'}</td>
     <td class="right mono">${fmt(r.payIncSuper)}</td>
-    <td>${r.recruiterStatus.includes('process') ? '<span class="badge processed">Processed</span>' : '<span class="badge pending">Pending</span>'}</td>
-  </tr>`).join('');
+    <td>${escHtml(r.siteName)}</td>
+  </tr>`;
+  }).join('');
 
   openDrill(`
     <h2>${escHtml(doc)}</h2>
-    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
-      <div class="kpi"><div class="k">Est Margin</div><div class="v">${fmt(est)}</div></div>
-      <div class="kpi"><div class="k">Actual Margin</div><div class="v">${fmt(act)}</div></div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-bottom:20px;">
+      <div class="kpi"><div class="k">Forecasted</div><div class="v">${fmt(forecast)}</div></div>
+      <div class="kpi"><div class="k">Actual</div><div class="v">${fmt(actual)}</div></div>
+      <div class="kpi"><div class="k">Combined</div><div class="v">${fmt(combined)}</div></div>
       <div class="kpi"><div class="k">Variance</div><div class="v ${varianceClass(variance)}">${fmt(variance)}</div></div>
       <div class="kpi"><div class="k">Total Pay</div><div class="v">${fmt(pay)}</div></div>
     </div>
     <div class="section-title">Sites worked</div>
     <div class="table-wrap"><table class="report-table">
-      <thead><tr><th>Site</th><th class="right">Est Margin</th><th class="right">Actual Margin</th><th class="right">Variance</th><th class="right">Weeks</th><th class="right">Pay</th></tr></thead>
+      <thead><tr><th>Site</th><th class="right">Forecasted</th><th class="right">Actual</th><th class="right">Combined</th><th class="right">Weeks</th><th class="right">Pay</th></tr></thead>
       <tbody>${siteTable}</tbody>
     </table></div>
     <div class="section-title" style="margin-top:20px;">Weekly Detail</div>
     <div class="table-wrap"><table class="report-table">
-      <thead><tr><th>Week</th><th>Year</th><th class="right">Est Margin</th><th class="right">Actual Margin</th><th class="right">Pay</th><th>Status</th></tr></thead>
+      <thead><tr><th>Week</th><th>Year</th><th class="right">Margin</th><th>Status</th><th class="right">Pay</th><th>Site</th></tr></thead>
       <tbody>${weekDetail}</tbody>
     </table></div>
   `);
@@ -1105,51 +1155,56 @@ function drillDoctor(doc) {
 
 function drillRecruiter(rec) {
   const rows = FILTERED.filter(r => r.bgTeammate === rec);
-  const est = sumField(rows, 'estMargin');
-  const act = sumField(rows, 'actualMargin');
-  const variance = act - est;
+  const forecast = sumForecast(rows);
+  const actual = sumActual(rows);
+  const combined = forecast + actual;
+  const variance = sumVariance(rows);
   const byDoc = groupBy(rows, r => r.doctorName);
   const bySite = groupBy(rows, r => r.siteName);
 
-  let docTable = Object.entries(byDoc).sort((a, b) => sumField(b[1], 'actualMargin') - sumField(a[1], 'actualMargin')).map(([doc, dRows]) => {
-    const dAct = sumField(dRows, 'actualMargin');
-    const dEst = sumField(dRows, 'estMargin');
+  let docTable = Object.entries(byDoc).sort((a, b) => sumMargin(b[1]) - sumMargin(a[1])).map(([doc, dRows]) => {
+    const dF = sumForecast(dRows);
+    const dA = sumActual(dRows);
+    const dC = dF + dA;
     return `<tr>
       <td class="bold">${escHtml(doc)}</td>
-      <td class="right mono">${fmt(dEst)}</td>
-      <td class="right mono">${fmt(dAct)}</td>
-      <td class="right mono"><span class="${varianceClass(dAct - dEst)}">${fmt(dAct - dEst)}</span></td>
+      <td class="right mono">${fmt(dF)}</td>
+      <td class="right mono">${fmt(dA)}</td>
+      <td class="right mono">${fmt(dC)}</td>
       <td class="right">${dRows.length}</td>
     </tr>`;
   }).join('');
 
-  let siteTable = Object.entries(bySite).sort((a, b) => sumField(b[1], 'actualMargin') - sumField(a[1], 'actualMargin')).map(([site, sRows]) => {
-    const sAct = sumField(sRows, 'actualMargin');
-    const sEst = sumField(sRows, 'estMargin');
+  let siteTable = Object.entries(bySite).sort((a, b) => sumMargin(b[1]) - sumMargin(a[1])).map(([site, sRows]) => {
+    const sF = sumForecast(sRows);
+    const sA = sumActual(sRows);
+    const sC = sF + sA;
     return `<tr>
       <td class="bold">${escHtml(site)}</td>
-      <td class="right mono">${fmt(sEst)}</td>
-      <td class="right mono">${fmt(sAct)}</td>
+      <td class="right mono">${fmt(sF)}</td>
+      <td class="right mono">${fmt(sA)}</td>
+      <td class="right mono">${fmt(sC)}</td>
       <td class="right">${sRows.length}</td>
     </tr>`;
   }).join('');
 
   openDrill(`
     <h2>${escHtml(rec)}</h2>
-    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
-      <div class="kpi"><div class="k">Est Margin</div><div class="v">${fmt(est)}</div></div>
-      <div class="kpi"><div class="k">Actual Margin</div><div class="v">${fmt(act)}</div></div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-bottom:20px;">
+      <div class="kpi"><div class="k">Forecasted</div><div class="v">${fmt(forecast)}</div></div>
+      <div class="kpi"><div class="k">Actual</div><div class="v">${fmt(actual)}</div></div>
+      <div class="kpi"><div class="k">Combined</div><div class="v">${fmt(combined)}</div></div>
       <div class="kpi"><div class="k">Variance</div><div class="v ${varianceClass(variance)}">${fmt(variance)}</div></div>
       <div class="kpi"><div class="k">Placements</div><div class="v">${rows.length}</div></div>
     </div>
     <div class="section-title">Doctors placed</div>
     <div class="table-wrap"><table class="report-table">
-      <thead><tr><th>Doctor</th><th class="right">Est Margin</th><th class="right">Actual Margin</th><th class="right">Variance</th><th class="right">Weeks</th></tr></thead>
+      <thead><tr><th>Doctor</th><th class="right">Forecasted</th><th class="right">Actual</th><th class="right">Combined</th><th class="right">Weeks</th></tr></thead>
       <tbody>${docTable}</tbody>
     </table></div>
     <div class="section-title" style="margin-top:20px;">Sites</div>
     <div class="table-wrap"><table class="report-table">
-      <thead><tr><th>Site</th><th class="right">Est Margin</th><th class="right">Actual Margin</th><th class="right">Weeks</th></tr></thead>
+      <thead><tr><th>Site</th><th class="right">Forecasted</th><th class="right">Actual</th><th class="right">Combined</th><th class="right">Weeks</th></tr></thead>
       <tbody>${siteTable}</tbody>
     </table></div>
   `);
