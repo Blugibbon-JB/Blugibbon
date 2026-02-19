@@ -496,6 +496,10 @@
         </div>
       </div>
 
+      <div style="margin-top:12px;">
+        <input id="finderFilterInput" type="text" placeholder="Filter by specialty, tags, name..." style="width:100%;">
+      </div>
+
       <div id="finderResults" style="margin-top:12px;"></div>
     </div>
   </div>
@@ -1169,7 +1173,7 @@ function renderStrips(){
 }
 
 
-function renderFinderResults(startISO, endISOInclusive){
+function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
   const resultsDiv = document.getElementById("finderResults");
   const summary = document.getElementById("finderSummary");
   if(!resultsDiv) return;
@@ -1198,11 +1202,29 @@ function renderFinderResults(startISO, endISOInclusive){
     return { d, avail, booked, other, total, pct, fully, any };
   });
 
-  const fully = scored.filter(x=>x.fully).sort((a,b)=>b.pct-a.pct);
-  const partial = scored.filter(x=>!x.fully && x.any).sort((a,b)=>b.pct-a.pct);
-  const none = scored.filter(x=>!x.any).sort((a,b)=>String(a.d.name||"").localeCompare(String(b.d.name||"")));
+  // Apply keyword filter if provided
+  const normalizeText = (s) => String(s || "").toLowerCase().trim();
+  const matchesFilter = (doctor) => {
+    if (!filterQuery) return true;
+    const query = normalizeText(filterQuery);
+    const searchableText = [
+      doctor.d.name,
+      doctor.d.specialty,
+      doctor.d.prefs,
+      doctor.d.where,
+      doctor.d.level,
+      doctor.d.pgy ? `PGY ${doctor.d.pgy}` : "",
+      ...(doctor.d.tags || [])
+    ].map(normalizeText).join(" ");
+    return searchableText.includes(query);
+  };
 
-  summary.textContent = `${startISO} → ${endISOInclusive} • ${fully.length} fully available, ${partial.length} partial, ${none.length} unavailable`;
+  const filtered = scored.filter(matchesFilter);
+  const fully = filtered.filter(x=>x.fully).sort((a,b)=>b.pct-a.pct);
+  const partial = filtered.filter(x=>!x.fully && x.any).sort((a,b)=>b.pct-a.pct);
+  const none = filtered.filter(x=>!x.any).sort((a,b)=>String(a.d.name||"").localeCompare(String(b.d.name||"")));
+
+  summary.textContent = `${startISO} → ${endISOInclusive} • ${fully.length} fully available, ${partial.length} partial, ${none.length} unavailable${filterQuery ? ` (filtered)` : ""}`;
 
   function card(x){
     const nm = x.d.name || String(x.d.ahpra_id);
@@ -1299,16 +1321,28 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   const runBtn = document.getElementById("finderRunBtn");
   const clrBtn = document.getElementById("finderClearBtn");
+  const filterInput = document.getElementById("finderFilterInput");
   if(runBtn) runBtn.addEventListener("click", ()=>{
     const s = document.getElementById("finderStart")?.value;
     const e = document.getElementById("finderEnd")?.value;
-    renderFinderResults(s, e);
+    const filter = document.getElementById("finderFilterInput")?.value || "";
+    renderFinderResults(s, e, filter);
+  });
+  if(filterInput) filterInput.addEventListener("input", ()=>{
+    const s = document.getElementById("finderStart")?.value;
+    const e = document.getElementById("finderEnd")?.value;
+    if(s && e) {
+      const filter = document.getElementById("finderFilterInput")?.value || "";
+      renderFinderResults(s, e, filter);
+    }
   });
   if(clrBtn) clrBtn.addEventListener("click", ()=>{
     const sEl = document.getElementById("finderStart");
     const eEl = document.getElementById("finderEnd");
+    const fEl = document.getElementById("finderFilterInput");
     if(sEl) sEl.value = "";
     if(eEl) eEl.value = "";
+    if(fEl) fEl.value = "";
     const res = document.getElementById("finderResults");
     if(res) res.innerHTML = "";
     const sum = document.getElementById("finderSummary");
