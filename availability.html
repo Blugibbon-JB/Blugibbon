@@ -53,7 +53,7 @@
     #doctorListWrap{ padding:12px; min-height:0; display:flex; flex-direction:column; gap:10px; }
     #doctorListWrap input{ width:100%; }
     #doctorList{
-      min-height:0; overflow:auto; background:#fff; border:1px solid var(--border);
+      flex:1; min-height:0; overflow:auto; background:#fff; border:1px solid var(--border);
       border-radius:var(--radius);
     }
     .docItem{
@@ -2665,85 +2665,90 @@ function openEventEditor(payload){
 
   document.getElementById("cancelBtn").addEventListener("click", ()=>{ closeModal(); calendar.unselect(); });
   document.getElementById("saveBtn").addEventListener("click", ()=>{
-    /* save handled below */
-    const sStart = parseDateAU(document.getElementById("evStart").value);
-    const sEndInc = parseDateAU(document.getElementById("evEnd").value);
-    if(!sStart || !sEndInc){ statusChip.textContent = "Invalid date(s). Use dd/mm/yyyy."; return; }
-    const sEndEx = addDaysUTC(sEndInc, 1);
-    if(sEndEx.getTime() <= sStart.getTime()){ statusChip.textContent = "End must be after start."; return; }
+    try {
+      /* save handled below */
+      const sStart = parseDateAU(document.getElementById("evStart").value);
+      const sEndInc = parseDateAU(document.getElementById("evEnd").value);
+      if(!sStart || !sEndInc){ statusChip.textContent = "⚠ Invalid date(s). Use dd/mm/yyyy format (e.g., 25/12/2024)."; return; }
+      const sEndEx = addDaysUTC(sEndInc, 1);
+      if(sEndEx.getTime() <= sStart.getTime()){ statusChip.textContent = "⚠ End date must be after start date."; return; }
 
-    const __onDays = Math.round((normalizeToUTCDate(sEndEx).getTime() - normalizeToUTCDate(sStart).getTime()) / (24*3600*1000));
-    if(__onDays <= 0){ statusChip.textContent = "Select at least 1 day."; return; }
+      const __onDays = Math.round((normalizeToUTCDate(sEndEx).getTime() - normalizeToUTCDate(sStart).getTime()) / (24*3600*1000));
+      if(__onDays <= 0){ statusChip.textContent = "⚠ Select at least 1 day."; return; }
 
-    const status = document.getElementById("evStatus").value;
-    const title = (document.getElementById("evTitle").value||"").trim();
-    const location = (document.getElementById("evLocation").value||"").trim();
-    const notes = (document.getElementById("evNotes").value||"").trim();
+      const status = document.getElementById("evStatus").value;
+      const title = (document.getElementById("evTitle").value||"").trim();
+      const location = (document.getElementById("evLocation").value||"").trim();
+      const notes = (document.getElementById("evNotes").value||"").trim();
 
-    // Recurrence (create mode only)
-    const recMode = (mode === "create" && document.getElementById("evRecurrence")) ? document.getElementById("evRecurrence").value : "none";
-    const repeatCycles = (mode === "create" && document.getElementById("evRepeatCycles")) ? Math.max(1, parseInt(document.getElementById("evRepeatCycles").value, 10) || 1) : 1;
+      // Recurrence (create mode only)
+      const recMode = (mode === "create" && document.getElementById("evRecurrence")) ? document.getElementById("evRecurrence").value : "none";
+      const repeatCycles = (mode === "create" && document.getElementById("evRepeatCycles")) ? Math.max(1, parseInt(document.getElementById("evRepeatCycles").value, 10) || 1) : 1;
 
-    pushUndo(mode === "create" ? "Add/override block" : "Edit/override block");
+      pushUndo(mode === "create" ? "Add/override block" : "Edit/override block");
 
-    const startISO = normalizeToUTCDate(sStart).toISOString().slice(0,10);
-    const endISO = normalizeToUTCDate(sEndEx).toISOString().slice(0,10); // exclusive
+      const startISO = normalizeToUTCDate(sStart).toISOString().slice(0,10);
+      const endISO = normalizeToUTCDate(sEndEx).toISOString().slice(0,10); // exclusive
 
-    // Build one or many ON blocks
-    let onDays = Math.round((normalizeToUTCDate(sEndEx).getTime() - normalizeToUTCDate(sStart).getTime()) / (24*3600*1000));
-    let offDays = 0;
+      // Build one or many ON blocks
+      let onDays = Math.round((normalizeToUTCDate(sEndEx).getTime() - normalizeToUTCDate(sStart).getTime()) / (24*3600*1000));
+      let offDays = 0;
 
-    if(recMode === "custom"){
-      const unit = (document.getElementById("evLenUnit")?.value || "days");
-      const toDays = (v)=>{
-        const n = Math.max(0, parseInt(v, 10) || 0);
-        return (unit === "weeks") ? (n * 7) : n;
-      };
-      onDays = Math.max(1, toDays(document.getElementById("evOnLen")?.value));
-      offDays = Math.max(0, toDays(document.getElementById("evOffLen")?.value));
-    } else if(recMode === "1on1off" || recMode === "2on2off"){
-      // Presets: OFF equals ON length (based on your selected ON range)
-      offDays = onDays;
-    }
+      if(recMode === "custom"){
+        const unit = (document.getElementById("evLenUnit")?.value || "days");
+        const toDays = (v)=>{
+          const n = Math.max(0, parseInt(v, 10) || 0);
+          return (unit === "weeks") ? (n * 7) : n;
+        };
+        onDays = Math.max(1, toDays(document.getElementById("evOnLen")?.value));
+        offDays = Math.max(0, toDays(document.getElementById("evOffLen")?.value));
+      } else if(recMode === "1on1off" || recMode === "2on2off"){
+        // Presets: OFF equals ON length (based on your selected ON range)
+        offDays = onDays;
+      }
 
-    const stepDays = onDays + offDays;
+      const stepDays = onDays + offDays;
 
-    const blocksToCreate = (recMode === "none") ? 1 : repeatCycles;
+      const blocksToCreate = (recMode === "none") ? 1 : repeatCycles;
 
-    for(let k=0; k<blocksToCreate; k++){
-      const blkStart = addDaysUTC(normalizeToUTCDate(sStart), k * stepDays);
-      const blkEndEx = addDaysUTC(blkStart, onDays);
+      for(let k=0; k<blocksToCreate; k++){
+        const blkStart = addDaysUTC(normalizeToUTCDate(sStart), k * stepDays);
+        const blkEndEx = addDaysUTC(blkStart, onDays);
 
-      const blkStartISO = blkStart.toISOString().slice(0,10);
-      const blkEndISO   = blkEndEx.toISOString().slice(0,10);
+        const blkStartISO = blkStart.toISOString().slice(0,10);
+        const blkEndISO   = blkEndEx.toISOString().slice(0,10);
 
-      const newId = (mode === "edit" && payload.id && k===0) ? payload.id : uid();
+        const newId = (mode === "edit" && payload.id && k===0) ? payload.id : uid();
 
-      const newEvent = {
-        id: newId,
-        ahpra_id: String(payload.ahpra_id),
-        status,
-        title: title || status,
-        location,
-        notes,
-        start: blkStartISO,
-        end: blkEndISO
-      };
+        const newEvent = {
+          id: newId,
+          ahpra_id: String(payload.ahpra_id),
+          status,
+          title: title || status,
+          location,
+          notes,
+          start: blkStartISO,
+          end: blkEndISO
+        };
 
-      // Enforce only one status per day: override any overlapping blocks for this doctor.
-      applyRangeOverride(String(payload.ahpra_id), blkStartISO, blkEndISO, newEvent, (mode === "edit" && k===0 ? payload.id : null));
-    }
+        // Enforce only one status per day: override any overlapping blocks for this doctor.
+        applyRangeOverride(String(payload.ahpra_id), blkStartISO, blkEndISO, newEvent, (mode === "edit" && k===0 ? payload.id : null));
+      }
 
-    saveEvents(events);
-    closeModal();
-    calendar.unselect();
-    renderDoctorList();
-    renderCalendar();
+      saveEvents(events);
+      closeModal();
+      calendar.unselect();
+      renderDoctorList();
+      renderCalendar();
 
-    if(recMode !== "none" && blocksToCreate > 1){
-      statusChip.textContent = `Saved ${blocksToCreate} recurring block(s)`;
-    } else {
-      statusChip.textContent = "Saved";
+      if(recMode !== "none" && blocksToCreate > 1){
+        statusChip.textContent = `✓ Saved ${blocksToCreate} recurring block(s)`;
+      } else {
+        statusChip.textContent = "✓ Saved";
+      }
+    } catch(err) {
+      console.error("Error saving availability:", err);
+      statusChip.textContent = "❌ Error saving: " + (err.message || "Unknown error");
     }
   });
 
