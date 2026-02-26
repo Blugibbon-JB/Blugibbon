@@ -2831,74 +2831,90 @@ function openDoctorEditor(existing){
 
   modalFooter.innerHTML = `
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
-      ${isEdit ? `<button class="danger" id="deleteDocBtn">Delete doctor</button>` : `<span class="hint"> </span>`}
+      ${isEdit ? `<button class="danger" data-action="deleteDoc">Delete doctor</button>` : `<span class="hint"> </span>`}
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button class="ghost" id="cancelDocBtn">Cancel</button>
-      <button class="primary" id="saveDocBtn">Save</button>
+      <button class="ghost" data-action="cancelDoc">Cancel</button>
+      <button class="primary" data-action="saveDoc">Save</button>
     </div>
   `;
 
   // default Level selection
   try{ document.getElementById("docLevel").value = (existing?.level || "Senior"); } catch(e) {}
 
-  document.getElementById("cancelDocBtn").addEventListener("click", closeModal);
-  document.getElementById("saveDocBtn").addEventListener("click", ()=>{
-    const ahpra = (document.getElementById("docId").value||"").trim();
-    const name = (document.getElementById("docName").value||"").trim();
-    if(!isEdit && !ahpra){ statusChip.textContent = "AHPRA Registration is required."; return; }
-    if(!name){ statusChip.textContent = "Doctor name is required."; return; }
-    const clickup_url = (document.getElementById("docClickUp").value||"").trim();
-    const prefs = (document.getElementById("docPrefs").value||"").trim();
-    const where = (document.getElementById("docWhere").value||"").trim();
-    const specialty = (document.getElementById("docSpec").value||"").trim();
-    const pgy = (document.getElementById("docPgy").value||"").trim();
-    const level = (document.getElementById("docLevel").value||"").trim();
-    const tags = (document.getElementById("docTags").value||"").split(",").map(s=>s.trim()).filter(Boolean);
+  // Use event delegation on modalFooter to avoid issues with dynamically created buttons
+  const handleFooterClick = (e) => {
+    try {
+      const action = e.target.dataset?.action;
 
-    pushUndo(isEdit ? "Edit doctor" : "Add doctor");
+      if(action === "cancelDoc"){
+        closeModal();
+      } else if(action === "saveDoc"){
+        const ahpra = (document.getElementById("docId").value||"").trim();
+        const name = (document.getElementById("docName").value||"").trim();
+        if(!isEdit && !ahpra){ statusChip.textContent = "AHPRA Registration is required."; return; }
+        if(!name){ statusChip.textContent = "Doctor name is required."; return; }
+        const clickup_url = (document.getElementById("docClickUp").value||"").trim();
+        const prefs = (document.getElementById("docPrefs").value||"").trim();
+        const where = (document.getElementById("docWhere").value||"").trim();
+        const specialty = (document.getElementById("docSpec").value||"").trim();
+        const pgy = (document.getElementById("docPgy").value||"").trim();
+        const level = (document.getElementById("docLevel").value||"").trim();
+        const tags = (document.getElementById("docTags").value||"").split(",").map(s=>s.trim()).filter(Boolean);
 
-    if(isEdit){
-      const idx = doctors.findIndex(d=>String(d.ahpra_id)===String(existing.ahpra_id));
-      if(idx>=0){ doctors[idx] = { ...doctors[idx], name, clickup_url, prefs, where, specialty, pgy, level, tags }; }
-    } else {
-      if(doctors.some(d=>String(d.ahpra_id)===String(ahpra))){ statusChip.textContent = "That AHPRA ID already exists."; return; }
-      doctors.push({ ahpra_id: ahpra, name, clickup_url, prefs, where, specialty, pgy, level, tags });
+        pushUndo(isEdit ? "Edit doctor" : "Add doctor");
+
+        if(isEdit){
+          const idx = doctors.findIndex(d=>String(d.ahpra_id)===String(existing.ahpra_id));
+          if(idx>=0){ doctors[idx] = { ...doctors[idx], name, clickup_url, prefs, where, specialty, pgy, level, tags }; }
+        } else {
+          if(doctors.some(d=>String(d.ahpra_id)===String(ahpra))){ statusChip.textContent = "That AHPRA ID already exists."; return; }
+          doctors.push({ ahpra_id: ahpra, name, clickup_url, prefs, where, specialty, pgy, level, tags });
+        }
+
+        saveDoctors(doctors);
+        closeModal();
+        renderDoctorList();
+        renderHeader();
+        statusChip.textContent = "Doctor saved";
+      } else if(action === "deleteDoc" && isEdit){
+        pushUndo("Delete doctor");
+        const id = String(existing.ahpra_id);
+        doctors = doctors.filter(d=>String(d.ahpra_id)!==id);
+        events = events.filter(e=>String(e.ahpra_id)!==id);
+        saveDoctors(doctors); saveEvents(events);
+        if(String(selectedDoctorId)===id) selectedDoctorId = null;
+        closeModal();
+        renderDoctorList();
+        renderHeader();
+        renderCalendar();
+        statusChip.textContent = "Doctor deleted";
+      }
+    } catch(err) {
+      console.error("Error in doctor modal action:", err);
+      statusChip.textContent = "Error: " + (err.message || "Unknown error");
     }
+  };
 
-    saveDoctors(doctors);
-    closeModal();
-    renderDoctorList();
-    renderHeader();
-    statusChip.textContent = "Doctor saved";
-  });
+  // Remove old listener if it exists, add new one
+  modalFooter.removeEventListener("click", handleFooterClick);
+  modalFooter.addEventListener("click", handleFooterClick);
 
-  if(isEdit){
-    document.getElementById("deleteDocBtn").addEventListener("click", ()=>{
-      pushUndo("Delete doctor");
-      const id = String(existing.ahpra_id);
-      doctors = doctors.filter(d=>String(d.ahpra_id)!==id);
-      events = events.filter(e=>String(e.ahpra_id)!==id);
-      saveDoctors(doctors); saveEvents(events);
-      if(String(selectedDoctorId)===id) selectedDoctorId = null;
-      closeModal();
-      renderDoctorList();
-      renderHeader();
-      renderCalendar();
-      statusChip.textContent = "Doctor deleted";
-    });
-  }
-
-  
   // Keyboard shortcut: Ctrl+Enter (Windows/Linux) or Cmd+Enter (Mac) to Save
-  function keyHandler(ev){
-    if((ev.ctrlKey || ev.metaKey) && ev.key === "Enter"){
-      ev.preventDefault();
-      const btn = document.getElementById("saveDocBtn");
-      if(btn && !btn.disabled){ btn.click(); }
+  const keyHandler = (ev) => {
+    try {
+      if((ev.ctrlKey || ev.metaKey) && ev.key === "Enter"){
+        ev.preventDefault();
+        const btn = modalFooter.querySelector("[data-action='saveDoc']");
+        if(btn){ btn.click(); }
+      }
+    } catch(err) {
+      console.error("Error in keyboard handler:", err);
     }
-  }
-  document.addEventListener("keydown", keyHandler, { once: true });
+  };
+
+  document.addEventListener("keydown", keyHandler);
+  modalKeyHandler = keyHandler;
 
   openModal();
 }
