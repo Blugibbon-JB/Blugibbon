@@ -2847,6 +2847,7 @@ function openDoctorEditor(existing){
     const ahpra = (document.getElementById("docId").value||"").trim();
     const name = (document.getElementById("docName").value||"").trim();
     if(!isEdit && !ahpra){ statusChip.textContent = "AHPRA Registration is required."; return; }
+    if(!name){ statusChip.textContent = "Doctor name is required."; return; }
     const clickup_url = (document.getElementById("docClickUp").value||"").trim();
     const prefs = (document.getElementById("docPrefs").value||"").trim();
     const where = (document.getElementById("docWhere").value||"").trim();
@@ -2893,7 +2894,7 @@ function openDoctorEditor(existing){
   function keyHandler(ev){
     if((ev.ctrlKey || ev.metaKey) && ev.key === "Enter"){
       ev.preventDefault();
-      const btn = document.getElementById("saveBtn");
+      const btn = document.getElementById("saveDocBtn");
       if(btn && !btn.disabled){ btn.click(); }
     }
   }
