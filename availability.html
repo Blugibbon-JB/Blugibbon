@@ -1610,10 +1610,22 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   // Cloud Storage setup
   CloudStorage.init();
+  CloudStorage.updateAuthUI(); // Initialize button state
 
   const cloudAuthBtn = document.getElementById("cloudAuthBtn");
   const cloudSyncBtn = document.getElementById("cloudSyncBtn");
   const cloudExportBtn = document.getElementById("cloudExportBtn");
+
+  if (cloudAuthBtn) {
+    cloudAuthBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (CloudStorage.currentUser) {
+        CloudStorage.signOut();
+      } else {
+        CloudStorage.signIn();
+      }
+    });
+  }
 
   if (cloudSyncBtn) {
     cloudSyncBtn.addEventListener("click", () => {
