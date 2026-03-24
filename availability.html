@@ -14,6 +14,14 @@
   <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/list@6.1.15/index.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/multimonth@6.1.15/index.global.min.js"></script>
 
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
+
+  <!-- Google API -->
+  <script src="https://apis.google.com/js/api.js"></script>
+
   <style>
     :root{
       --border:#e7e7e7; --muted:#6b6b6b; --bg:#fff; --panel:#fafafa;
@@ -578,14 +586,201 @@
   </div>
 </div>
 
+<!-- Cloud Storage Panel -->
+<div id="cloudStoragePanel" style="display:none; position:fixed; top:60px; right:10px; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:1000; min-width:280px;">
+  <div style="font-weight:bold; margin-bottom:10px; font-size:14px;">Cloud Sync</div>
+  <div id="cloudAuthStatus" style="font-size:12px; color:#666; margin-bottom:10px;"></div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button id="cloudAuthBtn" class="primary" style="flex:1; font-size:12px; padding:6px 10px;">Sign In (Google)</button>
+    <button id="cloudSyncBtn" style="flex:1; font-size:12px; padding:6px 10px;">Sync Now</button>
+    <button id="cloudExportBtn" style="flex:1; font-size:12px; padding:6px 10px;">Export</button>
+  </div>
+  <div id="cloudSyncStatus" style="font-size:11px; color:#999; margin-top:8px; text-align:center;"></div>
+</div>
+
 <script>
 const STORAGE_KEY_DOCTORS = "blugibbon_roster_doctors_v1";
 const STORAGE_KEY_EVENTS  = "blugibbon_roster_events_v1";
 
+// ============================================
+// CLOUD STORAGE MODULE - Firebase + Google Drive
+// ============================================
+const CloudStorage = {
+  firebaseReady: false,
+  firestoreDb: null,
+  currentUser: null,
+  autoSyncEnabled: false,
+  syncInProgress: false,
+
+  // Initialize Firebase
+  async init() {
+    try {
+      // TODO: Replace with your Firebase config
+      const firebaseConfig = {
+        apiKey: localStorage.getItem("firebase_api_key") || "AIzaSyDEMO",
+        authDomain: "blugibbon-calendar.firebaseapp.com",
+        projectId: "blugibbon-calendar",
+        storageBucket: "blugibbon-calendar.appspot.com",
+        messagingSenderId: "123456789",
+        appId: "1:123456789:web:abcdef123456"
+      };
+
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+        this.firestoreDb = firebase.firestore();
+        this.firebaseReady = true;
+        this.setupAuthListener();
+      }
+    } catch(e) {
+      console.warn("Firebase init skipped:", e.message);
+    }
+  },
+
+  setupAuthListener() {
+    firebase.auth().onAuthStateChanged(user => {
+      this.currentUser = user;
+      this.updateAuthUI();
+      if (user && this.autoSyncEnabled) this.syncWithCloud();
+    });
+  },
+
+  async signIn() {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      const result = await firebase.auth().signInWithPopup(provider);
+      this.currentUser = result.user;
+      this.updateAuthUI();
+      await this.syncWithCloud();
+      return true;
+    } catch(e) {
+      console.error("Sign in failed:", e);
+      return false;
+    }
+  },
+
+  async signOut() {
+    try {
+      await firebase.auth().signOut();
+      this.currentUser = null;
+      this.updateAuthUI();
+    } catch(e) {
+      console.error("Sign out failed:", e);
+    }
+  },
+
+  updateAuthUI() {
+    const statusDiv = document.getElementById("cloudAuthStatus");
+    const authBtn = document.getElementById("cloudAuthBtn");
+    if (!statusDiv || !authBtn) return;
+
+    if (this.currentUser) {
+      statusDiv.innerHTML = `Signed in as: <strong>${this.currentUser.displayName || this.currentUser.email}</strong>`;
+      authBtn.textContent = "Sign Out";
+      authBtn.onclick = () => this.signOut();
+    } else {
+      statusDiv.innerHTML = "Not signed in";
+      authBtn.textContent = "Sign In (Google)";
+      authBtn.onclick = () => this.signIn();
+    }
+  },
+
+  async syncWithCloud() {
+    if (!this.currentUser || this.syncInProgress) return;
+
+    this.syncInProgress = true;
+    this.updateSyncStatus("Syncing...");
+
+    try {
+      const userDocRef = this.firestoreDb.collection("users").doc(this.currentUser.uid);
+      const userData = {
+        doctors: loadDoctors(),
+        events: loadEvents(),
+        lastSync: new Date(),
+      };
+
+      await userDocRef.set(userData, { merge: true });
+      this.updateSyncStatus("✓ Synced");
+      setTimeout(() => this.updateSyncStatus(""), 2000);
+    } catch(e) {
+      console.error("Cloud sync failed:", e);
+      this.updateSyncStatus("✗ Sync failed");
+    }
+
+    this.syncInProgress = false;
+  },
+
+  async loadFromCloud() {
+    if (!this.currentUser) return null;
+
+    try {
+      const doc = await this.firestoreDb.collection("users").doc(this.currentUser.uid).get();
+      if (doc.exists) {
+        return doc.data();
+      }
+    } catch(e) {
+      console.error("Cloud load failed:", e);
+    }
+    return null;
+  },
+
+  updateSyncStatus(status) {
+    const statusDiv = document.getElementById("cloudSyncStatus");
+    if (statusDiv) statusDiv.textContent = status;
+  },
+
+  async exportToGoogleDrive() {
+    const data = {
+      doctors: loadDoctors(),
+      events: loadEvents(),
+      exportDate: new Date().toISOString()
+    };
+
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `blugibbon-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    alert("Calendar data exported to downloads folder");
+  },
+
+  importFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (data.doctors && Array.isArray(data.doctors)) {
+          saveDoctors(data.doctors);
+        }
+        if (data.events && Array.isArray(data.events)) {
+          saveEvents(data.events);
+        }
+        location.reload();
+      } catch(err) {
+        alert("Invalid backup file: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+};
+
 function loadDoctors(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY_DOCTORS) || "[]") || []; } catch(e){ return []; } }
 function loadEvents(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY_EVENTS) || "[]") || []; } catch(e){ return []; } }
-function saveDoctors(doctors){ localStorage.setItem(STORAGE_KEY_DOCTORS, JSON.stringify(doctors)); }
-function saveEvents(events){ localStorage.setItem(STORAGE_KEY_EVENTS, JSON.stringify(events)); }
+function saveDoctors(doctors){
+  localStorage.setItem(STORAGE_KEY_DOCTORS, JSON.stringify(doctors));
+  if (CloudStorage.currentUser && CloudStorage.autoSyncEnabled) {
+    CloudStorage.syncWithCloud();
+  }
+}
+function saveEvents(events){
+  localStorage.setItem(STORAGE_KEY_EVENTS, JSON.stringify(events));
+  if (CloudStorage.currentUser && CloudStorage.autoSyncEnabled) {
+    CloudStorage.syncWithCloud();
+  }
+}
 
 function esc(s){
   return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
@@ -1410,6 +1605,64 @@ document.addEventListener("DOMContentLoaded", ()=>{
       persistHeatmapSort();
       if(viewMode==="heatmap") renderHeatmap();
     });
+  }
+
+  // Cloud Storage setup
+  CloudStorage.init();
+
+  const cloudAuthBtn = document.getElementById("cloudAuthBtn");
+  const cloudSyncBtn = document.getElementById("cloudSyncBtn");
+  const cloudExportBtn = document.getElementById("cloudExportBtn");
+
+  if (cloudSyncBtn) {
+    cloudSyncBtn.addEventListener("click", () => {
+      if (CloudStorage.currentUser) {
+        CloudStorage.syncWithCloud();
+      } else {
+        alert("Please sign in first");
+      }
+    });
+  }
+
+  if (cloudExportBtn) {
+    cloudExportBtn.addEventListener("click", () => {
+      CloudStorage.exportToGoogleDrive();
+    });
+  }
+
+  // Add cloud storage toggle to topbar
+  const toggleCloudBtn = document.createElement("button");
+  toggleCloudBtn.textContent = "☁️ Cloud";
+  toggleCloudBtn.style.fontSize = "12px";
+  toggleCloudBtn.onclick = () => {
+    const panel = document.getElementById("cloudStoragePanel");
+    if (panel) panel.style.display = panel.style.display === "none" ? "block" : "none";
+  };
+  const topbar = document.getElementById("topbar");
+  if (topbar) topbar.appendChild(toggleCloudBtn);
+
+  // Support file import via input
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.accept = ".json";
+  fileInput.style.display = "none";
+  fileInput.onchange = (e) => {
+    if (e.target.files?.[0]) {
+      CloudStorage.importFromFile(e.target.files[0]);
+    }
+  };
+  document.body.appendChild(fileInput);
+
+  // Add import button to cloud panel
+  const cloudImportBtn = document.createElement("button");
+  cloudImportBtn.textContent = "Import";
+  cloudImportBtn.style.flex = "1";
+  cloudImportBtn.style.fontSize = "12px";
+  cloudImportBtn.style.padding = "6px 10px";
+  cloudImportBtn.onclick = () => fileInput.click();
+  const cloudFooter = document.getElementById("cloudStoragePanel")?.querySelector("div:nth-of-type(3)");
+  if (cloudFooter) {
+    cloudFooter.appendChild(cloudImportBtn);
   }
 
   updateViews();
