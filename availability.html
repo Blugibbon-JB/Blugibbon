@@ -590,15 +590,9 @@ function loadDoctors(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY
 function loadEvents(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY_EVENTS) || "[]") || []; } catch(e){ return []; } }
 function saveDoctors(doctors){
   localStorage.setItem(STORAGE_KEY_DOCTORS, JSON.stringify(doctors));
-  if (CloudStorage.currentUser && CloudStorage.autoSyncEnabled) {
-    CloudStorage.syncWithCloud();
-  }
 }
 function saveEvents(events){
   localStorage.setItem(STORAGE_KEY_EVENTS, JSON.stringify(events));
-  if (CloudStorage.currentUser && CloudStorage.autoSyncEnabled) {
-    CloudStorage.syncWithCloud();
-  }
 }
 
 function esc(s){
@@ -1427,29 +1421,6 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
 
-  // Support file import via input
-  const fileInput = document.createElement("input");
-  fileInput.type = "file";
-  fileInput.accept = ".json";
-  fileInput.style.display = "none";
-  fileInput.onchange = (e) => {
-    if (e.target.files?.[0]) {
-      CloudStorage.importFromFile(e.target.files[0]);
-    }
-  };
-  document.body.appendChild(fileInput);
-
-  // Add import button to cloud panel
-  const cloudImportBtn = document.createElement("button");
-  cloudImportBtn.textContent = "Import";
-  cloudImportBtn.style.flex = "1";
-  cloudImportBtn.style.fontSize = "12px";
-  cloudImportBtn.style.padding = "6px 10px";
-  cloudImportBtn.onclick = () => fileInput.click();
-  const cloudFooter = document.getElementById("cloudStoragePanel")?.querySelector("div:nth-of-type(3)");
-  if (cloudFooter) {
-    cloudFooter.appendChild(cloudImportBtn);
-  }
 
   updateViews();
 });
