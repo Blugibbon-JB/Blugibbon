@@ -15,15 +15,22 @@ export async function addDoctor(
   userId: string,
   data: Omit<Doctor, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<Doctor> {
-  const docRef = await addDoc(collection(db, `users/${userId}/doctors`), {
+  // Ensure ahpraId is always present
+  const docData = {
     ...data,
+    ahpraId: data.ahpraId || `TEMP_${Date.now()}`,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
-  });
+  };
+
+  const docRef = await addDoc(collection(db, `users/${userId}/doctors`), docData);
 
   return {
     id: docRef.id,
-    ...data,
+    ahpraId: docData.ahpraId,
+    name: data.name,
+    specialty: data.specialty,
+    color: data.color,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -53,6 +60,7 @@ export async function addAvailability(
     collection(db, `users/${userId}/availability`),
     {
       ...data,
+      status: data.status || 'Available',
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     }
@@ -60,7 +68,14 @@ export async function addAvailability(
 
   return {
     id: docRef.id,
-    ...data,
+    doctorId: data.doctorId,
+    ahpraId: data.ahpraId || '',
+    date: data.date,
+    endDate: data.endDate,
+    status: data.status || 'Available',
+    title: data.title,
+    location: data.location,
+    notes: data.notes,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
