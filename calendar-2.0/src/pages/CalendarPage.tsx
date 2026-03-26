@@ -16,7 +16,6 @@ export default function CalendarPage({ user }: CalendarPageProps) {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [showDoctorForm, setShowDoctorForm] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   useEffect(() => {
     const loadData = async () => {
@@ -54,49 +53,47 @@ export default function CalendarPage({ user }: CalendarPageProps) {
 
   return (
     <div className="max-w-7xl mx-auto p-4">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-4">
+          {/* Doctor List Card */}
           <div className="card sticky top-24">
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
-                  👨‍⚕️ Doctors
-                </h3>
-                {doctors.length === 0 ? (
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                    No doctors yet. Add one to get started!
-                  </p>
-                ) : (
-                  <DoctorList
-                    doctors={doctors}
-                    selectedDoctor={selectedDoctor}
-                    onSelectDoctor={setSelectedDoctor}
-                  />
-                )}
-              </div>
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-3">
+              👨‍⚕️ Your Doctors
+            </h3>
+            {doctors.length === 0 ? (
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                No doctors yet. Add one to get started!
+              </p>
+            ) : (
+              <DoctorList
+                doctors={doctors}
+                selectedDoctor={selectedDoctor}
+                onSelectDoctor={setSelectedDoctor}
+              />
+            )}
 
-              <button
-                onClick={() => setShowDoctorForm(!showDoctorForm)}
-                className="btn-primary w-full"
-              >
-                {showDoctorForm ? '✕ Cancel' : '+ Add Doctor'}
-              </button>
+            <button
+              onClick={() => setShowDoctorForm(!showDoctorForm)}
+              className="btn-primary w-full mt-3"
+            >
+              {showDoctorForm ? '✕ Cancel' : '+ Add Doctor'}
+            </button>
 
-              {showDoctorForm && (
-                <DoctorForm
-                  userId={user.uid}
-                  onSuccess={(newDoctor) => {
-                    setDoctors([...doctors, newDoctor]);
-                    setSelectedDoctor(newDoctor);
-                    setShowDoctorForm(false);
-                  }}
-                  onCancel={() => setShowDoctorForm(false)}
-                />
-              )}
-            </div>
+            {showDoctorForm && (
+              <DoctorForm
+                userId={user.uid}
+                onSuccess={(newDoctor) => {
+                  setDoctors([...doctors, newDoctor]);
+                  setSelectedDoctor(newDoctor);
+                  setShowDoctorForm(false);
+                }}
+                onCancel={() => setShowDoctorForm(false)}
+              />
+            )}
           </div>
 
+          {/* Data Sync Card */}
           <DataSync
             userId={user.uid}
             doctors={doctors}
@@ -106,15 +103,13 @@ export default function CalendarPage({ user }: CalendarPageProps) {
           />
         </div>
 
-        {/* Main Content */}
-        <div className="lg:col-span-3">
+        {/* Main Calendar */}
+        <div className="lg:col-span-4">
           {selectedDoctor ? (
             <CalendarView
               doctor={selectedDoctor}
               userId={user.uid}
               availability={availability}
-              currentMonth={currentMonth}
-              onMonthChange={setCurrentMonth}
               onAvailabilityUpdate={(updated) => {
                 setAvailability(updated);
               }}

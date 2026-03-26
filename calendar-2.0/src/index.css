@@ -17,3 +17,54 @@
     @apply w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-50 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500;
   }
 }
+
+/* FullCalendar Theme */
+.fc {
+  @apply font-sans text-slate-900 dark:text-slate-50;
+}
+
+.fc .fc-button-primary {
+  @apply bg-blue-600 border-blue-600 hover:bg-blue-700;
+}
+
+.fc .fc-button-primary:not(:disabled):active,
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+  @apply bg-blue-800;
+}
+
+.fc .fc-button-primary:disabled {
+  @apply opacity-50;
+}
+
+.fc .fc-daygrid-day,
+.fc .fc-timegrid-slot {
+  @apply border-slate-200 dark:border-slate-700;
+}
+
+.fc .fc-daygrid-day-frame {
+  @apply bg-white dark:bg-slate-900;
+}
+
+.fc .fc-daygrid-day:hover {
+  @apply bg-slate-50 dark:bg-slate-800;
+}
+
+.fc .fc-daygrid-day.fc-day-other {
+  @apply opacity-50;
+}
+
+.fc .fc-col-header-cell {
+  @apply bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700;
+}
+
+.fc .fc-toolbar-title {
+  @apply font-bold text-lg;
+}
+
+.fc .fc-daygrid-event {
+  @apply rounded shadow-sm hover:shadow-md transition-shadow;
+}
+
+.fc .fc-event-title {
+  @apply font-medium text-sm;
+}
