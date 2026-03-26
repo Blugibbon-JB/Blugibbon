@@ -14,6 +14,7 @@ const COLORS = [
 ];
 
 export default function DoctorForm({ userId, onSuccess, onCancel }: DoctorFormProps) {
+  const [ahpraId, setAhpraId] = useState('');
   const [name, setName] = useState('');
   const [specialty, setSpecialty] = useState('');
   const [color, setColor] = useState(COLORS[0]);
@@ -24,6 +25,11 @@ export default function DoctorForm({ userId, onSuccess, onCancel }: DoctorFormPr
     e.preventDefault();
     setError(null);
 
+    if (!ahpraId.trim()) {
+      setError('AHPRA Registration is required');
+      return;
+    }
+
     if (!name.trim()) {
       setError('Doctor name is required');
       return;
@@ -31,7 +37,7 @@ export default function DoctorForm({ userId, onSuccess, onCancel }: DoctorFormPr
 
     try {
       setLoading(true);
-      const newDoctor = await addDoctor(userId, { name, specialty, color });
+      const newDoctor = await addDoctor(userId, { ahpraId, name, specialty, color });
       onSuccess(newDoctor);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add doctor');
@@ -42,6 +48,20 @@ export default function DoctorForm({ userId, onSuccess, onCancel }: DoctorFormPr
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 pb-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+      <div>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+          AHPRA Registration *
+        </label>
+        <input
+          type="text"
+          value={ahpraId}
+          onChange={(e) => setAhpraId(e.target.value)}
+          placeholder="e.g. MED0001234567"
+          className="input text-sm"
+          disabled={loading}
+        />
+      </div>
+
       <div>
         <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
           Name *
@@ -64,7 +84,7 @@ export default function DoctorForm({ userId, onSuccess, onCancel }: DoctorFormPr
           type="text"
           value={specialty}
           onChange={(e) => setSpecialty(e.target.value)}
-          placeholder="e.g. Cardiology"
+          placeholder="e.g. ED, GP, ICU"
           className="input text-sm"
           disabled={loading}
         />
