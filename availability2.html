@@ -2533,12 +2533,37 @@ function importJSONBackup(file){
   reader.onload = e => {
     try{
       const data = JSON.parse(e.target.result);
-      if(!data || !Array.isArray(data.doctors) || !Array.isArray(data.events)){
-        throw new Error("Invalid");
+      if(!data) throw new Error("Empty file");
+
+      // Support both availability2.html format {doctors, events}
+      // and availability.html format (may have different structure)
+      let doctorsData = data.doctors;
+      let eventsData = data.events;
+
+      // If top-level is an array, assume it's old format and try to extract
+      if(Array.isArray(data) && data.length > 0){
+        // Try to detect doctors vs events arrays
+        const firstItem = data[0];
+        if(firstItem.ahpra_id){
+          doctorsData = data;
+          eventsData = [];
+        }
       }
+
+      // Fallback: if still undefined, try other common keys
+      if(!doctorsData) doctorsData = data.doctors_list || data.doctorlist || [];
+      if(!eventsData) eventsData = data.events_list || data.eventslist || data.availability || [];
+
+      if(!Array.isArray(doctorsData)) doctorsData = [];
+      if(!Array.isArray(eventsData)) eventsData = [];
+
+      if(!doctorsData.length && !eventsData.length){
+        throw new Error("No data found in file");
+      }
+
       pushUndo("Restore JSON backup");
-      doctors = data.doctors;
-      events = data.events;
+      doctors = doctorsData;
+      events = eventsData;
       saveDoctors(doctors);
       saveEvents(events);
       selectedDoctorId = null;
@@ -2548,9 +2573,10 @@ function importJSONBackup(file){
       renderDoctorList();
       renderCalendar();
       updateActionButtons();
-      statusChip.textContent = "JSON backup restored successfully";
+      statusChip.textContent = `JSON backup restored: ${doctors.length} doctor(s), ${events.length} event(s)`;
     }catch(err){
-      alert("Invalid JSON backup file");
+      console.error("JSON import error:", err);
+      alert(`Invalid JSON file: ${err.message || 'Unknown error'}`);
     }
   };
   reader.readAsText(file);
