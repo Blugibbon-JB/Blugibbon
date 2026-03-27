@@ -6,8 +6,8 @@
   <title>BLUGIBBON Locum Availability Roster - v2 (Firebase)</title>
 
   <!-- FullCalendar - All plugins included in global bundle -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/fullcalendar@6.1.15/index.global.min.css">
+  <script src="https://unpkg.com/fullcalendar@6.1.15/index.global.min.js"></script>
 
   <!-- Firebase - Compat version for browser compatibility -->
   <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
@@ -1409,21 +1409,39 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
   html += `<div class="finderBucket"><h4>Unavailable</h4>${none.length? none.map(card).join("") : `<div class="muted">None</div>`}</div>`;
   resultsDiv.innerHTML = html;
 
-  resultsDiv.querySelectorAll(".finderCard").forEach(el=>{
-    el.addEventListener("click", ()=>{
-      const docId = el.getAttribute("data-doc");
-      if(docId){
-        selectedDoctorId = docId;
-        renderDoctorList();
+  const cards = resultsDiv.querySelectorAll(".finderCard");
+  console.log("Found", cards.length, "finderCard elements");
 
-        // Ensure availability and bookings overlays are visible
-        showAvailabilityOverlay = true;
-        showBookingsOverlay = true;
+  cards.forEach(el=>{
+    el.addEventListener("click", (e)=>{
+      try {
+        e.stopPropagation();
+        const docId = el.getAttribute("data-doc");
+        console.log("Finder card clicked, docId:", docId, "startISO:", startISO);
 
-        if(calendar?.gotoDate) calendar.gotoDate(startISO);
+        if(docId){
+          selectedDoctorId = docId;
+          console.log("Set selectedDoctorId:", selectedDoctorId);
+
+          renderDoctorList();
+          console.log("renderDoctorList called");
+
+          // Ensure availability and bookings overlays are visible
+          showAvailabilityOverlay = true;
+          showBookingsOverlay = true;
+          console.log("Overlays enabled");
+
+          if(calendar?.gotoDate) {
+            calendar.gotoDate(startISO);
+            console.log("Calendar moved to:", startISO);
+          }
+        }
+        viewMode="calendar";
+        updateViews();
+        console.log("View updated to calendar mode");
+      } catch(err) {
+        console.error("Error in finder click handler:", err);
       }
-      viewMode="calendar";
-      updateViews();
     });
 
     el.addEventListener("mouseenter", ()=>{
