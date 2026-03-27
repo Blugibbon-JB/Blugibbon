@@ -357,6 +357,32 @@
     background:#fff;
   }
   .finderCard .meta{ font-size:12px; opacity:0.75; margin-top:3px; }
+  .finderCard{ cursor:pointer; position:relative; }
+  .finderCard:hover{ background:#f5f7ff; }
+
+  .finderTooltip{
+    position:fixed; pointer-events:none; z-index:10000;
+  }
+
+  .dateBreakdownTooltip{
+    background:#fff; border:1px solid #ddd; border-radius:8px; padding:12px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:10001;
+    min-width:280px; max-width:400px;
+    font-size:12px; line-height:1.5; white-space:normal;
+  }
+  .breakdown-section{
+    display:flex; flex-direction:column; margin-bottom:10px;
+  }
+  .breakdown-section:last-child{ margin-bottom:0; }
+  .status-label{
+    font-weight:600; margin-bottom:4px; display:inline-block; padding:2px 6px;
+    border-radius:4px; color:#fff; font-size:11px;
+  }
+  .status-label.available{ background:rgba(46,125,50,0.8); }
+  .status-label.booked{ background:rgba(21,101,192,0.8); }
+  .status-label.tentative{ background:rgba(0,121,107,0.8); }
+  .status-label.other{ background:rgba(66,66,66,0.65); }
+  .date-list{ display:block; color:#333; word-break:break-word; }
 
   .filterRow{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .filterRow select{ width:100%; }
@@ -1261,6 +1287,57 @@ function renderStrips(){
   });
 }
 
+function getDoctorDateBreakdown(ahpraId, startISO, endISOInclusive) {
+  const breakdown = {
+    available: [],
+    booked: [],
+    tentative: [],
+    other: [],
+    blank: []
+  };
+
+  const endEx = addDaysISO(endISOInclusive, 1);
+  let day = startISO;
+
+  while(day < endEx) {
+    const cls = classifyDay(ahpraId, day);
+    breakdown[cls].push(day);
+    day = addDaysISO(day, 1);
+  }
+
+  return breakdown;
+}
+
+function formatDateBreakdownTooltip(breakdown) {
+  const formatDateList = (dates) => {
+    if (dates.length === 0) return "None";
+    return dates.map(d => {
+      const date = new Date(d + 'T00:00:00Z');
+      return date.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric' });
+    }).join(", ");
+  };
+
+  let html = '<div class="dateBreakdownTooltip">';
+
+  if (breakdown.available.length > 0) {
+    html += `<div class="breakdown-section"><span class="status-label available">Available (${breakdown.available.length})</span><span class="date-list">${formatDateList(breakdown.available)}</span></div>`;
+  }
+
+  if (breakdown.booked.length > 0) {
+    html += `<div class="breakdown-section"><span class="status-label booked">Booked (${breakdown.booked.length})</span><span class="date-list">${formatDateList(breakdown.booked)}</span></div>`;
+  }
+
+  if (breakdown.tentative.length > 0) {
+    html += `<div class="breakdown-section"><span class="status-label tentative">Tentative (${breakdown.tentative.length})</span><span class="date-list">${formatDateList(breakdown.tentative)}</span></div>`;
+  }
+
+  if (breakdown.other.length > 0) {
+    html += `<div class="breakdown-section"><span class="status-label other">Other (${breakdown.other.length})</span><span class="date-list">${formatDateList(breakdown.other)}</span></div>`;
+  }
+
+  html += '</div>';
+  return html;
+}
 
 function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
   const resultsDiv = document.getElementById("finderResults");
@@ -1342,6 +1419,32 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
       }
       viewMode="calendar";
       updateViews();
+    });
+
+    el.addEventListener("mouseenter", ()=>{
+      const docId = el.getAttribute("data-doc");
+      if(docId){
+        const breakdown = getDoctorDateBreakdown(docId, startISO, endISOInclusive);
+        const tooltip = document.createElement("div");
+        tooltip.className = "finderTooltip";
+        tooltip.innerHTML = formatDateBreakdownTooltip(breakdown);
+        document.body.appendChild(tooltip);
+
+        // Position tooltip above the card
+        const rect = el.getBoundingClientRect();
+        const tooltipRect = tooltip.querySelector(".dateBreakdownTooltip")?.getBoundingClientRect() || {width: 320, height: 100};
+        tooltip.style.left = (rect.left + rect.width / 2 - tooltipRect.width / 2) + "px";
+        tooltip.style.top = (rect.top - tooltipRect.height - 10) + "px";
+
+        el.tooltip = tooltip;
+      }
+    });
+
+    el.addEventListener("mouseleave", ()=>{
+      if(el.tooltip){
+        el.tooltip.remove();
+        el.tooltip = null;
+      }
     });
   });
 }
