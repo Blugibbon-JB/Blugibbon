@@ -467,6 +467,7 @@
     <span class="groupLabel">Functions</span>
     <button class="primary" id="createBtn">Create availability / leave</button>
     <button id="clearSelectedBtn" class="danger">Clear selected range</button>
+    <button id="deleteSelectedBtn" class="danger" style="display:none;">Delete selected events</button>
     <button id="undoBtn">Undo</button>
     <button id="copyAvailBtn" class="ghost">Copy availability</button>
     <button id="pasteAvailBtn" class="ghost">Paste availability</button>
@@ -1743,6 +1744,63 @@ function clearSelectedRange(){
   }
 }
 
+function deleteSelectedEvents(){
+  if(!selectedDoctorId){
+    statusChip.textContent = "Select a doctor first";
+    return;
+  }
+  if(!lastSelection || !lastSelection.start || !lastSelection.end){
+    statusChip.textContent = "Select a date range on the calendar first";
+    return;
+  }
+
+  const selStart = normalizeToUTCDate(lastSelection.start);
+  const selEndEx = normalizeToUTCDate(lastSelection.end); // exclusive
+  if(selEndEx.getTime() <= selStart.getTime()){
+    statusChip.textContent = "Invalid selected range";
+    return;
+  }
+
+  // Normalize to UTC dates (yyyy-mm-dd) because we store events as ISO date strings.
+  const selStartISO = selStart.toISOString().slice(0,10);
+  const selEndISO = selEndEx.toISOString().slice(0,10);
+
+  pushUndo("Delete selected events");
+
+  // Find and count events to delete
+  const eventsToDelete = events.filter(e => {
+    if(String(e.ahpra_id) !== String(selectedDoctorId)) return false;
+    const evStart = String(e.start);
+    const evEndEx = String(e.end);
+    // Delete if there's any overlap
+    return evStart < selEndISO && evEndEx > selStartISO;
+  });
+
+  const deleteCount = eventsToDelete.length;
+
+  if(deleteCount === 0){
+    statusChip.textContent = "No events to delete in the selected range";
+    return;
+  }
+
+  // Remove the events
+  events = events.filter(e => !eventsToDelete.includes(e));
+  saveEvents(events);
+  renderDoctorList();
+  renderCalendar();
+  calendar.unselect();
+  lastSelection = null;
+  updateActionButtons();
+
+  try{
+    const s = formatDateAU(selStart);
+    const eInc = formatDateAU(addDaysUTC(selEndEx, -1));
+    statusChip.textContent = `✓ Deleted ${deleteCount} event(s): ${s} → ${eInc}`;
+  } catch(e){
+    statusChip.textContent = `✓ Deleted ${deleteCount} event(s)`;
+  }
+}
+
 function undo(){
   const item = undoStack.pop();
   localStorage.setItem(UNDO_KEY, JSON.stringify(undoStack));
@@ -1780,6 +1838,23 @@ if(typeof removeDoctorBtn !== "undefined" && removeDoctorBtn){
     clearSelectedBtn.disabled = !canClear;
     clearSelectedBtn.style.opacity = clearSelectedBtn.disabled ? "0.5" : "1";
   }
+  if(typeof deleteSelectedBtn !== "undefined" && deleteSelectedBtn){
+    // Check if there are events in the selected range
+    const canDelete = (!showAllDoctors) && hasDoc && lastSelection && lastSelection.start && lastSelection.end;
+    if(canDelete){
+      const hasEventsInRange = events.some(e => {
+        const eStart = normalizeToUTCDate(new Date(e.start));
+        const eEnd = normalizeToUTCDate(new Date(e.end));
+        const overlapStart = eStart < lastSelection.end && eEnd > lastSelection.start;
+        return overlapStart && String(e.ahpra_id) === String(selectedDoctorId);
+      });
+      deleteSelectedBtn.style.display = hasEventsInRange ? "block" : "none";
+      deleteSelectedBtn.disabled = !hasEventsInRange;
+    } else {
+      deleteSelectedBtn.style.display = "none";
+      deleteSelectedBtn.disabled = true;
+    }
+  }
 }
 
 let selectedDoctorId = doctors.length ? String(doctors[0].ahpra_id) : null;
@@ -1802,6 +1877,7 @@ const importJsonInput = document.getElementById("importJsonInput");
 const undoBtn = document.getElementById("undoBtn");
 const createBtn = document.getElementById("createBtn");
 const clearSelectedBtn = document.getElementById("clearSelectedBtn");
+const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
 const copyAvailBtn = document.getElementById("copyAvailBtn");
 const pasteAvailBtn = document.getElementById("pasteAvailBtn");
 const toggleAllBtn = document.getElementById("toggleAllBtn");
@@ -3531,6 +3607,7 @@ removeDoctorBtn.addEventListener("click", ()=>{
 exportBtn.addEventListener("click", exportCSV);
 undoBtn.addEventListener("click", undo);
 clearSelectedBtn.addEventListener("click", clearSelectedRange);
+deleteSelectedBtn.addEventListener("click", deleteSelectedEvents);
 
 const uploadClickUpBtn = document.getElementById("uploadClickUpBtn");
 const clickupCsvFile = document.getElementById("clickupCsvFile");
