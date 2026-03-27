@@ -1415,6 +1415,11 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
       if(docId){
         selectedDoctorId = docId;
         renderDoctorList();
+
+        // Ensure availability and bookings overlays are visible
+        showAvailabilityOverlay = true;
+        showBookingsOverlay = true;
+
         if(calendar?.gotoDate) calendar.gotoDate(startISO);
       }
       viewMode="calendar";
