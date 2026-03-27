@@ -485,6 +485,8 @@
     <span class="groupLabel">Upload &amp; Backup</span>
     <button id="uploadClickUpBtn">Import ClickUp Doctors CSV</button>
     <input type="file" id="clickupCsvFile" accept=".csv" style="display:none" />
+    <button id="uploadSitesBtn">Import ClickUp Sites CSV</button>
+    <input type="file" id="sitesCsvFile" accept=".csv" style="display:none" />
     <button id="uploadTimesheetsBtn">Import Timesheets CSV</button>
     <input type="file" id="timesheetsCsvFile" accept=".csv" style="display:none" />
     <input type="file" id="csvFile" accept=".csv" style="display:none" />
@@ -1517,7 +1519,10 @@ function updateViews(){
   else if(viewMode==="strips") renderStrips();
 }
 
-document.addEventListener("DOMContentLoaded", ()=>{
+document.addEventListener("DOMContentLoaded", async ()=>{
+  // Load sites from Firebase and cache
+  await loadSitesFromFirebase();
+
   const calBtn = document.getElementById("viewCalendarBtn");
   const hmBtn = document.getElementById("viewHeatmapBtn");
   const stBtn = document.getElementById("viewStripsBtn");
@@ -2896,8 +2901,15 @@ function openEventEditor(payload){
       <input id="evTitle" value="${esc(defaultTitle)}" placeholder="e.g., Booked – Port Hedland" />
     </div>
     <div class="field full">
-      <label>Where / working location (optional)</label>
-      <input id="evLocation" value="${esc(defaultLocation)}" placeholder="e.g., Port Hedland, WA • ED" />
+      <label>Where / working location <span style="color:red;">*</span> (required)</label>
+      <select id="evLocation" required style="background:#fff; border:1px solid #ccc;">
+        <option value="">-- Select a site --</option>
+        ${renderSitesDropdown()}
+      </select>
+      <div class="hint" style="margin-top:4px; font-size:11px;">Select the hospital/clinic where the doctor will be working. To add new sites, import the ClickUp Sites CSV.</div>
+    </div>
+    <div class="field full" style="display:none; padding:8px; background:#fef3cd; border:1px solid #ffc107; border-radius:6px;" id="siteWarning">
+      ⚠️ You must select a site from the dropdown to create a placement on ClickUp
     </div>
     <div class="field full">
       <label>Notes (optional)</label>
@@ -2938,6 +2950,16 @@ function openEventEditor(payload){
     <div class="hint full">End date is inclusive here. Internally we store end as “next day”.</div>
   `;
   document.getElementById("evStatus").value = defaultStatus;
+
+  // Set site dropdown value if editing
+  const evLocEl = document.getElementById("evLocation");
+  if(evLocEl){
+    if(mode === "edit" && payload.site_id){
+      evLocEl.value = payload.site_id;
+    } else {
+      evLocEl.value = "";
+    }
+  }
 
   // Recurrence UI wiring (create mode only)
   if(mode === "create"){
@@ -3016,8 +3038,19 @@ function openEventEditor(payload){
 
       const status = document.getElementById("evStatus").value;
       const title = (document.getElementById("evTitle").value||"").trim();
-      const location = (document.getElementById("evLocation").value||"").trim();
+      const siteId = (document.getElementById("evLocation").value||"").trim();
       const notes = (document.getElementById("evNotes").value||"").trim();
+
+      // Validate that a site is selected (required for ClickUp placement)
+      if(!siteId){
+        statusChip.textContent = "⚠ You must select a site from the dropdown (required for ClickUp placement)";
+        document.getElementById("siteWarning").style.display = "block";
+        return;
+      }
+
+      // Get site name from cache
+      const siteObj = sitesCache[siteId];
+      const location = siteObj ? siteObj.name : siteId;
 
       // Recurrence (create mode only)
       const recMode = (mode === "create" && document.getElementById("evRecurrence")) ? document.getElementById("evRecurrence").value : "none";
@@ -3064,6 +3097,7 @@ function openEventEditor(payload){
           status,
           title: title || status,
           location,
+          site_id: siteId,  // ClickUp site ID for placement creation
           notes,
           start: blkStartISO,
           end: blkEndISO
@@ -3891,6 +3925,110 @@ events = Array.from(eventMap.values());
   });
 }
 
+}
+
+// ===== SITE MANAGEMENT =====
+let sitesCache = {}; // { siteId: { id, name }, ... }
+
+async function loadSitesFromFirebase(){
+  if(!db) return;
+  try {
+    const snapshot = await db.ref("sites").once("value");
+    sitesCache = snapshot.val() || {};
+    console.log("Sites loaded from Firebase:", Object.keys(sitesCache).length);
+    localStorage.setItem("sitesCache", JSON.stringify(sitesCache));
+  } catch(e){
+    console.warn("Could not load sites from Firebase:", e);
+    const cached = localStorage.getItem("sitesCache");
+    if(cached) sitesCache = JSON.parse(cached);
+  }
+}
+
+async function saveSitesToFirebase(){
+  if(!db || !isOnline || !firebase_user) return;
+  try {
+    await db.ref("sites").set(sitesCache);
+    console.log("Sites synced to Firebase");
+  } catch(e){
+    console.warn("Could not sync sites to Firebase:", e);
+  }
+}
+
+function parseSitesCSV(csvText){
+  const lines = csvText.trim().split("\n");
+  const sites = {};
+
+  for(let i = 1; i < lines.length; i++){
+    const line = lines[i].trim();
+    if(!line) continue;
+
+    // Parse CSV: Task ID, Task Name, ... (we only need first two columns)
+    const parts = [];
+    let current = "";
+    let inQuotes = false;
+
+    for(let j = 0; j < line.length; j++){
+      const ch = line[j];
+      if(ch === '"'){ inQuotes = !inQuotes; }
+      else if(ch === "," && !inQuotes){ parts.push(current); current = ""; }
+      else { current += ch; }
+    }
+    parts.push(current);
+
+    const siteId = parts[0]?.trim();
+    const siteName = parts[1]?.trim();
+
+    if(siteId && siteName){
+      sites[siteId] = { id: siteId, name: siteName };
+    }
+  }
+
+  return sites;
+}
+
+const uploadSitesBtn = document.getElementById("uploadSitesBtn");
+const sitesCsvFile = document.getElementById("sitesCsvFile");
+
+if(uploadSitesBtn && sitesCsvFile){
+  uploadSitesBtn.addEventListener("click", ()=> sitesCsvFile.click());
+
+  sitesCsvFile.addEventListener("change", async (ev)=>{
+    const file = ev.target.files && ev.target.files[0];
+    if(!file) return;
+
+    try {
+      const text = await file.text();
+      const newSites = parseSitesCSV(text);
+
+      if(!Object.keys(newSites).length){
+        statusChip.textContent = "No valid sites found in CSV";
+        return;
+      }
+
+      sitesCache = { ...sitesCache, ...newSites };
+      localStorage.setItem("sitesCache", JSON.stringify(sitesCache));
+
+      if(db && isOnline && firebase_user){
+        await saveSitesToFirebase();
+        statusChip.textContent = `✓ Imported ${Object.keys(newSites).length} sites to Firebase`;
+      } else {
+        statusChip.textContent = `✓ Imported ${Object.keys(newSites).length} sites (local only - sign in to sync)`;
+      }
+
+      console.log("Sites imported:", newSites);
+    } catch(err){
+      console.error("Error importing sites:", err);
+      statusChip.textContent = "❌ Error importing sites: " + (err.message || "Unknown error");
+    } finally {
+      sitesCsvFile.value = "";
+    }
+  });
+}
+
+function renderSitesDropdown(){
+  const sitesList = Object.values(sitesCache).sort((a,b)=> a.name.localeCompare(b.name));
+  const html = sitesList.map(s=> `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+  return html;
 }
 
 createBtn.addEventListener("click", ()=>{
