@@ -14,10 +14,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/list@6.1.15/index.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/multimonth@6.1.15/index.global.min.js"></script>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
+  <!-- Firebase - Compat version for browser compatibility -->
+  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-database-compat.js"></script>
 
 
   <style>
@@ -648,16 +648,15 @@ async function initializeFirebase() {
     // Wait for Firebase SDK to be available
     await waitForFirebase();
 
-    // Check if already initialized
-    try {
-      firebase_app = firebase.app();
-    } catch(e) {
-      firebase_app = firebase.initializeApp(FIREBASE_CONFIG);
+    // Initialize Firebase (compat version)
+    if(!firebase.apps || firebase.apps.length === 0) {
+      firebase.initializeApp(FIREBASE_CONFIG);
     }
 
-    firebase_auth = firebase.auth(firebase_app);
-    firebase_db = firebase.database(firebase_app);
+    firebase_auth = firebase.auth();
+    firebase_db = firebase.database();
     firebaseReady = true;
+    console.log("Firebase initialized successfully");
     return true;
   } catch(err) {
     console.error("Firebase initialization error:", err);
@@ -3677,14 +3676,14 @@ document.getElementById("doctorHeader").addEventListener("dblclick", ()=>{
 
 /* ===== FIREBASE SYNC FUNCTIONS ===== */
 async function syncToFirebase() {
-  if(!firebase_user || syncInProgress) return;
+  if(!firebase_user || !firebase_db || syncInProgress) return;
   syncInProgress = true;
   updateSyncIndicator("syncing");
 
   try {
     const uid = firebase_user.uid;
-    const doctorsRef = firebase.database().ref(`users/${uid}/doctors`);
-    const eventsRef = firebase.database().ref(`users/${uid}/events`);
+    const doctorsRef = firebase_db.ref(`users/${uid}/doctors`);
+    const eventsRef = firebase_db.ref(`users/${uid}/events`);
 
     await Promise.all([
       doctorsRef.set(doctors),
@@ -3702,12 +3701,12 @@ async function syncToFirebase() {
 }
 
 async function syncFromFirebase() {
-  if(!firebase_user) return;
+  if(!firebase_user || !firebase_db) return;
   try {
     const uid = firebase_user.uid;
     const snapshot = await Promise.all([
-      firebase.database().ref(`users/${uid}/doctors`).get(),
-      firebase.database().ref(`users/${uid}/events`).get()
+      firebase_db.ref(`users/${uid}/doctors`).get(),
+      firebase_db.ref(`users/${uid}/events`).get()
     ]);
 
     const cloudDoctors = snapshot[0].val() || [];
