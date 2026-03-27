@@ -6,8 +6,8 @@
   <title>BLUGIBBON Locum Availability Roster - v2 (Firebase)</title>
 
   <!-- FullCalendar - All plugins included in global bundle -->
-  <link rel="stylesheet" href="https://unpkg.com/fullcalendar@6.1.15/index.global.min.css">
-  <script src="https://unpkg.com/fullcalendar@6.1.15/index.global.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 
   <!-- Firebase - Compat version for browser compatibility -->
   <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
@@ -16,6 +16,20 @@
 
 
   <style>
+    /* Minimal FullCalendar fallback styles if external stylesheet fails to load */
+    .fc { display: flex; flex-direction: column; font-family: -apple-system, Segoe UI, Roboto, Arial; }
+    .fc-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; }
+    .fc-button { padding: 6px 12px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; }
+    .fc-button:hover { background: #f5f5f5; }
+    .fc-button-primary { background: #111; color: #fff; border-color: #111; }
+    .fc-button-primary:hover { background: #333; }
+    .fc-daygrid { flex: 1; display: flex; flex-direction: column; }
+    .fc-daygrid-body { flex: 1; }
+    .fc-col-header { display: flex; background: #fafafa; border-bottom: 1px solid #e0e0e0; }
+    .fc-daygrid-day { border: 1px solid #e0e0e0; padding: 8px; min-height: 80px; }
+    .fc-daygrid-day-number { padding: 4px; }
+    .fc-event { background: #3174ad; color: #fff; padding: 2px 4px; margin: 2px 0; border-radius: 2px; font-size: 11px; }
+
     :root{
       --border:#e7e7e7; --muted:#6b6b6b; --bg:#fff; --panel:#fafafa;
       --radius:14px; --shadow: 0 10px 28px rgba(0,0,0,0.10);
@@ -1409,39 +1423,24 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
   html += `<div class="finderBucket"><h4>Unavailable</h4>${none.length? none.map(card).join("") : `<div class="muted">None</div>`}</div>`;
   resultsDiv.innerHTML = html;
 
-  const cards = resultsDiv.querySelectorAll(".finderCard");
-  console.log("Found", cards.length, "finderCard elements");
-
-  cards.forEach(el=>{
+  resultsDiv.querySelectorAll(".finderCard").forEach(el=>{
     el.addEventListener("click", (e)=>{
-      try {
-        e.stopPropagation();
-        const docId = el.getAttribute("data-doc");
-        console.log("Finder card clicked, docId:", docId, "startISO:", startISO);
+      e.stopPropagation();
+      const docId = el.getAttribute("data-doc");
+      if(docId){
+        selectedDoctorId = docId;
+        renderDoctorList();
 
-        if(docId){
-          selectedDoctorId = docId;
-          console.log("Set selectedDoctorId:", selectedDoctorId);
+        // Ensure availability and bookings overlays are visible
+        showAvailabilityOverlay = true;
+        showBookingsOverlay = true;
 
-          renderDoctorList();
-          console.log("renderDoctorList called");
-
-          // Ensure availability and bookings overlays are visible
-          showAvailabilityOverlay = true;
-          showBookingsOverlay = true;
-          console.log("Overlays enabled");
-
-          if(calendar?.gotoDate) {
-            calendar.gotoDate(startISO);
-            console.log("Calendar moved to:", startISO);
-          }
+        if(calendar?.gotoDate) {
+          calendar.gotoDate(startISO);
         }
-        viewMode="calendar";
-        updateViews();
-        console.log("View updated to calendar mode");
-      } catch(err) {
-        console.error("Error in finder click handler:", err);
       }
+      viewMode="calendar";
+      updateViews();
     });
 
     el.addEventListener("mouseenter", ()=>{
