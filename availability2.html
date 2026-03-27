@@ -459,7 +459,7 @@
   <div id="authSection" class="barGroup" style="border:none; padding:0; gap:8px;">
     <span id="authStatus" style="color:#666;">Offline (local)</span>
     <button id="googleSignIn" style="display:none;">Sign in with Google</button>
-    <button id="googleSignOut" style="display:none;">Sign out</button>
+    <button id="googleSignOut" style="display:none;">Switch account</button>
     <span id="syncStatus" class="sync-indicator" style="display:none;">Synced</span>
   </div>
 </div>
@@ -1732,8 +1732,28 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
       const eInc = formatDateAU(addDaysUTC(lastSelection.end, -1));
       statusChip.textContent = `Selected: ${s} → ${eInc}`;
       updateActionButtons();
+
+      // Auto-open event editor if range is blank (no existing events)
+      const hasExistingEvents = events.some(e => {
+        const eStart = normalizeToUTCDate(new Date(e.start));
+        const eEnd = normalizeToUTCDate(new Date(e.end));
+        const overlapStart = eStart < lastSelection.end && eEnd > lastSelection.start;
+        return overlapStart && String(e.ahpra_id) === String(selectedDoctorId);
+      });
+
+      if(!hasExistingEvents){
+        // Small delay to ensure UI is ready
+        setTimeout(() => {
+          openEventEditor({
+            mode: "create",
+            id: null,
+            ahpra_id: selectedDoctorId,
+            start: lastSelection.start,
+            end: lastSelection.end
+          });
+        }, 100);
+      }
     } catch(e) {}
-    // Do NOT open editor automatically; user clicks Create button
   }
 ,
     // Clicking a day sets a 1-day selection (useful for Paste start date)
@@ -3788,9 +3808,10 @@ async function handleGoogleSignOut() {
     firebase_user = null;
     isOnline = false;
     updateAuthUI();
-    statusChip.textContent = "Signed out - working offline";
+    statusChip.textContent = "Signed out - click 'Sign in with Google' to sign in with a different account";
   } catch(err) {
     console.error("Sign out failed:", err);
+    statusChip.textContent = "Sign out failed: " + (err.message || String(err));
   }
 }
 
