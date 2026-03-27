@@ -6,8 +6,18 @@
   <title>BLUGIBBON Locum Availability Roster - v2 (Firebase)</title>
 
   <!-- FullCalendar - All plugins included in global bundle -->
-  <link rel="stylesheet" href="https://unpkg.com/fullcalendar@6.1.15/index.global.min.css">
-  <script src="https://unpkg.com/fullcalendar@6.1.15/index.global.min.js"></script>
+  <!-- Try multiple CDNs for better reliability -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" onerror="console.warn('FullCalendar CSS failed to load from jsdelivr - this may cause styling issues')">
+  <script>
+    // Check what resources loaded
+    window.addEventListener('load', function() {
+      console.log('Page loaded. Checking resource status...');
+      fetch('https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css', {method: 'HEAD'})
+        .then(r => console.log('CSS CDN status:', r.status))
+        .catch(e => console.warn('CSS CDN unreachable:', e.message));
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 
   <!-- Firebase - Compat version for browser compatibility -->
   <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
