@@ -2301,6 +2301,7 @@ function renderDoctorList(){
       <div class="docRight">
         <span class="badge">${upcomingMeta ? `${uCount} day(s)` : `${countAll} block(s)`}</span>
         <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+          <button class="miniBtn viewEditBtn" type="button" title="View and edit this doctor's details">View &amp; Edit</button>
           <button class="miniBtn" type="button" data-action="copy14" title="Copy this doctor's next 14 days availability">Copy 14d</button>
           <button class="miniBtn danger" type="button" data-action="clearmonth" title="Clear this doctor's blocks for the visible month">Clear month</button>
           <button class="miniBtn danger" type="button" data-action="clearavail" title="Clear ALL availability/unavailability for this doctor (keeps bookings)">Clear avail</button>
@@ -2316,6 +2317,15 @@ function renderDoctorList(){
         }
       </div>
     `;
+
+    // View & Edit button
+    const viewEditBtn = div.querySelector(".viewEditBtn");
+    if(viewEditBtn){
+      viewEditBtn.addEventListener("click", (ev)=>{
+        ev.stopPropagation();
+        openDoctorEditor(d);
+      });
+    }
 
     // Quick actions (row buttons)
     div.querySelectorAll("button[data-action]").forEach(btn=>{
