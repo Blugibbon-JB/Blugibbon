@@ -658,6 +658,7 @@
         <!-- Sites List -->
         <div>
           <h3 style="margin:0 0 12px 0; font-size:14px; font-weight:bold;">Existing Sites</h3>
+          <input id="sitesSearch" placeholder="Search sites by name or ID..." style="width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; margin-bottom:8px; font-size:14px;"/>
           <div id="sitesList" style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; border:1px solid #e7e7e7; border-radius:8px; padding:8px; background:#fafafa;"></div>
         </div>
 
@@ -4126,8 +4127,15 @@ function renderSitesDropdown(){
   return html;
 }
 
-function renderSitesList(){
-  const sitesList = Object.values(sitesCache).sort((a,b)=> a.name.localeCompare(b.name));
+function renderSitesList(searchTerm = ""){
+  let sitesList = Object.values(sitesCache).sort((a,b)=> a.name.localeCompare(b.name));
+
+  // Filter by search term
+  if(searchTerm.trim()){
+    const query = searchTerm.toLowerCase();
+    sitesList = sitesList.filter(s => s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query));
+  }
+
   const html = sitesList.map(s=> `
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:#fff; border:1px solid #ddd; border-radius:6px;">
       <div>
@@ -4142,7 +4150,7 @@ function renderSitesList(){
   `).join("");
 
   const listEl = document.getElementById("sitesList");
-  if(listEl) listEl.innerHTML = html || '<div style="text-align:center; color:#999; padding:16px;">No sites yet. Add one below.</div>';
+  if(listEl) listEl.innerHTML = html || '<div style="text-align:center; color:#999; padding:16px;">No sites found. ' + (searchTerm.trim() ? 'Try a different search.' : 'Add one below.') + '</div>';
 
   // Attach event listeners
   document.querySelectorAll("[data-edit-site]").forEach(btn=> btn.addEventListener("click", (e)=>{
@@ -4175,6 +4183,7 @@ function openSitesModal(){
   document.getElementById("newSiteId").value = "";
   document.getElementById("newSiteId").dataset.editingId = "";
   document.getElementById("addSiteBtn").textContent = "Add Site";
+  document.getElementById("sitesSearch").value = "";
 }
 
 function closeSitesModal(){
@@ -4185,6 +4194,9 @@ function closeSitesModal(){
 document.getElementById("manageSitesBtn").addEventListener("click", openSitesModal);
 document.getElementById("sitesCloseBtn").addEventListener("click", closeSitesModal);
 document.getElementById("sitesSaveBtn").addEventListener("click", closeSitesModal);
+document.getElementById("sitesSearch").addEventListener("input", (e)=>{
+  renderSitesList(e.target.value);
+});
 
 document.getElementById("addSiteBtn").addEventListener("click", async ()=>{
   const name = (document.getElementById("newSiteName").value||"").trim();
