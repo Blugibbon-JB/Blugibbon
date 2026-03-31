@@ -487,6 +487,7 @@
     <input type="file" id="clickupCsvFile" accept=".csv" style="display:none" />
     <button id="uploadSitesBtn">Import ClickUp Sites CSV</button>
     <input type="file" id="sitesCsvFile" accept=".csv" style="display:none" />
+    <button id="manageSitesBtn">Manage Sites</button>
     <button id="uploadTimesheetsBtn">Import Timesheets CSV</button>
     <input type="file" id="timesheetsCsvFile" accept=".csv" style="display:none" />
     <input type="file" id="csvFile" accept=".csv" style="display:none" />
@@ -642,6 +643,44 @@
     </div>
     <div class="modalBody" id="modalBody"></div>
     <div class="modalFooter" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- Site Management Modal -->
+<div class="modalBackdrop" id="sitesBackdrop" role="dialog" aria-modal="true" style="display:none;">
+  <div class="modal">
+    <div class="modalHeader">
+      <div class="h">Manage Sites</div>
+      <button id="sitesCloseBtn">Close</button>
+    </div>
+    <div class="modalBody" id="sitesBody">
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <!-- Sites List -->
+        <div>
+          <h3 style="margin:0 0 12px 0; font-size:14px; font-weight:bold;">Existing Sites</h3>
+          <div id="sitesList" style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; border:1px solid #e7e7e7; border-radius:8px; padding:8px; background:#fafafa;"></div>
+        </div>
+
+        <!-- Add New Site Form -->
+        <div style="border-top:1px solid #e7e7e7; padding-top:12px;">
+          <h3 style="margin:0 0 12px 0; font-size:14px; font-weight:bold;">Add New Site</h3>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div>
+              <label style="display:block; margin-bottom:4px; font-size:12px; font-weight:600;">Site Name</label>
+              <input id="newSiteName" placeholder="e.g., Port Hedland Hospital" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px;"/>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:4px; font-size:12px; font-weight:600;">Site ID (from ClickUp)</label>
+              <input id="newSiteId" placeholder="e.g., 123456789" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px;"/>
+            </div>
+            <button id="addSiteBtn" style="padding:8px; background:#111; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:14px;">Add Site</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modalFooter" id="sitesFooter" style="justify-content:flex-end;">
+      <button id="sitesSaveBtn" style="background:#4CAF50; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600;">Save & Close</button>
+    </div>
   </div>
 </div>
 
@@ -4086,6 +4125,100 @@ function renderSitesDropdown(){
   const html = sitesList.map(s=> `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
   return html;
 }
+
+function renderSitesList(){
+  const sitesList = Object.values(sitesCache).sort((a,b)=> a.name.localeCompare(b.name));
+  const html = sitesList.map(s=> `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:#fff; border:1px solid #ddd; border-radius:6px;">
+      <div>
+        <div style="font-weight:600; color:#111;">${esc(s.name)}</div>
+        <div style="font-size:12px; color:#666; margin-top:2px;">ID: ${esc(s.id)}</div>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button data-edit-site="${esc(s.id)}" style="padding:4px 10px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:12px;">Edit</button>
+        <button data-delete-site="${esc(s.id)}" style="padding:4px 10px; background:#fee; border:1px solid #fcc; border-radius:4px; cursor:pointer; font-size:12px; color:#c33;">Delete</button>
+      </div>
+    </div>
+  `).join("");
+
+  const listEl = document.getElementById("sitesList");
+  if(listEl) listEl.innerHTML = html || '<div style="text-align:center; color:#999; padding:16px;">No sites yet. Add one below.</div>';
+
+  // Attach event listeners
+  document.querySelectorAll("[data-edit-site]").forEach(btn=> btn.addEventListener("click", (e)=>{
+    const siteId = e.target.dataset.editSite;
+    const site = sitesCache[siteId];
+    if(site){
+      document.getElementById("newSiteName").value = site.name;
+      document.getElementById("newSiteId").value = site.id;
+      document.getElementById("newSiteId").dataset.editingId = siteId;
+      document.getElementById("addSiteBtn").textContent = "Update Site";
+    }
+  }));
+
+  document.querySelectorAll("[data-delete-site]").forEach(btn=> btn.addEventListener("click", (e)=>{
+    const siteId = e.target.dataset.deleteSite;
+    if(confirm(`Delete "${sitesCache[siteId].name}"?`)){
+      delete sitesCache[siteId];
+      localStorage.setItem("sitesCache", JSON.stringify(sitesCache));
+      saveSitesToFirebase();
+      renderSitesList();
+      statusChip.textContent = "✓ Site deleted";
+    }
+  }));
+}
+
+function openSitesModal(){
+  renderSitesList();
+  document.getElementById("sitesBackdrop").style.display = "flex";
+  document.getElementById("newSiteName").value = "";
+  document.getElementById("newSiteId").value = "";
+  document.getElementById("newSiteId").dataset.editingId = "";
+  document.getElementById("addSiteBtn").textContent = "Add Site";
+}
+
+function closeSitesModal(){
+  document.getElementById("sitesBackdrop").style.display = "none";
+}
+
+// Site management event listeners
+document.getElementById("manageSitesBtn").addEventListener("click", openSitesModal);
+document.getElementById("sitesCloseBtn").addEventListener("click", closeSitesModal);
+document.getElementById("sitesSaveBtn").addEventListener("click", closeSitesModal);
+
+document.getElementById("addSiteBtn").addEventListener("click", async ()=>{
+  const name = (document.getElementById("newSiteName").value||"").trim();
+  const id = (document.getElementById("newSiteId").value||"").trim();
+  const editingId = document.getElementById("newSiteId").dataset.editingId;
+
+  if(!name || !id){
+    statusChip.textContent = "⚠ Site name and ID are required";
+    return;
+  }
+
+  if(editingId){
+    // Update existing site
+    delete sitesCache[editingId];
+  }
+
+  sitesCache[id] = { id, name };
+  localStorage.setItem("sitesCache", JSON.stringify(sitesCache));
+
+  if(firebase_db && isOnline && firebase_user){
+    await saveSitesToFirebase();
+  }
+
+  statusChip.textContent = editingId ? "✓ Site updated" : "✓ Site added";
+  document.getElementById("newSiteName").value = "";
+  document.getElementById("newSiteId").value = "";
+  document.getElementById("newSiteId").dataset.editingId = "";
+  document.getElementById("addSiteBtn").textContent = "Add Site";
+  renderSitesList();
+});
+
+document.getElementById("sitesBackdrop").addEventListener("click", (e)=>{
+  if(e.target === document.getElementById("sitesBackdrop")) closeSitesModal();
+});
 
 async function createClickUpPlacement(placementData){
   // TODO: Replace with your Make.com webhook URL
