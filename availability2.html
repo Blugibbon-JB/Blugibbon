@@ -4030,16 +4030,30 @@ events = Array.from(eventMap.values());
 let sitesCache = {}; // { siteId: { id, name }, ... }
 
 async function loadSitesFromFirebase(){
-  if(!firebase_db) return;
+  console.log("loadSitesFromFirebase called - firebase_db:", !!firebase_db, "firebase_user:", !!firebase_user);
+
+  // Load from localStorage cache immediately (fast)
+  const cached = localStorage.getItem("sitesCache");
+  if(cached) {
+    sitesCache = JSON.parse(cached);
+    console.log("Loaded sites from localStorage cache:", Object.keys(sitesCache).length);
+  }
+
+  // Then fetch fresh from Firebase in background (slow but updates)
+  if(!firebase_db) {
+    console.warn("firebase_db not available, using cache only");
+    return;
+  }
+
   try {
     const snapshot = await firebase_db.ref("sites").once("value");
-    sitesCache = snapshot.val() || {};
-    console.log("Sites loaded from Firebase:", Object.keys(sitesCache).length);
+    const freshSites = snapshot.val() || {};
+    console.log("Sites loaded from Firebase:", Object.keys(freshSites).length);
+    sitesCache = freshSites;
     localStorage.setItem("sitesCache", JSON.stringify(sitesCache));
   } catch(e){
     console.warn("Could not load sites from Firebase:", e);
-    const cached = localStorage.getItem("sitesCache");
-    if(cached) sitesCache = JSON.parse(cached);
+    // sitesCache already has the cached version
   }
 }
 
@@ -4448,9 +4462,11 @@ function updateAuthUI() {
 
       if(firebase_auth) {
         firebase_auth.onAuthStateChanged((user) => {
+          console.log("onAuthStateChanged fired - user:", user ? user.email : "null");
           if(user) {
             firebase_user = user;
             isOnline = true;
+            console.log("User authenticated, loading sites...");
             loadSitesFromFirebase();
             syncFromFirebase();
           } else {
