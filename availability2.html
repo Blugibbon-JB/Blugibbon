@@ -3941,9 +3941,9 @@ events = Array.from(eventMap.values());
 let sitesCache = {}; // { siteId: { id, name }, ... }
 
 async function loadSitesFromFirebase(){
-  if(!db) return;
+  if(!firebase_db) return;
   try {
-    const snapshot = await db.ref("sites").once("value");
+    const snapshot = await firebase_db.ref("sites").once("value");
     sitesCache = snapshot.val() || {};
     console.log("Sites loaded from Firebase:", Object.keys(sitesCache).length);
     localStorage.setItem("sitesCache", JSON.stringify(sitesCache));
@@ -3955,9 +3955,9 @@ async function loadSitesFromFirebase(){
 }
 
 async function saveSitesToFirebase(){
-  if(!db || !isOnline || !firebase_user) return;
+  if(!firebase_db || !isOnline || !firebase_user) return;
   try {
-    await db.ref("sites").set(sitesCache);
+    await firebase_db.ref("sites").set(sitesCache);
     console.log("Sites synced to Firebase");
   } catch(e){
     console.warn("Could not sync sites to Firebase:", e);
@@ -4018,7 +4018,7 @@ if(uploadSitesBtn && sitesCsvFile){
       sitesCache = { ...sitesCache, ...newSites };
       localStorage.setItem("sitesCache", JSON.stringify(sitesCache));
 
-      if(db && isOnline && firebase_user){
+      if(firebase_db && isOnline && firebase_user){
         await saveSitesToFirebase();
         statusChip.textContent = `✓ Imported ${Object.keys(newSites).length} sites to Firebase`;
       } else {
