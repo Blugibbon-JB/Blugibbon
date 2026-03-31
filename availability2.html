@@ -2911,15 +2911,20 @@ function openEventEditor(payload){
       <input id="evTitle" value="${esc(defaultTitle)}" placeholder="e.g., Booked – Port Hedland" />
     </div>
     <div class="field full">
-      <label>Where / working location <span style="color:red;">*</span> (required)</label>
-      <select id="evLocation" required style="background:#fff; border:1px solid #ccc;">
+      <label>Where / working location (optional)</label>
+      <input id="evLocation" value="" placeholder="e.g., Port Hedland Hospital, Perth Clinic" />
+      <div class="hint" style="margin-top:4px; font-size:11px;">Free text location where the doctor will be working.</div>
+    </div>
+    <div class="field full">
+      <label>Site <span style="color:red;">*</span> (required for ClickUp placement)</label>
+      <select id="evSite" style="background:#fff; border:1px solid #ccc;">
         <option value="">-- Select a site --</option>
         ${renderSitesDropdown()}
       </select>
-      <div class="hint" style="margin-top:4px; font-size:11px;">Select the hospital/clinic where the doctor will be working. To add new sites, import the ClickUp Sites CSV.</div>
+      <div class="hint" style="margin-top:4px; font-size:11px;">Select the site for ClickUp placement creation. To add new sites, import the ClickUp Sites CSV.</div>
     </div>
     <div class="field full" style="display:none; padding:8px; background:#fef3cd; border:1px solid #ffc107; border-radius:6px;" id="siteWarning">
-      ⚠️ You must select a site from the dropdown to create a placement on ClickUp
+      ⚠️ You must select a site to create a placement on ClickUp
     </div>
     <div class="field full">
       <label>Notes (optional)</label>
@@ -2962,12 +2967,12 @@ function openEventEditor(payload){
   document.getElementById("evStatus").value = defaultStatus;
 
   // Set site dropdown value if editing
-  const evLocEl = document.getElementById("evLocation");
-  if(evLocEl){
+  const evSiteEl = document.getElementById("evSite");
+  if(evSiteEl){
     if(mode === "edit" && payload.site_id){
-      evLocEl.value = payload.site_id;
+      evSiteEl.value = payload.site_id;
     } else {
-      evLocEl.value = "";
+      evSiteEl.value = "";
     }
   }
 
@@ -3026,6 +3031,7 @@ function openEventEditor(payload){
   modalFooter.innerHTML = `
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
       ${mode === "edit" ? `<button class="danger" id="deleteBtn">Delete</button>` : `<span class="hint"> </span>`}
+      ${mode === "edit" ? `<button id="placementBtn" style="background:#4CAF50; color:#fff; border-color:#4CAF50;">Make ClickUp Placement</button>` : ``}
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="ghost" id="cancelBtn">Cancel</button>
@@ -3048,19 +3054,9 @@ function openEventEditor(payload){
 
       const status = document.getElementById("evStatus").value;
       const title = (document.getElementById("evTitle").value||"").trim();
-      const siteId = (document.getElementById("evLocation").value||"").trim();
+      const location = (document.getElementById("evLocation").value||"").trim();
+      const siteId = (document.getElementById("evSite").value||"").trim();
       const notes = (document.getElementById("evNotes").value||"").trim();
-
-      // Validate that a site is selected (required for ClickUp placement)
-      if(!siteId){
-        statusChip.textContent = "⚠ You must select a site from the dropdown (required for ClickUp placement)";
-        document.getElementById("siteWarning").style.display = "block";
-        return;
-      }
-
-      // Get site name from cache
-      const siteObj = sitesCache[siteId];
-      const location = siteObj ? siteObj.name : siteId;
 
       // Recurrence (create mode only)
       const recMode = (mode === "create" && document.getElementById("evRecurrence")) ? document.getElementById("evRecurrence").value : "none";
@@ -3145,6 +3141,56 @@ function openEventEditor(payload){
       renderCalendar();
       statusChip.textContent = "Deleted";
     });
+
+    const placementBtn = document.getElementById("placementBtn");
+    if(placementBtn){
+      placementBtn.addEventListener("click", async ()=>{
+        try {
+          const siteId = (document.getElementById("evSite").value||"").trim();
+          if(!siteId){
+            statusChip.textContent = "⚠ You must select a site to create a ClickUp placement";
+            document.getElementById("siteWarning").style.display = "block";
+            return;
+          }
+
+          // Get event data
+          const sStart = parseDateAU(document.getElementById("evStart").value);
+          const sEndInc = parseDateAU(document.getElementById("evEnd").value);
+          const status = document.getElementById("evStatus").value;
+          const title = (document.getElementById("evTitle").value||"").trim();
+          const location = (document.getElementById("evLocation").value||"").trim();
+          const notes = (document.getElementById("evNotes").value||"").trim();
+
+          // Get doctor and site info
+          const doctor = doctors.find(d => d.ahpra_id === payload.ahpra_id);
+          const siteObj = sitesCache[siteId];
+
+          // Prepare placement data for Make.com webhook
+          const placementData = {
+            event_id: payload.id,
+            doctor_name: doctor ? doctor.name : payload.ahpra_id,
+            ahpra_id: payload.ahpra_id,
+            site_id: siteId,
+            site_name: siteObj ? siteObj.name : siteId,
+            location: location || siteObj?.name || "",
+            status: status,
+            title: title,
+            notes: notes,
+            start_date: normalizeToUTCDate(sStart).toISOString().split('T')[0],
+            end_date: normalizeToUTCDate(sEndInc).toISOString().split('T')[0],
+            created_at: new Date().toISOString()
+          };
+
+          // Call Make.com webhook
+          await createClickUpPlacement(placementData);
+
+          statusChip.textContent = "✓ Placement created in ClickUp";
+        } catch(err){
+          console.error("Error creating placement:", err);
+          statusChip.textContent = "❌ Error creating placement: " + (err.message || "Unknown error");
+        }
+      });
+    }
   }
   // Keyboard shortcut: Ctrl+Enter (Windows/Linux) or Cmd+Enter (Mac) to Save
   if(modalKeyHandler){ document.removeEventListener("keydown", modalKeyHandler); }
@@ -4039,6 +4085,35 @@ function renderSitesDropdown(){
   const sitesList = Object.values(sitesCache).sort((a,b)=> a.name.localeCompare(b.name));
   const html = sitesList.map(s=> `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
   return html;
+}
+
+async function createClickUpPlacement(placementData){
+  // TODO: Replace with your Make.com webhook URL
+  const MAKE_WEBHOOK_URL = "https://hook.make.com/your-scenario-id"; // Update this with actual webhook
+
+  if(!MAKE_WEBHOOK_URL || MAKE_WEBHOOK_URL.includes("your-scenario-id")){
+    console.warn("Make.com webhook URL not configured. Placement data:", placementData);
+    throw new Error("Make.com webhook URL not configured. Contact admin.");
+  }
+
+  try {
+    const response = await fetch(MAKE_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(placementData)
+    });
+
+    if(!response.ok){
+      throw new Error(`Webhook returned ${response.status}: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    console.log("Placement created successfully:", result);
+    return result;
+  } catch(err){
+    console.error("Failed to create placement:", err);
+    throw err;
+  }
 }
 
 createBtn.addEventListener("click", ()=>{
