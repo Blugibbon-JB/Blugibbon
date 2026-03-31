@@ -663,9 +663,9 @@
         </div>
 
         <!-- Add New Site Form -->
-        <div style="border-top:1px solid #e7e7e7; padding-top:12px;">
+        <div style="border-top:1px solid #e7e7e7; padding-top:12px;" id="addSiteSection">
           <h3 style="margin:0 0 12px 0; font-size:14px; font-weight:bold;">Add New Site</h3>
-          <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; flex-direction:column; gap:8px;" id="addSiteForm">
             <div>
               <label style="display:block; margin-bottom:4px; font-size:12px; font-weight:600;">Site Name</label>
               <input id="newSiteName" placeholder="e.g., Port Hedland Hospital" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px;"/>
@@ -675,6 +675,9 @@
               <input id="newSiteId" placeholder="e.g., 123456789" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px;"/>
             </div>
             <button id="addSiteBtn" style="padding:8px; background:#111; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:14px;">Add Site</button>
+          </div>
+          <div id="notAuthenticatedMsg" style="display:none; padding:12px; background:#fef3cd; border:1px solid #ffc107; border-radius:6px; color:#856404; font-size:12px;">
+            ⚠️ Sign in to add or edit sites
           </div>
         </div>
       </div>
@@ -4126,6 +4129,8 @@ function renderSitesList(searchTerm = ""){
     sitesList = sitesList.filter(s => s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query));
   }
 
+  const canManage = firebase_user !== null; // Only authenticated users can edit/delete
+
   const html = sitesList.map(s=> `
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:#fff; border:1px solid #ddd; border-radius:6px;">
       <div>
@@ -4133,8 +4138,8 @@ function renderSitesList(searchTerm = ""){
         <div style="font-size:12px; color:#666; margin-top:2px;">ID: ${esc(s.id)}</div>
       </div>
       <div style="display:flex; gap:6px;">
-        <button data-edit-site="${esc(s.id)}" style="padding:4px 10px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:12px;">Edit</button>
-        <button data-delete-site="${esc(s.id)}" style="padding:4px 10px; background:#fee; border:1px solid #fcc; border-radius:4px; cursor:pointer; font-size:12px; color:#c33;">Delete</button>
+        <button data-edit-site="${esc(s.id)}" style="padding:4px 10px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:12px; ${!canManage ? 'opacity:0.5; cursor:not-allowed;' : ''}" ${!canManage ? 'disabled' : ''}>Edit</button>
+        <button data-delete-site="${esc(s.id)}" style="padding:4px 10px; background:#fee; border:1px solid #fcc; border-radius:4px; cursor:pointer; font-size:12px; color:#c33; ${!canManage ? 'opacity:0.5; cursor:not-allowed;' : ''}" ${!canManage ? 'disabled' : ''}>Delete</button>
       </div>
     </div>
   `).join("");
@@ -4142,28 +4147,30 @@ function renderSitesList(searchTerm = ""){
   const listEl = document.getElementById("sitesList");
   if(listEl) listEl.innerHTML = html || '<div style="text-align:center; color:#999; padding:16px;">No sites found. ' + (searchTerm.trim() ? 'Try a different search.' : 'Add one below.') + '</div>';
 
-  // Attach event listeners
-  document.querySelectorAll("[data-edit-site]").forEach(btn=> btn.addEventListener("click", (e)=>{
-    const siteId = e.target.dataset.editSite;
-    const site = sitesCache[siteId];
-    if(site){
-      document.getElementById("newSiteName").value = site.name;
-      document.getElementById("newSiteId").value = site.id;
-      document.getElementById("newSiteId").dataset.editingId = siteId;
-      document.getElementById("addSiteBtn").textContent = "Update Site";
-    }
-  }));
+  // Only attach event listeners if user is authenticated
+  if(canManage){
+    document.querySelectorAll("[data-edit-site]").forEach(btn=> btn.addEventListener("click", (e)=>{
+      const siteId = e.target.dataset.editSite;
+      const site = sitesCache[siteId];
+      if(site){
+        document.getElementById("newSiteName").value = site.name;
+        document.getElementById("newSiteId").value = site.id;
+        document.getElementById("newSiteId").dataset.editingId = siteId;
+        document.getElementById("addSiteBtn").textContent = "Update Site";
+      }
+    }));
 
-  document.querySelectorAll("[data-delete-site]").forEach(btn=> btn.addEventListener("click", (e)=>{
-    const siteId = e.target.dataset.deleteSite;
-    if(confirm(`Delete "${sitesCache[siteId].name}"?`)){
-      delete sitesCache[siteId];
-      localStorage.setItem("sitesCache", JSON.stringify(sitesCache));
-      saveSitesToFirebase();
-      renderSitesList();
-      statusChip.textContent = "✓ Site deleted";
-    }
-  }));
+    document.querySelectorAll("[data-delete-site]").forEach(btn=> btn.addEventListener("click", (e)=>{
+      const siteId = e.target.dataset.deleteSite;
+      if(confirm(`Delete "${sitesCache[siteId].name}"?`)){
+        delete sitesCache[siteId];
+        localStorage.setItem("sitesCache", JSON.stringify(sitesCache));
+        saveSitesToFirebase();
+        renderSitesList();
+        statusChip.textContent = "✓ Site deleted";
+      }
+    }));
+  }
 }
 
 function openSitesModal(){
@@ -4174,6 +4181,11 @@ function openSitesModal(){
   document.getElementById("newSiteId").dataset.editingId = "";
   document.getElementById("addSiteBtn").textContent = "Add Site";
   document.getElementById("sitesSearch").value = "";
+
+  // Show/hide form based on authentication
+  const isAuthenticated = firebase_user !== null;
+  document.getElementById("addSiteForm").style.display = isAuthenticated ? "flex" : "none";
+  document.getElementById("notAuthenticatedMsg").style.display = isAuthenticated ? "none" : "block";
 }
 
 function closeSitesModal(){
@@ -4189,6 +4201,12 @@ document.getElementById("sitesSearch").addEventListener("input", (e)=>{
 });
 
 document.getElementById("addSiteBtn").addEventListener("click", async ()=>{
+  // Check authentication
+  if(!firebase_user){
+    statusChip.textContent = "⚠ Sign in required to add or edit sites";
+    return;
+  }
+
   const name = (document.getElementById("newSiteName").value||"").trim();
   const id = (document.getElementById("newSiteId").value||"").trim();
   const editingId = document.getElementById("newSiteId").dataset.editingId;
