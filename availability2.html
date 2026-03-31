@@ -4370,6 +4370,9 @@ async function handleGoogleSignIn() {
     updateAuthUI();
     statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email} - syncing...`;
 
+    // Load sites after sign-in
+    await loadSitesFromFirebase();
+
     await syncFromFirebase();
 
     statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email}`;
