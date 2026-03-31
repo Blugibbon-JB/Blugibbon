@@ -4451,6 +4451,7 @@ function updateAuthUI() {
           if(user) {
             firebase_user = user;
             isOnline = true;
+            loadSitesFromFirebase();
             syncFromFirebase();
           } else {
             firebase_user = null;
