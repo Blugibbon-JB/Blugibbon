@@ -4020,7 +4020,16 @@ events = Array.from(eventMap.values());
 let sitesCache = {}; // { siteId: { id, name }, ... }
 
 async function loadSitesFromFirebase(){
-  if(!firebase_db) return;
+  console.log("loadSitesFromFirebase called - firebase_db:", !!firebase_db, "firebase_user:", !!firebase_user);
+  if(!firebase_db) {
+    console.warn("firebase_db not available");
+    const cached = localStorage.getItem("sitesCache");
+    if(cached) {
+      sitesCache = JSON.parse(cached);
+      console.log("Loaded sites from localStorage cache:", Object.keys(sitesCache).length);
+    }
+    return;
+  }
   try {
     const snapshot = await firebase_db.ref("sites").once("value");
     sitesCache = snapshot.val() || {};
@@ -4029,7 +4038,10 @@ async function loadSitesFromFirebase(){
   } catch(e){
     console.warn("Could not load sites from Firebase:", e);
     const cached = localStorage.getItem("sitesCache");
-    if(cached) sitesCache = JSON.parse(cached);
+    if(cached) {
+      sitesCache = JSON.parse(cached);
+      console.log("Loaded sites from localStorage fallback:", Object.keys(sitesCache).length);
+    }
   }
 }
 
@@ -4438,9 +4450,11 @@ function updateAuthUI() {
 
       if(firebase_auth) {
         firebase_auth.onAuthStateChanged((user) => {
+          console.log("onAuthStateChanged fired - user:", user ? user.email : "null");
           if(user) {
             firebase_user = user;
             isOnline = true;
+            console.log("User authenticated, loading sites...");
             loadSitesFromFirebase();
             syncFromFirebase();
           } else {
