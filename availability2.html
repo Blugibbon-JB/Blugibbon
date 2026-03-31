@@ -2891,16 +2891,21 @@ function renderCalendar(){
 
   calendar.removeAllEvents();
   for(const e of shown){
+    // Get display location: prefer site name if site_id selected, otherwise use location text
+    const displayLocation = (e.site_id && sitesCache[e.site_id])
+      ? sitesCache[e.site_id].name
+      : (e.location || "");
+
     calendar.addEvent({
       id: e.id,
       title: (showAllDoctors
         ? (()=>{
             const dd = docById.get(String(e.ahpra_id)) || {};
             const nm = (dd.name || dd.ahpra_id || "Doctor");
-            const base = (e.title ? (e.location ? `${e.title} - ${e.location}` : e.title) : (e.location ? `${e.status} - ${e.location}` : (e.status || "Status")));
+            const base = (e.title ? (displayLocation ? `${e.title} - ${displayLocation}` : e.title) : (displayLocation ? `${e.status} - ${displayLocation}` : (e.status || "Status")));
             return `${nm}: ${base}`;
           })()
-        : (e.title ? (e.location ? `${e.title} - ${e.location}` : e.title) : (e.location ? `${e.status} - ${e.location}` : (e.status || "Status")))
+        : (e.title ? (displayLocation ? `${e.title} - ${displayLocation}` : e.title) : (displayLocation ? `${e.status} - ${displayLocation}` : (e.status || "Status")))
       ),
       start: e.start,
       end: e.end,
@@ -2908,7 +2913,7 @@ function renderCalendar(){
       backgroundColor: STATUS_COLOR[e.status] || "#111",
       borderColor: STATUS_COLOR[e.status] || "#111",
       textColor: "#fff",
-      extendedProps: { status: e.status, notes: e.notes, location: e.location, doctor_name: (docById.get(String(e.ahpra_id))?.name || String(e.ahpra_id)) }
+      extendedProps: { status: e.status, notes: e.notes, location: displayLocation, doctor_name: (docById.get(String(e.ahpra_id))?.name || String(e.ahpra_id)) }
     });
   }
 }
