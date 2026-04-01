@@ -3229,6 +3229,15 @@ function openEventEditor(payload){
             if(match) clickupTaskId = match[1];
           }
 
+          // Helper to format date as DD/MM/YY
+          const formatDateDDMMYY = (date) => {
+            const d = new Date(date);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = String(d.getFullYear()).slice(-2);
+            return `${day}/${month}/${year}`;
+          };
+
           // Prepare placement data for Make.com webhook
           const placementData = {
             event_id: payload.id,
@@ -3243,8 +3252,8 @@ function openEventEditor(payload){
             status: status,
             title: title,
             notes: notes,
-            start_date: normalizeToUTCDate(sStart).toISOString().split('T')[0],
-            end_date: normalizeToUTCDate(sEndInc).toISOString().split('T')[0],
+            start_date: formatDateDDMMYY(sStart),
+            end_date: formatDateDDMMYY(sEndInc),
             created_at: new Date().toISOString()
           };
 
