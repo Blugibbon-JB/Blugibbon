@@ -4098,7 +4098,7 @@ function parseSitesCSV(csvText){
     const line = lines[i].trim();
     if(!line) continue;
 
-    // Parse CSV: Task ID, Task Name, ... (we only need first two columns)
+    // Parse CSV: Task ID, Task Name, Site ID
     const parts = [];
     let current = "";
     let inQuotes = false;
@@ -4111,11 +4111,12 @@ function parseSitesCSV(csvText){
     }
     parts.push(current);
 
-    const siteId = parts[0]?.trim();
+    const taskId = parts[0]?.trim();
     const siteName = parts[1]?.trim();
+    const siteId = parts[2]?.trim();
 
     if(siteId && siteName){
-      sites[siteId] = { id: siteId, name: siteName };
+      sites[siteId] = { id: siteId, name: siteName, taskId: taskId };
     }
   }
 
