@@ -1481,6 +1481,7 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
         upcomingOnly = false;
         if(toggleAllBtn) toggleAllBtn.classList.remove("primary");
         if(upcomingAvailBtn) upcomingAvailBtn.classList.remove("primary");
+        renderHeader();
         renderDoctorList();
 
         // Ensure availability and bookings overlays are visible
