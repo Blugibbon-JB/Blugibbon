@@ -2999,15 +2999,15 @@ function openEventEditor(payload){
       <div class="hint" style="margin-top:4px; font-size:11px;">Free text location where the doctor will be working.</div>
     </div>
     <div class="field full">
-      <label>Site <span style="color:red;">*</span> (required for ClickUp placement)</label>
+      <label>Site <span style="color:red;">*</span> (required for ClickUp order)</label>
       <select id="evSite" style="background:#fff; border:1px solid #ccc;">
         <option value="">-- Select a site --</option>
         ${renderSitesDropdown()}
       </select>
-      <div class="hint" style="margin-top:4px; font-size:11px;">Select the site for ClickUp placement creation. To add new sites, import the ClickUp Sites CSV.</div>
+      <div class="hint" style="margin-top:4px; font-size:11px;">Select the site for ClickUp order creation. To add new sites, import the ClickUp Sites CSV.</div>
     </div>
     <div class="field full" style="display:none; padding:8px; background:#fef3cd; border:1px solid #ffc107; border-radius:6px;" id="siteWarning">
-      ⚠️ You must select a site to create a placement on ClickUp
+      ⚠️ You must select a site to create an order on ClickUp
     </div>
     <div class="field full">
       <label>Notes (optional)</label>
@@ -3114,7 +3114,7 @@ function openEventEditor(payload){
   modalFooter.innerHTML = `
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
       ${mode === "edit" ? `<button class="danger" id="deleteBtn">Delete</button>` : `<span class="hint"> </span>`}
-      ${mode === "edit" ? `<button id="placementBtn" style="background:#4CAF50; color:#fff; border-color:#4CAF50;">Make ClickUp Placement</button>` : ``}
+      ${mode === "edit" ? `<button id="placementBtn" style="background:#4CAF50; color:#fff; border-color:#4CAF50;">Make ClickUp Order</button>` : ``}
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="ghost" id="cancelBtn">Cancel</button>
@@ -3232,7 +3232,7 @@ function openEventEditor(payload){
         try {
           const siteId = (document.getElementById("evSite").value||"").trim();
           if(!siteId){
-            statusChip.textContent = "⚠ You must select a site to create a ClickUp placement";
+            statusChip.textContent = "⚠ You must select a site to create a ClickUp order";
             document.getElementById("siteWarning").style.display = "block";
             return;
           }
@@ -3278,10 +3278,10 @@ function openEventEditor(payload){
           // Call Make.com webhook
           await createClickUpPlacement(placementData);
 
-          statusChip.textContent = "✓ Placement created in ClickUp";
+          statusChip.textContent = "✓ Order created in ClickUp";
         } catch(err){
-          console.error("Error creating placement:", err);
-          statusChip.textContent = "❌ Error creating placement: " + (err.message || "Unknown error");
+          console.error("Error creating order:", err);
+          statusChip.textContent = "❌ Error creating order: " + (err.message || "Unknown error");
         }
       });
     }
