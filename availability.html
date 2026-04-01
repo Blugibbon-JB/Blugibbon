@@ -498,7 +498,7 @@
       </div>
 
       <div style="margin-top:12px;">
-        <input id="finderFilterInput" type="text" placeholder="Filter by specialty, tags, name..." style="width:100%;">
+        <input id="finderFilterInput" type="text" placeholder="Filter by AHPRA, name, specialty, tags..." style="width:100%;">
       </div>
 
       <div id="finderResults" style="margin-top:12px;"></div>
@@ -1216,6 +1216,7 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
     if (!filterQuery) return true;
     const query = normalizeText(filterQuery);
     const searchableText = [
+      doctor.d.ahpra_id,
       doctor.d.name,
       doctor.d.specialty,
       doctor.d.prefs,
