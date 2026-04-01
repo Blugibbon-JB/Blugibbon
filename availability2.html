@@ -759,14 +759,7 @@ function saveDoctors(doctors){
 }
 function saveEvents(events){
   localStorage.setItem(STORAGE_KEY_EVENTS, JSON.stringify(events));
-  if(isOnline && firebase_user && firebase_db) {
-    syncToFirebase().catch(err => {
-      console.error("Failed to sync to Firebase:", err);
-      statusChip.textContent = "⚠ Saved locally (Firebase sync failed)";
-    });
-  } else if(!firebase_db) {
-    console.warn("Firebase DB not available - data saved to local storage only");
-  }
+  if(isOnline && firebase_user) syncToFirebase();
 }
 
 function esc(s){
@@ -4377,11 +4370,7 @@ document.getElementById("doctorHeader").addEventListener("dblclick", ()=>{
 
 /* ===== FIREBASE SYNC FUNCTIONS ===== */
 async function syncToFirebase() {
-  if(!firebase_user || !firebase_db || syncInProgress) {
-    if(!firebase_user) console.warn("syncToFirebase: No user");
-    if(!firebase_db) console.warn("syncToFirebase: No firebase_db");
-    return;
-  }
+  if(!firebase_user || !firebase_db || syncInProgress) return;
   syncInProgress = true;
   updateSyncIndicator("syncing");
 
@@ -4390,18 +4379,15 @@ async function syncToFirebase() {
     const doctorsRef = firebase_db.ref(`users/${uid}/doctors`);
     const eventsRef = firebase_db.ref(`users/${uid}/events`);
 
-    console.log("Syncing to Firebase for user:", uid, "doctors:", doctors.length, "events:", events.length);
     await Promise.all([
       doctorsRef.set(doctors),
       eventsRef.set(events)
     ]);
 
-    console.log("Firebase sync completed successfully");
     updateSyncIndicator("synced");
     setTimeout(() => updateSyncIndicator("synced"), 3000);
   } catch(err) {
     console.error("Sync error:", err);
-    console.error("Firebase connection state - isOnline:", isOnline, "firebase_db:", !!firebase_db, "user:", firebase_user?.email);
     updateSyncIndicator("error");
   } finally {
     syncInProgress = false;
@@ -4452,20 +4438,19 @@ async function handleGoogleSignIn() {
     }
 
     const provider = new firebase.auth.GoogleAuthProvider();
-    try {
-      // Try redirect auth first (works with COOP headers)
-      await firebase_auth.signInWithRedirect(provider);
-    } catch(popupErr) {
-      console.warn("Redirect auth blocked, trying popup:", popupErr);
-      const result = await firebase_auth.signInWithPopup(provider);
-      firebase_user = result.user;
-      isOnline = true;
-      updateAuthUI();
-      statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email} - syncing...`;
-      await loadSitesFromFirebase();
-      await syncFromFirebase();
-      statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email}`;
-    }
+    const result = await firebase_auth.signInWithPopup(provider);
+    firebase_user = result.user;
+    isOnline = true;
+
+    updateAuthUI();
+    statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email} - syncing...`;
+
+    // Load sites after sign-in
+    await loadSitesFromFirebase();
+
+    await syncFromFirebase();
+
+    statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email}`;
   } catch(err) {
     console.error("Sign in failed:", err);
     statusChip.textContent = "Sign in failed: " + (err.message || String(err));
