@@ -1475,6 +1475,12 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
       const docId = el.getAttribute("data-doc");
       if(docId){
         selectedDoctorId = docId;
+        // Close the finder panel and exit all-doctors mode
+        finderOpen = false;
+        showAllDoctors = false;
+        upcomingOnly = false;
+        if(toggleAllBtn) toggleAllBtn.classList.remove("primary");
+        if(upcomingAvailBtn) upcomingAvailBtn.classList.remove("primary");
         renderDoctorList();
 
         // Ensure availability and bookings overlays are visible
@@ -1487,6 +1493,7 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
       }
       viewMode="calendar";
       updateViews();
+      updateActionButtons();
     });
 
     el.addEventListener("mouseenter", ()=>{
