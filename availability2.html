@@ -3161,6 +3161,7 @@ function openEventEditor(payload){
           location,
           site_id: siteId,  // ClickUp site ID for placement creation
           notes,
+          created_by: firebase_user?.email || "unknown",  // Email of user who created/edited
           start: blkStartISO,
           end: blkEndISO
         };
@@ -3234,6 +3235,7 @@ function openEventEditor(payload){
             doctor_name: doctor ? doctor.name : payload.ahpra_id,
             ahpra_id: payload.ahpra_id,
             clickup_task_id: clickupTaskId,
+            created_by: firebase_user?.email || "unknown",
             site_id: siteId,
             site_name: siteObj ? siteObj.name : siteId,
             location: location || siteObj?.name || "",
