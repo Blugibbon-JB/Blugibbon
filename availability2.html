@@ -1699,9 +1699,22 @@ document.addEventListener("DOMContentLoaded", async ()=>{
  * Undo stack (snapshots)
  * ----------------------*/
 const UNDO_KEY = "blugibbon_roster_undo_v1";
-const UNDO_MAX = 40;
+const UNDO_MAX = 10;  // Reduced from 40 to prevent quota exceeded
 let undoStack = [];
-try { undoStack = JSON.parse(localStorage.getItem(UNDO_KEY) || "[]") || []; } catch(e){ undoStack = []; }
+try {
+  undoStack = JSON.parse(localStorage.getItem(UNDO_KEY) || "[]") || [];
+  // If undo stack is taking up >2MB, clear it to prevent quota issues
+  const undoSize = new Blob([localStorage.getItem(UNDO_KEY) || ""]).size;
+  if(undoSize > 2 * 1024 * 1024) {
+    console.warn("Undo history too large (" + (undoSize / 1024 / 1024).toFixed(2) + "MB), clearing...");
+    undoStack = [];
+    localStorage.setItem(UNDO_KEY, "[]");
+  }
+} catch(e){
+  console.error("Error loading undo stack:", e);
+  undoStack = [];
+  try { localStorage.setItem(UNDO_KEY, "[]"); } catch(e2) {}
+}
 
 function snapshotState(){
   return {
@@ -1712,14 +1725,28 @@ function snapshotState(){
   };
 }
 function pushUndo(label){
-  // store pre-change state
-  undoStack.push({ label: label || "Change", state: snapshotState() });
-  if(undoStack.length > UNDO_MAX) undoStack = undoStack.slice(undoStack.length - UNDO_MAX);
-  localStorage.setItem(UNDO_KEY, JSON.stringify(undoStack));
-  updateUndoButton();
-  updateActionButtons();
-if(copyAvailBtn) copyAvailBtn.addEventListener('click', copyAvailability);
-if(pasteAvailBtn) pasteAvailBtn.addEventListener('click', pasteAvailability);
+  try {
+    // store pre-change state
+    undoStack.push({ label: label || "Change", state: snapshotState() });
+    if(undoStack.length > UNDO_MAX) undoStack = undoStack.slice(undoStack.length - UNDO_MAX);
+    localStorage.setItem(UNDO_KEY, JSON.stringify(undoStack));
+    updateUndoButton();
+    updateActionButtons();
+  } catch(err) {
+    if(err.name === "QuotaExceededError") {
+      console.warn("localStorage quota exceeded, clearing undo history");
+      undoStack = [];
+      try {
+        localStorage.setItem(UNDO_KEY, "[]");
+      } catch(e) {
+        console.error("Could not clear undo stack:", e);
+      }
+      statusChip.textContent = "⚠ Storage full - undo history cleared";
+    } else {
+      console.error("Error pushing undo:", err);
+      throw err;
+    }
+  }
 }
 function applyState(snap){
   doctors = snap.doctors || [];
