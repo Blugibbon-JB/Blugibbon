@@ -3221,11 +3221,19 @@ function openEventEditor(payload){
           const doctor = doctors.find(d => d.ahpra_id === payload.ahpra_id);
           const siteObj = sitesCache[siteId];
 
+          // Extract ClickUp task ID from doctor's URL (format: https://app.clickup.com/t/TASK_ID)
+          let clickupTaskId = "";
+          if(doctor && doctor.clickup_url){
+            const match = doctor.clickup_url.match(/\/t\/([a-zA-Z0-9]+)/);
+            if(match) clickupTaskId = match[1];
+          }
+
           // Prepare placement data for Make.com webhook
           const placementData = {
             event_id: payload.id,
             doctor_name: doctor ? doctor.name : payload.ahpra_id,
             ahpra_id: payload.ahpra_id,
+            clickup_task_id: clickupTaskId,
             site_id: siteId,
             site_name: siteObj ? siteObj.name : siteId,
             location: location || siteObj?.name || "",
