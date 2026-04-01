@@ -498,7 +498,7 @@
       </div>
 
       <div style="margin-top:12px;">
-        <input id="finderFilterInput" type="text" placeholder="e.g., 'general medicine' AND junior AND PGY5 or ED, rural" style="width:100%;">
+        <input id="finderFilterInput" type="text" placeholder="e.g., general medicine junior or pgy3 nsw" style="width:100%;">
       </div>
 
       <div id="finderResults" style="margin-top:12px;"></div>
@@ -1210,67 +1210,7 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
     return { d, avail, booked, other, total, pct, fully, any };
   });
 
-  // Parse Boolean search query (supports AND, OR, quoted phrases)
-  const parseAndEvaluateQuery = (query, searchText) => {
-    if (!query) return true;
-    const normalizeText = (s) => String(s || "").toLowerCase().trim();
-    query = normalizeText(query);
-    searchText = normalizeText(searchText);
-
-    // Extract quoted phrases and replace them with tokens
-    const phrases = [];
-    let processedQuery = query.replace(/"([^"]*)"/g, (match, phrase) => {
-      if (phrase.trim()) phrases.push(phrase.trim());
-      return `__PHRASE${phrases.length - 1}__`;
-    });
-
-    // Split by AND/OR operators while preserving them
-    const tokens = processedQuery.split(/\s+(AND|OR)\s+/i);
-
-    // Default operator is OR if only simple terms with no operators
-    const hasOperators = /\s+(AND|OR)\s+/i.test(processedQuery);
-    const defaultOp = hasOperators ? 'AND' : 'OR';
-
-    // Evaluate the Boolean expression
-    let result = null;
-    let currentOp = defaultOp;
-
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i].trim();
-
-      if (token.toUpperCase() === 'AND') {
-        currentOp = 'AND';
-        continue;
-      } else if (token.toUpperCase() === 'OR') {
-        currentOp = 'OR';
-        continue;
-      }
-
-      // Check if this is a phrase token
-      let termMatches = false;
-      if (token.startsWith('__PHRASE')) {
-        const phraseIndex = parseInt(token.match(/\d+/)[0]);
-        termMatches = searchText.includes(phrases[phraseIndex]);
-      } else {
-        // Regular term search
-        const term = token.toLowerCase().trim();
-        if (term) termMatches = searchText.includes(term);
-      }
-
-      // Apply operator logic
-      if (result === null) {
-        result = termMatches;
-      } else if (currentOp === 'AND') {
-        result = result && termMatches;
-      } else if (currentOp === 'OR') {
-        result = result || termMatches;
-      }
-    }
-
-    return result === null ? true : result;
-  };
-
-  // Apply keyword filter if provided
+  // Apply keyword filter with simple AND logic (all terms must match)
   const normalizeText = (s) => String(s || "").toLowerCase().trim();
   const matchesFilter = (doctor) => {
     if (!filterQuery) return true;
@@ -1284,7 +1224,14 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
       doctor.d.pgy ? `PGY ${doctor.d.pgy}` : "",
       ...(doctor.d.tags || [])
     ].map(normalizeText).join(" ");
-    return parseAndEvaluateQuery(filterQuery, searchableText);
+
+    // Split query by spaces and require ALL terms to match
+    const searchTerms = normalizeText(filterQuery)
+      .split(/\s+/)
+      .filter(term => term.length > 0);
+
+    // Return true only if ALL search terms are found in the searchable text
+    return searchTerms.every(term => searchableText.includes(term));
   };
 
   const filtered = scored.filter(matchesFilter);
