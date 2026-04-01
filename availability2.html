@@ -4260,10 +4260,9 @@ document.getElementById("sitesBackdrop").addEventListener("click", (e)=>{
 });
 
 async function createClickUpPlacement(placementData){
-  // TODO: Replace with your Make.com webhook URL
-  const MAKE_WEBHOOK_URL = "https://hook.make.com/your-scenario-id"; // Update this with actual webhook
+  const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/w8r3kc5lkkxb6xrfd7bne23bbys9m197";
 
-  if(!MAKE_WEBHOOK_URL || MAKE_WEBHOOK_URL.includes("your-scenario-id")){
+  if(!MAKE_WEBHOOK_URL){
     console.warn("Make.com webhook URL not configured. Placement data:", placementData);
     throw new Error("Make.com webhook URL not configured. Contact admin.");
   }
