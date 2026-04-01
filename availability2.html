@@ -1448,7 +1448,6 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
   const normalizeText = (s) => String(s || "").toLowerCase().trim();
   const matchesFilter = (doctor) => {
     if (!filterQuery) return true;
-    const query = normalizeText(filterQuery);
     const searchableText = [
       doctor.d.ahpra_id,
       doctor.d.name,
@@ -1459,7 +1458,9 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
       doctor.d.pgy ? `PGY ${doctor.d.pgy}` : "",
       ...(doctor.d.tags || [])
     ].map(normalizeText).join(" ");
-    return searchableText.includes(query);
+    // Split query by comma or space, filter empty terms, then check if ANY term matches
+    const terms = filterQuery.split(/[,\s]+/).map(normalizeText).filter(Boolean);
+    return terms.length === 0 || terms.some(term => searchableText.includes(term));
   };
 
   const filtered = scored.filter(matchesFilter);
