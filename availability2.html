@@ -3234,7 +3234,8 @@ function openEventEditor(payload){
             event_id: payload.id,
             doctor_name: doctor ? doctor.name : payload.ahpra_id,
             ahpra_id: payload.ahpra_id,
-            clickup_task_id: clickupTaskId,
+            doctor_clickup_task_id: clickupTaskId,
+            site_clickup_task_id: siteObj?.taskId || "",
             created_by: firebase_user?.email || "unknown",
             site_id: siteId,
             site_name: siteObj ? siteObj.name : siteId,
@@ -4098,7 +4099,7 @@ function parseSitesCSV(csvText){
     const line = lines[i].trim();
     if(!line) continue;
 
-    // Parse CSV: Task ID, Task Name, ... (we only need first two columns)
+    // Parse CSV: Task ID, Task Name, Site ID
     const parts = [];
     let current = "";
     let inQuotes = false;
@@ -4111,11 +4112,12 @@ function parseSitesCSV(csvText){
     }
     parts.push(current);
 
-    const siteId = parts[0]?.trim();
+    const taskId = parts[0]?.trim();
     const siteName = parts[1]?.trim();
+    const siteId = parts[2]?.trim();
 
     if(siteId && siteName){
-      sites[siteId] = { id: siteId, name: siteName };
+      sites[siteId] = { id: siteId, name: siteName, taskId: taskId };
     }
   }
 
