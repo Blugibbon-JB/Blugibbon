@@ -3256,6 +3256,9 @@ function openEventEditor(payload){
             if(match) clickupTaskId = match[1];
           }
 
+          console.log("Doctor ClickUp Task ID extracted:", clickupTaskId, "from URL:", doctor?.clickup_url);
+          console.log("Site ClickUp Task ID from CSV:", siteObj?.taskId);
+
           // Prepare placement data for Make.com webhook
           const placementData = {
             event_id: payload.id,
@@ -3274,6 +3277,8 @@ function openEventEditor(payload){
             end_date: normalizeToUTCDate(sEndInc).toISOString().split('T')[0],
             created_at: new Date().toISOString()
           };
+
+          console.log("Placement data being sent to webhook:", placementData);
 
           // Call Make.com webhook
           await createClickUpPlacement(placementData);
