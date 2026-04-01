@@ -4452,20 +4452,19 @@ async function handleGoogleSignIn() {
     }
 
     const provider = new firebase.auth.GoogleAuthProvider();
-    try {
-      // Try redirect auth first (works with COOP headers)
-      await firebase_auth.signInWithRedirect(provider);
-    } catch(popupErr) {
-      console.warn("Redirect auth blocked, trying popup:", popupErr);
-      const result = await firebase_auth.signInWithPopup(provider);
-      firebase_user = result.user;
-      isOnline = true;
-      updateAuthUI();
-      statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email} - syncing...`;
-      await loadSitesFromFirebase();
-      await syncFromFirebase();
-      statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email}`;
-    }
+    const result = await firebase_auth.signInWithPopup(provider);
+    firebase_user = result.user;
+    isOnline = true;
+
+    updateAuthUI();
+    statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email} - syncing...`;
+
+    // Load sites after sign-in
+    await loadSitesFromFirebase();
+
+    await syncFromFirebase();
+
+    statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email}`;
   } catch(err) {
     console.error("Sign in failed:", err);
     statusChip.textContent = "Sign in failed: " + (err.message || String(err));
