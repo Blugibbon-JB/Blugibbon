@@ -522,7 +522,7 @@
       </div>
 
       <div id="doctorListWrap">
-        <input id="doctorSearch" placeholder="Search doctors (name, AHPRA, tags)..." />
+        <input id="doctorSearch" placeholder="Search doctors (name, AHPRA, specialty, level, tags) - use commas for multiple criteria..." />
         
         <div class="filterRow" style="margin-top:8px;">
           <select id="whereFilter" title="Filter by Where">
@@ -943,11 +943,27 @@ function doctorMatchesFilters(d){
 
 function doctorMatchesSearch(d, q){
   if(!q) return true;
-  const hay = [
-    d.ahpra_id, d.name, d.prefs, d.where, d.specialty, d.pgy, d.level,
-    ...(d.tags||[])
-  ].filter(Boolean).join(" ").toLowerCase();
-  return hay.includes(q);
+
+  // Support multi-criteria search (comma-separated)
+  const searchTerms = q.split(',').map(t => t.trim()).filter(Boolean);
+  if(searchTerms.length === 0) return true;
+
+  // Build searchable text from all doctor attributes
+  const doctorData = [
+    d.name,
+    d.ahpra_id,
+    d.specialty,
+    d.level,
+    d.pgy,
+    d.prefs,
+    d.where,
+    ...(d.tags || [])
+  ].filter(Boolean).map(v => String(v).toLowerCase());
+
+  // ALL search terms must match at least one field (AND logic across terms)
+  return searchTerms.every(term =>
+    doctorData.some(field => field.includes(term.toLowerCase()))
+  );
 }
 
 function getFilteredDoctors({ includeSearch=true } = {}){
