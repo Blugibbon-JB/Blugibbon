@@ -3302,18 +3302,28 @@ function openEventEditor(payload){
           const clickupResult = await createClickUpPlacement(placementData);
 
           // Extract ClickUp URL from response if available
+          console.log("DEBUG: clickupResult =", clickupResult);
           let clickupUrl = null;
           if(clickupResult){
+            console.log("DEBUG: Checking for URL in response...");
+            console.log("DEBUG: LocationsArray =", clickupResult.LocationsArray);
             // Check for URL in various possible response formats
             if(clickupResult.LocationsArray && Array.isArray(clickupResult.LocationsArray) && clickupResult.LocationsArray.length > 0){
+              console.log("DEBUG: Found LocationsArray, item 0 =", clickupResult.LocationsArray[0]);
               clickupUrl = clickupResult.LocationsArray[0].URL;
+              console.log("DEBUG: Extracted URL from LocationsArray:", clickupUrl);
             } else if(clickupResult.url){
               clickupUrl = clickupResult.url;
+              console.log("DEBUG: Found url field:", clickupUrl);
             } else if(clickupResult.taskUrl){
               clickupUrl = clickupResult.taskUrl;
+              console.log("DEBUG: Found taskUrl field:", clickupUrl);
+            } else {
+              console.log("DEBUG: No URL found in any field");
             }
           }
 
+          console.log("DEBUG: Final clickupUrl =", clickupUrl);
           if(clickupUrl){
             statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: white; text-decoration: underline;">Order created in ClickUp</a>`;
           } else {
@@ -4393,7 +4403,9 @@ async function createClickUpPlacement(placementData){
       result = { message: text };
     }
 
-    console.log("Placement created successfully:", result);
+    console.log("Placement created successfully. Full response:", result);
+    console.log("Response type:", typeof result);
+    console.log("Response keys:", Object.keys(result || {}));
     return result;
   } catch(err){
     console.error("Failed to create placement:", err);
