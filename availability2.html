@@ -3269,6 +3269,16 @@ function openEventEditor(payload){
           const location = (document.getElementById("evLocation").value||"").trim();
           const notes = (document.getElementById("evNotes").value||"").trim();
 
+          // Update the event in the events array with new form values
+          const eventIndex = events.findIndex(e => e.id === payload.id);
+          if(eventIndex >= 0){
+            events[eventIndex].status = status;
+            events[eventIndex].title = title || status;
+            events[eventIndex].location = location;
+            events[eventIndex].notes = notes;
+            events[eventIndex].site_id = siteId;
+          }
+
           // Get doctor and site info
           const doctor = doctors.find(d => d.ahpra_id === payload.ahpra_id);
           const siteObj = sitesCache[siteId];
@@ -3367,6 +3377,15 @@ function openEventEditor(payload){
           const title = (document.getElementById("evTitle").value||"").trim();
           const location = (document.getElementById("evLocation").value||"").trim();
           const notes = (document.getElementById("evNotes").value||"").trim();
+
+          // Update the event in the events array with new form values
+          const eventIndex = events.findIndex(e => e.id === payload.id);
+          if(eventIndex >= 0){
+            events[eventIndex].status = status;
+            events[eventIndex].title = title || status;
+            events[eventIndex].location = location;
+            events[eventIndex].notes = notes;
+          }
 
           // Get doctor and site info
           const doctor = doctors.find(d => d.ahpra_id === payload.ahpra_id);
