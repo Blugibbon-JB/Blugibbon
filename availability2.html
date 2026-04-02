@@ -3138,6 +3138,7 @@ function openEventEditor(payload){
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
       ${mode === "edit" ? `<button class="danger" id="deleteBtn">Delete</button>` : `<span class="hint"> </span>`}
       ${mode === "edit" ? `<button id="placementBtn" style="background:#4CAF50; color:#fff; border-color:#4CAF50;">Make ClickUp Order</button>` : ``}
+      ${mode === "edit" ? `<button id="cvSentBtn" style="background:#2196F3; color:#fff; border-color:#2196F3;">Record as CV Sent in ClickUp</button>` : ``}
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="ghost" id="cancelBtn">Cancel</button>
@@ -3351,6 +3352,98 @@ function openEventEditor(payload){
         } catch(err){
           console.error("Error creating order:", err);
           statusChip.textContent = "❌ Error creating order: " + (err.message || "Unknown error");
+        }
+      });
+    }
+
+    const cvSentBtn = document.getElementById("cvSentBtn");
+    if(cvSentBtn){
+      cvSentBtn.addEventListener("click", async ()=>{
+        try {
+          // Get event data
+          const sStart = parseDateAU(document.getElementById("evStart").value);
+          const sEndInc = parseDateAU(document.getElementById("evEnd").value);
+          const status = document.getElementById("evStatus").value;
+          const title = (document.getElementById("evTitle").value||"").trim();
+          const location = (document.getElementById("evLocation").value||"").trim();
+          const notes = (document.getElementById("evNotes").value||"").trim();
+
+          // Get doctor and site info
+          const doctor = doctors.find(d => d.ahpra_id === payload.ahpra_id);
+          const siteObj = sitesCache[(document.getElementById("evSite").value||"").trim()];
+
+          // Extract ClickUp task ID from doctor's URL
+          let clickupTaskId = "";
+          if(doctor && doctor.clickup_url){
+            const match = doctor.clickup_url.match(/\/t\/([a-zA-Z0-9]+)/);
+            if(match) clickupTaskId = match[1];
+          }
+
+          // Prepare CV sent data for Make.com webhook (same structure as placement)
+          const cvData = {
+            event_id: payload.id,
+            doctor_name: doctor ? doctor.name : payload.ahpra_id,
+            ahpra_id: payload.ahpra_id,
+            doctor_clickup_task_id: clickupTaskId,
+            site_clickup_task_id: siteObj?.taskId || "",
+            created_by: firebase_user?.email || "unknown",
+            site_id: siteObj?.id || "",
+            site_name: siteObj ? siteObj.name : location || "",
+            location: location || siteObj?.name || "",
+            status: status,
+            title: title,
+            notes: notes,
+            start_date: normalizeToUTCDate(sStart).toISOString().split('T')[0],
+            end_date: normalizeToUTCDate(sEndInc).toISOString().split('T')[0],
+            created_at: new Date().toISOString()
+          };
+
+          // Call Make.com webhook
+          const clickupResult = await createClickUpCVSent(cvData);
+
+          // Extract ClickUp URL from response (same logic as placement)
+          let clickupUrl = null;
+          if(clickupResult){
+            let responseData = clickupResult;
+            if(clickupResult.message && typeof clickupResult.message === "string"){
+              try {
+                responseData = JSON.parse(clickupResult.message);
+              } catch(e){
+                // Extract URL manually using regex
+                const urlMatch = clickupResult.message.match(/https?:\/\/app\.clickup\.com\/t\/[a-zA-Z0-9]+/);
+                if(urlMatch){
+                  clickupUrl = urlMatch[0];
+                }
+              }
+            }
+
+            // Check for URL in various possible response formats
+            if(!clickupUrl){
+              if(responseData.LocationsArray && Array.isArray(responseData.LocationsArray) && responseData.LocationsArray.length > 0){
+                clickupUrl = responseData.LocationsArray[0].URL;
+              } else if(responseData.url){
+                clickupUrl = responseData.url;
+              } else if(responseData.taskUrl){
+                clickupUrl = responseData.taskUrl;
+              }
+            }
+          }
+
+          if(clickupUrl){
+            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline;">CV Sent task created in ClickUp</a>`;
+          } else {
+            statusChip.textContent = "✓ CV Sent task created in ClickUp";
+          }
+
+          // Save event and refresh calendar before closing modal
+          saveEvents(events);
+          renderCalendar();
+
+          // Close modal after 1.5 seconds
+          setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
+        } catch(err){
+          console.error("Error creating CV Sent task:", err);
+          statusChip.textContent = "❌ Error creating CV Sent task: " + (err.message || "Unknown error");
         }
       });
     }
@@ -4422,6 +4515,47 @@ async function createClickUpPlacement(placementData){
     return result;
   } catch(err){
     console.error("Failed to create placement:", err);
+    throw err;
+  }
+}
+
+async function createClickUpCVSent(cvData){
+  const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/phho7zmc46e8ghjo9nstahp2j4kqyf29";
+
+  if(!MAKE_WEBHOOK_URL){
+    console.warn("Make.com webhook URL not configured. CV data:", cvData);
+    throw new Error("Make.com webhook URL not configured. Contact admin.");
+  }
+
+  try {
+    const response = await fetch(MAKE_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cvData)
+    });
+
+    if(!response.ok){
+      throw new Error(`Webhook returned ${response.status}: ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    let result = null;
+
+    if(contentType.includes("application/json")){
+      result = await response.json();
+    } else {
+      // Handle plain text or other responses
+      const text = await response.text();
+      result = { message: text };
+    }
+
+    console.log("CV Sent task created successfully. Full response:", result);
+    console.log("Response type:", typeof result);
+    console.log("Response keys:", Object.keys(result || {}));
+    console.log("Response JSON:", JSON.stringify(result, null, 2));
+    return result;
+  } catch(err){
+    console.error("Failed to create CV Sent task:", err);
     throw err;
   }
 }
