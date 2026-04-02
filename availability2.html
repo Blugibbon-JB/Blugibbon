@@ -3320,6 +3320,10 @@ function openEventEditor(payload){
             statusChip.textContent = "✓ Order created in ClickUp";
           }
 
+          // Save event and refresh calendar before closing modal
+          saveEvents(events);
+          renderCalendar();
+
           // Close modal after 1.5 seconds
           setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
         } catch(err){
