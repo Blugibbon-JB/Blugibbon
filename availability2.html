@@ -3311,20 +3311,28 @@ function openEventEditor(payload){
                 responseData = JSON.parse(clickupResult.message);
                 console.log("Parsed message string to object:", responseData);
               } catch(e){
-                console.log("Could not parse message string as JSON");
+                console.log("JSON parse failed, extracting URL with regex...");
+                // Extract URL manually using regex (handles unquoted URLs in the string)
+                const urlMatch = clickupResult.message.match(/https?:\/\/app\.clickup\.com\/t\/[a-zA-Z0-9]+/);
+                if(urlMatch){
+                  clickupUrl = urlMatch[0];
+                  console.log("Extracted URL via regex:", clickupUrl);
+                }
               }
             }
 
-            // Check for URL in various possible response formats
-            if(responseData.LocationsArray && Array.isArray(responseData.LocationsArray) && responseData.LocationsArray.length > 0){
-              clickupUrl = responseData.LocationsArray[0].URL;
-            } else if(responseData.url){
-              clickupUrl = responseData.url;
-            } else if(responseData.taskUrl){
-              clickupUrl = responseData.taskUrl;
+            // Check for URL in various possible response formats (if not already found)
+            if(!clickupUrl){
+              if(responseData.LocationsArray && Array.isArray(responseData.LocationsArray) && responseData.LocationsArray.length > 0){
+                clickupUrl = responseData.LocationsArray[0].URL;
+              } else if(responseData.url){
+                clickupUrl = responseData.url;
+              } else if(responseData.taskUrl){
+                clickupUrl = responseData.taskUrl;
+              }
             }
 
-            console.log("Extracted ClickUp URL:", clickupUrl);
+            console.log("Final extracted ClickUp URL:", clickupUrl);
           }
 
           console.log("DEBUG: Final clickupUrl =", clickupUrl);
