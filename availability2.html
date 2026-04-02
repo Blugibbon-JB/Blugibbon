@@ -3337,7 +3337,7 @@ function openEventEditor(payload){
 
           console.log("DEBUG: Final clickupUrl =", clickupUrl);
           if(clickupUrl){
-            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: white; text-decoration: underline;">Order created in ClickUp</a>`;
+            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline;">Order created in ClickUp</a>`;
           } else {
             statusChip.textContent = "✓ Order created in ClickUp";
           }
