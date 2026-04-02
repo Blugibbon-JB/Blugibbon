@@ -3299,9 +3299,26 @@ function openEventEditor(payload){
           };
 
           // Call Make.com webhook
-          await createClickUpPlacement(placementData);
+          const clickupResult = await createClickUpPlacement(placementData);
 
-          statusChip.textContent = "✓ Order created in ClickUp";
+          // Extract ClickUp URL from response if available
+          let clickupUrl = null;
+          if(clickupResult){
+            // Check for URL in various possible response formats
+            if(clickupResult.LocationsArray && Array.isArray(clickupResult.LocationsArray) && clickupResult.LocationsArray.length > 0){
+              clickupUrl = clickupResult.LocationsArray[0].URL;
+            } else if(clickupResult.url){
+              clickupUrl = clickupResult.url;
+            } else if(clickupResult.taskUrl){
+              clickupUrl = clickupResult.taskUrl;
+            }
+          }
+
+          if(clickupUrl){
+            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: white; text-decoration: underline;">Order created in ClickUp</a>`;
+          } else {
+            statusChip.textContent = "✓ Order created in ClickUp";
+          }
         } catch(err){
           console.error("Error creating order:", err);
           statusChip.textContent = "❌ Error creating order: " + (err.message || "Unknown error");
@@ -4358,7 +4375,17 @@ async function createClickUpPlacement(placementData){
       throw new Error(`Webhook returned ${response.status}: ${response.statusText}`);
     }
 
-    const result = await response.json();
+    const contentType = response.headers.get("content-type") || "";
+    let result = null;
+
+    if(contentType.includes("application/json")){
+      result = await response.json();
+    } else {
+      // Handle plain text or other responses
+      const text = await response.text();
+      result = { message: text };
+    }
+
     console.log("Placement created successfully:", result);
     return result;
   } catch(err){
