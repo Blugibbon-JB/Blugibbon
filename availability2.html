@@ -3319,6 +3319,9 @@ function openEventEditor(payload){
           } else {
             statusChip.textContent = "✓ Order created in ClickUp";
           }
+
+          // Close modal after 1.5 seconds
+          setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
         } catch(err){
           console.error("Error creating order:", err);
           statusChip.textContent = "❌ Error creating order: " + (err.message || "Unknown error");
