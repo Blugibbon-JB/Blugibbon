@@ -3486,6 +3486,7 @@ function openDoctorEditor(existing){
   modalTitle.textContent = isEdit ? "Edit doctor" : "Add doctor";
 
   modalBody.innerHTML = `
+    <div id="docErrorMsg" style="display:none; background:#ffebee; color:#c62828; padding:10px; border-radius:4px; margin-bottom:12px; font-size:14px; border-left:4px solid #c62828;"></div>
     <div class="field">
       <label>AHPRA Registration (unique ID)</label>
       <input id="docId" value="${esc(existing?.ahpra_id || "")}" placeholder="e.g., MED0001234567" ${isEdit ? "disabled" : ""}/>
@@ -3495,7 +3496,7 @@ function openDoctorEditor(existing){
       <input id="docName" value="${esc(existing?.name || "")}" placeholder="e.g., Dr Jane Smith"/>
     </div>
     <div class="field full">
-      <label>ClickUp Task URL</label>
+      <label>ClickUp Task URL <span style="color:#d32f2f; font-weight:bold;">*</span></label>
       <input
         id="docClickUp"
         required
@@ -3554,12 +3555,30 @@ function openDoctorEditor(existing){
       if(action === "cancelDoc"){
         closeModal();
       } else if(action === "saveDoc"){
+        const errorMsg = document.getElementById("docErrorMsg");
         const ahpra = (document.getElementById("docId").value||"").trim();
         const name = (document.getElementById("docName").value||"").trim();
         const clickup_url = (document.getElementById("docClickUp").value||"").trim();
-        if(!isEdit && !ahpra){ statusChip.textContent = "AHPRA Registration is required."; return; }
-        if(!name){ statusChip.textContent = "Doctor name is required."; return; }
-        if(!clickup_url){ statusChip.textContent = "ClickUp Task URL is required."; return; }
+
+        // Clear previous error
+        errorMsg.style.display = "none";
+        errorMsg.textContent = "";
+
+        if(!isEdit && !ahpra){
+          errorMsg.textContent = "AHPRA Registration is required.";
+          errorMsg.style.display = "block";
+          return;
+        }
+        if(!name){
+          errorMsg.textContent = "Doctor name is required.";
+          errorMsg.style.display = "block";
+          return;
+        }
+        if(!clickup_url){
+          errorMsg.textContent = "ClickUp Task URL is required.";
+          errorMsg.style.display = "block";
+          return;
+        }
         const prefs = (document.getElementById("docPrefs").value||"").trim();
         const where = (document.getElementById("docWhere").value||"").trim();
         const specialty = (document.getElementById("docSpec").value||"").trim();
