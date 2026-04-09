@@ -3495,9 +3495,10 @@ function openDoctorEditor(existing){
       <input id="docName" value="${esc(existing?.name || "")}" placeholder="e.g., Dr Jane Smith"/>
     </div>
     <div class="field full">
-      <label>ClickUp Task URL (optional)</label>
+      <label>ClickUp Task URL</label>
       <input
         id="docClickUp"
+        required
         value="${esc(existing?.clickup_url || "")}"
         placeholder="https://app.clickup.com/t/xxxxxxxx"
       />
@@ -3555,9 +3556,10 @@ function openDoctorEditor(existing){
       } else if(action === "saveDoc"){
         const ahpra = (document.getElementById("docId").value||"").trim();
         const name = (document.getElementById("docName").value||"").trim();
+        const clickup_url = (document.getElementById("docClickUp").value||"").trim();
         if(!isEdit && !ahpra){ statusChip.textContent = "AHPRA Registration is required."; return; }
         if(!name){ statusChip.textContent = "Doctor name is required."; return; }
-        const clickup_url = (document.getElementById("docClickUp").value||"").trim();
+        if(!clickup_url){ statusChip.textContent = "ClickUp Task URL is required."; return; }
         const prefs = (document.getElementById("docPrefs").value||"").trim();
         const where = (document.getElementById("docWhere").value||"").trim();
         const specialty = (document.getElementById("docSpec").value||"").trim();
