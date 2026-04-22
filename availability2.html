@@ -4140,6 +4140,58 @@ function parseClickUpLongDate(s){
   return new Date(Date.UTC(year, months[monthName], day));
 }
 
+function parseFlexibleDate(s) {
+  if(!s) return null;
+  let t = String(s).trim();
+  if(!t) return null;
+
+  const monthMap = {
+    january:0,february:1,march:2,april:3,may:4,june:5,
+    july:6,august:7,september:8,october:9,november:10,december:11,
+    jan:0,feb:1,mar:2,apr:3,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11
+  };
+
+  // Remove ordinal suffix (1st, 2nd, etc)
+  t = t.replace(/(\d{1,2})(st|nd|rd|th)\b/gi, "$1");
+
+  // Remove weekday prefix if present
+  if(t.includes(",")) t = t.split(",").slice(1).join(",").trim();
+
+  // Try: "April 13 2026" or "April 13, 2026"
+  let m = t.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/i);
+  if(m) {
+    const month = monthMap[m[1].toLowerCase()];
+    if(month !== undefined) {
+      return new Date(Date.UTC(parseInt(m[3], 10), month, parseInt(m[2], 10)));
+    }
+  }
+
+  // Try: "2026-04-13" (ISO)
+  m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m) {
+    return new Date(Date.UTC(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10)));
+  }
+
+  // Try: "13/04/2026" or "13-04-2026" (dd/mm/yyyy)
+  m = t.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if(m) {
+    const day = parseInt(m[1], 10);
+    const month = parseInt(m[2], 10);
+    const year = parseInt(m[3], 10);
+    if(day <= 31 && month <= 12) {
+      return new Date(Date.UTC(year, month - 1, day));
+    }
+  }
+
+  // Fallback to native Date parsing
+  const d0 = new Date(t);
+  if(!isNaN(d0.getTime())) {
+    return new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate()));
+  }
+
+  return null;
+}
+
 function makeTempAhpraId(){
   // MED + 6 digits
   let id;
@@ -4161,24 +4213,42 @@ function parseTimesheetsCSV(text){
   const header = splitCSVLine(lines[0]).map(h => String(h||"").trim());
   const headerLower = header.map(h => h.toLowerCase());
 
-  const col = (...names)=>{
-    for(const n of names){
-      const i = headerLower.findIndex(h => h === String(n).toLowerCase());
-      if(i >= 0) return i;
+  const findColumn = (keywords, fuzzyThreshold = 3) => {
+    for(const keyword of keywords){
+      const normalized = String(keyword).toLowerCase().replace(/[^a-z0-9]/g, "");
+      const exactIdx = headerLower.findIndex(h => h === keyword.toLowerCase());
+      if(exactIdx >= 0) return exactIdx;
+
+      let bestMatch = -1;
+      let bestDistance = Infinity;
+      for(let i = 0; i < headerLower.length; i++){
+        const headerNorm = headerLower[i].replace(/[^a-z0-9]/g, "");
+        const distance = levenshteinDistance(normalized, headerNorm);
+        if(distance < bestDistance){
+          bestDistance = distance;
+          bestMatch = i;
+        }
+      }
+      if(bestDistance <= fuzzyThreshold) return bestMatch;
     }
     return -1;
   };
 
-  const iTaskId   = col("Task ID");
-  const iTaskName = col("Task Name");
-  const iDoctor   = col("Doctor's Name (short text)");
-  const iSite     = col("Site Name (short text)");
-  const iStart    = col("Start Locum  (date)", "Start Locum (date)");
-  const iEnd      = col("End Locum (date)");
-  const iRegNum   = col("Dr Med Registration #");
+  const iTaskId   = findColumn(["task id", "task_id", "taskid"]);
+  const iTaskName = findColumn(["task name", "task_name", "taskname"]);
+  const iDoctor   = findColumn(["doctor", "doctor's name", "doctors name", "doctor name", "dr name", "physician"]);
+  const iSite     = findColumn(["site", "site name", "location", "facility"]);
+  const iStart    = findColumn(["start locum", "start locum (date)", "start locum  (date)"]);
+  const iEnd      = findColumn(["end locum", "end locum (date)"]);
+  const iRegNum   = findColumn(["registration", "reg number", "registration number", "med reg", "ahpra", "license", "dr med registration #"]);
 
   if(iDoctor < 0 || iSite < 0 || iStart < 0 || iEnd < 0){
-    throw new Error("Timesheets CSV missing required columns (Doctor's Name, Site Name, Start Locum, End Locum)");
+    const missing = [];
+    if(iDoctor < 0) missing.push("Doctor's Name");
+    if(iSite < 0) missing.push("Site Name");
+    if(iStart < 0) missing.push("Start Locum");
+    if(iEnd < 0) missing.push("End Locum");
+    throw new Error(`Timesheets CSV missing required columns: ${missing.join(", ")}. Required columns must be 'Start Locum' and 'End Locum' (exactly). Found columns: ${header.join(", ")}`);
   }
 
   const out = [];
@@ -4190,8 +4260,8 @@ function parseTimesheetsCSV(text){
     const siteName = String(row[iSite]||"").trim();
     if(!docName || !siteName) continue;
 
-    const dStart = parseClickUpLongDate(row[iStart]);
-    const dEndInc = parseClickUpLongDate(row[iEnd]);
+    const dStart = parseFlexibleDate(row[iStart]) || parseClickUpLongDate(row[iStart]);
+    const dEndInc = parseFlexibleDate(row[iEnd]) || parseClickUpLongDate(row[iEnd]);
     if(!dStart || !dEndInc) continue;
 
     const startISO = dStart.toISOString().slice(0,10);
