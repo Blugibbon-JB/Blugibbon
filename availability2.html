@@ -4290,7 +4290,9 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
       pushUndo("Import timesheets");
 
       let imported = 0;
+      let duplicates = 0;
       const errors = [];
+      const seen = new Set(); // Track unique combinations
 
       for(const r of rows){
         // Match doctor by name only (fuzzy matching)
@@ -4300,6 +4302,14 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
           errors.push(`Row ${r.lineNum}: Doctor "${r.docName}" not found`);
           continue;
         }
+
+        // Create deduplication key: doctor + start + end + site
+        const dedupeKey = `${String(doc.ahpra_id)}|${r.startISO}|${r.endExISO}|${r.siteName}`;
+        if(seen.has(dedupeKey)){
+          duplicates++;
+          continue; // Skip duplicate
+        }
+        seen.add(dedupeKey);
 
         // Collect all unmapped fields for notes
         const notesLines = [];
@@ -4338,6 +4348,7 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
       updateUndoButton();
 
       let msg = `Timesheets: ${imported} imported`;
+      if(duplicates > 0) msg += ` (${duplicates} duplicates skipped)`;
       if(errors.length > 0) {
         msg += `, ${errors.length} errors:\n` + errors.slice(0, 5).join("\n");
         if(errors.length > 5) msg += `\n... and ${errors.length - 5} more`;
