@@ -4246,8 +4246,8 @@ function parseTimesheetsCSV(text){
     const row = splitCSVLine(lines[li]);
     if(row.length < Math.max(iEnd, iStart, iSite, iDoctor) + 1) continue;
 
-    const docName = String(row[iDoctor]||"").trim();
-    const siteName = String(row[iSite]||"").trim();
+    const docName = String(row[iDoctor]||"").trim().replace(/\s+/g, " ");
+    const siteName = String(row[iSite]||"").trim().replace(/\s+/g, " ");
     if(!docName || !siteName) continue;
 
     const dStart = parseClickUpLongDate(row[iStart]);
