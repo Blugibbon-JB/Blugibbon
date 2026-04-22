@@ -4289,77 +4289,32 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
 
       pushUndo("Import timesheets");
 
-      const normalizeSiteKey = (s)=> String(s||"").trim().toLowerCase().replace(/\s+/g," ");
-      const makeTsKey = (docKey, site, startISO, endExISO)=> `${docKey}|${normalizeSiteKey(site)}|${startISO}|${endExISO}`;
-
-      const tsKeyToId = new Map();
-      for (const e of events){
-        if(!e) continue;
-        if(String(e.source||"") !== "timesheets") continue;
-        const docKey = normalizeDoctorName(getDoctorByAhpra(e.ahpra_id)?.name || "");
-        const inferred = makeTsKey(docKey, e.location || "", e.start || "", e.end || "");
-        tsKeyToId.set(String(e.ts_key || inferred), String(e.id));
-      }
-
-      const seenThisImport = new Set();
-      const eventMap = new Map(events.map(e => [String(e.id), e]));
-      const unmappedFields = new Set();
-      const requiredFields = new Set(["Task ID", "Task Name", "Doctor's Name (short text)", "Site Name (short text)", "Start Locum  (date)", "Start Locum (date)", "End Locum (date)", "Dr Med Registration #"]);
-
-      if (rows.length > 0) {
-        for (const h of rows[0].header || []) {
-          if (!requiredFields.has(h)) {
-            unmappedFields.add(h);
-          }
-        }
-      }
-
       let imported = 0;
-      let skipped = 0;
-      let duplicates = 0;
       const errors = [];
 
       for(const r of rows){
-        // Doctor matching priority: 1) Name (fuzzy match), 2) Registration # (fallback only), 3) Error
+        // Match doctor by name only (fuzzy matching)
         let doc = findBestMatchDoctor(r.docName, doctors);
 
-        if(!doc && r.regNum) {
-          doc = findDoctorByRegistration(r.regNum, doctors);
-        }
-
         if(!doc) {
-          errors.push(`Row ${r.lineNum}: Doctor "${r.docName}"${r.regNum ? ` (Reg: ${r.regNum})` : ""} not found`);
-          skipped++;
+          errors.push(`Row ${r.lineNum}: Doctor "${r.docName}" not found`);
           continue;
         }
 
-        const keyName = normalizeDoctorName(doc.name);
-        const tsKey = makeTsKey(keyName, r.siteName, r.startISO, r.endExISO);
-
-        if(seenThisImport.has(tsKey)) {
-          duplicates++;
-          continue;
-        }
-        seenThisImport.add(tsKey);
-
-        if(tsKeyToId.has(tsKey)) {
-          skipped++;
-          continue;
-        }
-
+        // Collect all unmapped fields for notes
         const notesLines = [];
-        if(r.taskName) notesLines.push(r.taskName);
+        const requiredFields = ["Doctor's Name (short text)", "Site Name (short text)", "Start Locum  (date)", "Start Locum (date)", "End Locum (date)"];
 
-        for (const field of unmappedFields) {
-          const idx = r.header?.indexOf(field);
-          if(idx >= 0 && idx < r.rawRow.length) {
-            const val = String(r.rawRow[idx]||"").trim();
+        for (let i = 0; i < r.header.length; i++) {
+          if (!requiredFields.includes(r.header[i])) {
+            const val = String(r.rawRow[i]||"").trim();
             if(val) {
-              notesLines.push(`${field}: ${val}`);
+              notesLines.push(`${r.header[i]}: ${val}`);
             }
           }
         }
 
+        // Create event with 4 core fields + notes
         const rec = {
           id: uid(),
           ahpra_id: String(doc.ahpra_id),
@@ -4369,28 +4324,20 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
           notes: notesLines.join("\n"),
           start: r.startISO,
           end: r.endExISO,
-          source: "timesheets",
-          ts_key: tsKey,
-          task_id: r.taskId || "",
-          task_name: r.taskName || ""
+          source: "timesheets"
         };
 
-        eventMap.set(String(rec.id), rec);
+        events.push(rec);
         imported++;
       }
 
-      events = Array.from(eventMap.values());
-      saveDoctors(doctors);
       saveEvents(events);
-
       renderDoctorList();
       renderHeader();
       renderCalendar();
       updateUndoButton();
 
       let msg = `Timesheets: ${imported} imported`;
-      if(duplicates > 0) msg += `, ${duplicates} duplicates skipped`;
-      if(skipped > 0) msg += `, ${skipped} skipped (already booked)`;
       if(errors.length > 0) {
         msg += `, ${errors.length} errors:\n` + errors.slice(0, 5).join("\n");
         if(errors.length > 5) msg += `\n... and ${errors.length - 5} more`;
