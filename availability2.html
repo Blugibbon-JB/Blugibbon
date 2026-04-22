@@ -4303,8 +4303,8 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
           continue;
         }
 
-        // Create deduplication key: doctor + start + end + site
-        const dedupeKey = `${String(doc.ahpra_id)}|${r.startISO}|${r.endExISO}|${r.siteName}`;
+        // Create deduplication key: start + end + site (skip duplicate time slots)
+        const dedupeKey = `${r.startISO}|${r.endExISO}|${r.siteName}`;
         if(seen.has(dedupeKey)){
           duplicates++;
           continue; // Skip duplicate
