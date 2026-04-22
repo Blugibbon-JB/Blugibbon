@@ -4313,6 +4313,7 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
       const errors = [];
 
       for(const r of rows){
+        // Doctor matching priority: 1) Name (fuzzy match), 2) Registration # (fallback only), 3) Error
         let doc = findBestMatchDoctor(r.docName, doctors);
 
         if(!doc && r.regNum) {
