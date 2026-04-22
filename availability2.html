@@ -522,7 +522,7 @@
       </div>
 
       <div id="doctorListWrap">
-        <input id="doctorSearch" placeholder="Search doctors (name, AHPRA, tags)..." />
+        <input id="doctorSearch" placeholder="Search doctors (name, AHPRA, specialty, level, tags) - use commas for multiple criteria..." />
         
         <div class="filterRow" style="margin-top:8px;">
           <select id="whereFilter" title="Filter by Where">
@@ -565,7 +565,7 @@
       </div>
 
       <div style="margin-top:12px;">
-        <input id="finderFilterInput" type="text" placeholder="Filter by specialty, tags, name..." style="width:100%;">
+        <input id="finderFilterInput" type="text" placeholder="e.g., general medicine junior or pgy3 nsw" style="width:100%;">
       </div>
 
       <div id="finderResults" style="margin-top:12px;"></div>
@@ -943,11 +943,27 @@ function doctorMatchesFilters(d){
 
 function doctorMatchesSearch(d, q){
   if(!q) return true;
-  const hay = [
-    d.ahpra_id, d.name, d.prefs, d.where, d.specialty, d.pgy, d.level,
-    ...(d.tags||[])
-  ].filter(Boolean).join(" ").toLowerCase();
-  return hay.includes(q);
+
+  // Support multi-criteria search (comma-separated)
+  const searchTerms = q.split(',').map(t => t.trim()).filter(Boolean);
+  if(searchTerms.length === 0) return true;
+
+  // Build searchable text from all doctor attributes
+  const doctorData = [
+    d.name,
+    d.ahpra_id,
+    d.specialty,
+    d.level,
+    d.pgy,
+    d.prefs,
+    d.where,
+    ...(d.tags || [])
+  ].filter(Boolean).map(v => String(v).toLowerCase());
+
+  // ALL search terms must match at least one field (AND logic across terms)
+  return searchTerms.every(term =>
+    doctorData.some(field => field.includes(term.toLowerCase()))
+  );
 }
 
 function getFilteredDoctors({ includeSearch=true } = {}){
@@ -1428,12 +1444,12 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
     return { d, avail, booked, other, total, pct, fully, any };
   });
 
-  // Apply keyword filter if provided
+  // Apply keyword filter with simple AND logic (all terms must match)
   const normalizeText = (s) => String(s || "").toLowerCase().trim();
   const matchesFilter = (doctor) => {
     if (!filterQuery) return true;
-    const query = normalizeText(filterQuery);
     const searchableText = [
+      doctor.d.ahpra_id,
       doctor.d.name,
       doctor.d.specialty,
       doctor.d.prefs,
@@ -1442,7 +1458,14 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
       doctor.d.pgy ? `PGY ${doctor.d.pgy}` : "",
       ...(doctor.d.tags || [])
     ].map(normalizeText).join(" ");
-    return searchableText.includes(query);
+
+    // Split query by spaces and require ALL terms to match
+    const searchTerms = normalizeText(filterQuery)
+      .split(/\s+/)
+      .filter(term => term.length > 0);
+
+    // Return true only if ALL search terms are found in the searchable text
+    return searchTerms.every(term => searchableText.includes(term));
   };
 
   const filtered = scored.filter(matchesFilter);
@@ -1940,7 +1963,7 @@ if(typeof removeDoctorBtn !== "undefined" && removeDoctorBtn){
   }
 }
 
-let selectedDoctorId = doctors.length ? String(doctors[0].ahpra_id) : null;
+let selectedDoctorId = null;
 let lastSelection = null; // {start: Date, end: Date} end is exclusive
 
 let showAllDoctors = false;
@@ -3115,6 +3138,7 @@ function openEventEditor(payload){
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
       ${mode === "edit" ? `<button class="danger" id="deleteBtn">Delete</button>` : `<span class="hint"> </span>`}
       ${mode === "edit" ? `<button id="placementBtn" style="background:#4CAF50; color:#fff; border-color:#4CAF50;">Make ClickUp Order</button>` : ``}
+      ${mode === "edit" ? `<button id="cvSentBtn" style="background:#2196F3; color:#fff; border-color:#2196F3;">Record as CV Sent in ClickUp</button>` : ``}
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="ghost" id="cancelBtn">Cancel</button>
@@ -3245,6 +3269,16 @@ function openEventEditor(payload){
           const location = (document.getElementById("evLocation").value||"").trim();
           const notes = (document.getElementById("evNotes").value||"").trim();
 
+          // Update the event in the events array with new form values
+          const eventIndex = events.findIndex(e => e.id === payload.id);
+          if(eventIndex >= 0){
+            events[eventIndex].status = status;
+            events[eventIndex].title = title || status;
+            events[eventIndex].location = location;
+            events[eventIndex].notes = notes;
+            events[eventIndex].site_id = siteId;
+          }
+
           // Get doctor and site info
           const doctor = doctors.find(d => d.ahpra_id === payload.ahpra_id);
           const siteObj = sitesCache[siteId];
@@ -3276,12 +3310,159 @@ function openEventEditor(payload){
           };
 
           // Call Make.com webhook
-          await createClickUpPlacement(placementData);
+          const clickupResult = await createClickUpPlacement(placementData);
 
-          statusChip.textContent = "✓ Order created in ClickUp";
+          // Extract ClickUp URL from response if available
+          let clickupUrl = null;
+          if(clickupResult){
+            // Handle case where response data is wrapped in a 'message' string field
+            let responseData = clickupResult;
+            if(clickupResult.message && typeof clickupResult.message === "string"){
+              try {
+                responseData = JSON.parse(clickupResult.message);
+                console.log("Parsed message string to object:", responseData);
+              } catch(e){
+                console.log("JSON parse failed, extracting URL with regex...");
+                // Extract URL manually using regex (handles unquoted URLs in the string)
+                const urlMatch = clickupResult.message.match(/https?:\/\/app\.clickup\.com\/t\/[a-zA-Z0-9]+/);
+                if(urlMatch){
+                  clickupUrl = urlMatch[0];
+                  console.log("Extracted URL via regex:", clickupUrl);
+                }
+              }
+            }
+
+            // Check for URL in various possible response formats (if not already found)
+            if(!clickupUrl){
+              if(responseData.LocationsArray && Array.isArray(responseData.LocationsArray) && responseData.LocationsArray.length > 0){
+                clickupUrl = responseData.LocationsArray[0].URL;
+              } else if(responseData.url){
+                clickupUrl = responseData.url;
+              } else if(responseData.taskUrl){
+                clickupUrl = responseData.taskUrl;
+              }
+            }
+
+            console.log("Final extracted ClickUp URL:", clickupUrl);
+          }
+
+          console.log("DEBUG: Final clickupUrl =", clickupUrl);
+          if(clickupUrl){
+            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline;">Order created in ClickUp</a>`;
+          } else {
+            statusChip.textContent = "✓ Order created in ClickUp";
+          }
+
+          // Save event and refresh calendar before closing modal
+          saveEvents(events);
+          renderCalendar();
+
+          // Close modal after 1.5 seconds
+          setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
         } catch(err){
           console.error("Error creating order:", err);
           statusChip.textContent = "❌ Error creating order: " + (err.message || "Unknown error");
+        }
+      });
+    }
+
+    const cvSentBtn = document.getElementById("cvSentBtn");
+    if(cvSentBtn){
+      cvSentBtn.addEventListener("click", async ()=>{
+        try {
+          // Get event data
+          const sStart = parseDateAU(document.getElementById("evStart").value);
+          const sEndInc = parseDateAU(document.getElementById("evEnd").value);
+          const status = document.getElementById("evStatus").value;
+          const title = (document.getElementById("evTitle").value||"").trim();
+          const location = (document.getElementById("evLocation").value||"").trim();
+          const notes = (document.getElementById("evNotes").value||"").trim();
+
+          // Update the event in the events array with new form values
+          const eventIndex = events.findIndex(e => e.id === payload.id);
+          if(eventIndex >= 0){
+            events[eventIndex].status = status;
+            events[eventIndex].title = title || status;
+            events[eventIndex].location = location;
+            events[eventIndex].notes = notes;
+          }
+
+          // Get doctor and site info
+          const doctor = doctors.find(d => d.ahpra_id === payload.ahpra_id);
+          const siteObj = sitesCache[(document.getElementById("evSite").value||"").trim()];
+
+          // Extract ClickUp task ID from doctor's URL
+          let clickupTaskId = "";
+          if(doctor && doctor.clickup_url){
+            const match = doctor.clickup_url.match(/\/t\/([a-zA-Z0-9]+)/);
+            if(match) clickupTaskId = match[1];
+          }
+
+          // Prepare CV sent data for Make.com webhook (same structure as placement)
+          const cvData = {
+            event_id: payload.id,
+            doctor_name: doctor ? doctor.name : payload.ahpra_id,
+            ahpra_id: payload.ahpra_id,
+            doctor_clickup_task_id: clickupTaskId,
+            site_clickup_task_id: siteObj?.taskId || "",
+            created_by: firebase_user?.email || "unknown",
+            site_id: siteObj?.id || "",
+            site_name: siteObj ? siteObj.name : location || "",
+            location: location || siteObj?.name || "",
+            status: status,
+            title: title,
+            notes: notes,
+            start_date: normalizeToUTCDate(sStart).toISOString().split('T')[0],
+            end_date: normalizeToUTCDate(sEndInc).toISOString().split('T')[0],
+            created_at: new Date().toISOString()
+          };
+
+          // Call Make.com webhook
+          const clickupResult = await createClickUpCVSent(cvData);
+
+          // Extract ClickUp URL from response (same logic as placement)
+          let clickupUrl = null;
+          if(clickupResult){
+            let responseData = clickupResult;
+            if(clickupResult.message && typeof clickupResult.message === "string"){
+              try {
+                responseData = JSON.parse(clickupResult.message);
+              } catch(e){
+                // Extract URL manually using regex
+                const urlMatch = clickupResult.message.match(/https?:\/\/app\.clickup\.com\/t\/[a-zA-Z0-9]+/);
+                if(urlMatch){
+                  clickupUrl = urlMatch[0];
+                }
+              }
+            }
+
+            // Check for URL in various possible response formats
+            if(!clickupUrl){
+              if(responseData.LocationsArray && Array.isArray(responseData.LocationsArray) && responseData.LocationsArray.length > 0){
+                clickupUrl = responseData.LocationsArray[0].URL;
+              } else if(responseData.url){
+                clickupUrl = responseData.url;
+              } else if(responseData.taskUrl){
+                clickupUrl = responseData.taskUrl;
+              }
+            }
+          }
+
+          if(clickupUrl){
+            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline;">CV Sent task created in ClickUp</a>`;
+          } else {
+            statusChip.textContent = "✓ CV Sent task created in ClickUp";
+          }
+
+          // Save event and refresh calendar before closing modal
+          saveEvents(events);
+          renderCalendar();
+
+          // Close modal after 1.5 seconds
+          setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
+        } catch(err){
+          console.error("Error creating CV Sent task:", err);
+          statusChip.textContent = "❌ Error creating CV Sent task: " + (err.message || "Unknown error");
         }
       });
     }
@@ -3305,6 +3486,7 @@ function openDoctorEditor(existing){
   modalTitle.textContent = isEdit ? "Edit doctor" : "Add doctor";
 
   modalBody.innerHTML = `
+    <div id="docErrorMsg" style="display:none; background:#ffebee; color:#c62828; padding:10px; border-radius:4px; margin-bottom:12px; font-size:14px; border-left:4px solid #c62828;"></div>
     <div class="field">
       <label>AHPRA Registration (unique ID)</label>
       <input id="docId" value="${esc(existing?.ahpra_id || "")}" placeholder="e.g., MED0001234567" ${isEdit ? "disabled" : ""}/>
@@ -3314,9 +3496,10 @@ function openDoctorEditor(existing){
       <input id="docName" value="${esc(existing?.name || "")}" placeholder="e.g., Dr Jane Smith"/>
     </div>
     <div class="field full">
-      <label>ClickUp Task URL (optional)</label>
+      <label>ClickUp Task URL <span style="color:#d32f2f; font-weight:bold;">*</span></label>
       <input
         id="docClickUp"
+        required
         value="${esc(existing?.clickup_url || "")}"
         placeholder="https://app.clickup.com/t/xxxxxxxx"
       />
@@ -3372,11 +3555,30 @@ function openDoctorEditor(existing){
       if(action === "cancelDoc"){
         closeModal();
       } else if(action === "saveDoc"){
+        const errorMsg = document.getElementById("docErrorMsg");
         const ahpra = (document.getElementById("docId").value||"").trim();
         const name = (document.getElementById("docName").value||"").trim();
-        if(!isEdit && !ahpra){ statusChip.textContent = "AHPRA Registration is required."; return; }
-        if(!name){ statusChip.textContent = "Doctor name is required."; return; }
         const clickup_url = (document.getElementById("docClickUp").value||"").trim();
+
+        // Clear previous error
+        errorMsg.style.display = "none";
+        errorMsg.textContent = "";
+
+        if(!isEdit && !ahpra){
+          errorMsg.textContent = "AHPRA Registration is required.";
+          errorMsg.style.display = "block";
+          return;
+        }
+        if(!name){
+          errorMsg.textContent = "Doctor name is required.";
+          errorMsg.style.display = "block";
+          return;
+        }
+        if(!clickup_url){
+          errorMsg.textContent = "ClickUp Task URL is required.";
+          errorMsg.style.display = "block";
+          return;
+        }
         const prefs = (document.getElementById("docPrefs").value||"").trim();
         const where = (document.getElementById("docWhere").value||"").trim();
         const specialty = (document.getElementById("docSpec").value||"").trim();
@@ -4335,11 +4537,65 @@ async function createClickUpPlacement(placementData){
       throw new Error(`Webhook returned ${response.status}: ${response.statusText}`);
     }
 
-    const result = await response.json();
-    console.log("Placement created successfully:", result);
+    const contentType = response.headers.get("content-type") || "";
+    let result = null;
+
+    if(contentType.includes("application/json")){
+      result = await response.json();
+    } else {
+      // Handle plain text or other responses
+      const text = await response.text();
+      result = { message: text };
+    }
+
+    console.log("Placement created successfully. Full response:", result);
+    console.log("Response type:", typeof result);
+    console.log("Response keys:", Object.keys(result || {}));
+    console.log("Response JSON:", JSON.stringify(result, null, 2));
     return result;
   } catch(err){
     console.error("Failed to create placement:", err);
+    throw err;
+  }
+}
+
+async function createClickUpCVSent(cvData){
+  const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/phho7zmc46e8ghjo9nstahp2j4kqyf29";
+
+  if(!MAKE_WEBHOOK_URL){
+    console.warn("Make.com webhook URL not configured. CV data:", cvData);
+    throw new Error("Make.com webhook URL not configured. Contact admin.");
+  }
+
+  try {
+    const response = await fetch(MAKE_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cvData)
+    });
+
+    if(!response.ok){
+      throw new Error(`Webhook returned ${response.status}: ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    let result = null;
+
+    if(contentType.includes("application/json")){
+      result = await response.json();
+    } else {
+      // Handle plain text or other responses
+      const text = await response.text();
+      result = { message: text };
+    }
+
+    console.log("CV Sent task created successfully. Full response:", result);
+    console.log("Response type:", typeof result);
+    console.log("Response keys:", Object.keys(result || {}));
+    console.log("Response JSON:", JSON.stringify(result, null, 2));
+    return result;
+  } catch(err){
+    console.error("Failed to create CV Sent task:", err);
     throw err;
   }
 }
