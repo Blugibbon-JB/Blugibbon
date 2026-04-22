@@ -4238,17 +4238,17 @@ function parseTimesheetsCSV(text){
   const iTaskName = findColumn(["task name", "task_name", "taskname"]);
   const iDoctor   = findColumn(["doctor", "doctor's name", "doctors name", "doctor name", "dr name", "physician"]);
   const iSite     = findColumn(["site", "site name", "location", "facility"]);
-  const iStart    = findColumn(["start", "start date", "start locum", "start_date", "from date", "begin"]);
-  const iEnd      = findColumn(["end", "end date", "end locum", "end_date", "to date", "finish"]);
-  const iRegNum   = findColumn(["registration", "reg number", "registration number", "med reg", "ahpra", "license"]);
+  const iStart    = findColumn(["start locum", "start locum (date)", "start locum  (date)"]);
+  const iEnd      = findColumn(["end locum", "end locum (date)"]);
+  const iRegNum   = findColumn(["registration", "reg number", "registration number", "med reg", "ahpra", "license", "dr med registration #"]);
 
   if(iDoctor < 0 || iSite < 0 || iStart < 0 || iEnd < 0){
     const missing = [];
     if(iDoctor < 0) missing.push("Doctor's Name");
     if(iSite < 0) missing.push("Site Name");
-    if(iStart < 0) missing.push("Start Date");
-    if(iEnd < 0) missing.push("End Date");
-    throw new Error(`Timesheets CSV missing required columns: ${missing.join(", ")}. Found columns: ${header.join(", ")}`);
+    if(iStart < 0) missing.push("Start Locum");
+    if(iEnd < 0) missing.push("End Locum");
+    throw new Error(`Timesheets CSV missing required columns: ${missing.join(", ")}. Required columns must be 'Start Locum' and 'End Locum' (exactly). Found columns: ${header.join(", ")}`);
   }
 
   const out = [];
