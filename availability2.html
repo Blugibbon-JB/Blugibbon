@@ -4277,6 +4277,10 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
     const text = await file.text();
 
     try{
+      // Import ClickUp timesheet CSV
+      // Requires: Doctor's Name, Site Name, Start Locum, End Locum
+      // Doctor matching: fuzzy name match only (no registration fallback)
+      // All unmapped columns added to event notes
       const rows = parseTimesheetsCSV(text);
       if(!rows.length){
         statusChip.textContent = "No valid timesheet rows found";
