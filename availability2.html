@@ -4107,15 +4107,6 @@ function findBestMatchDoctor(targetName, doctorList) {
   return bestDistance <= 2 ? bestDoc : null;
 }
 
-function findDoctorByRegistration(regNum, doctorList) {
-  if (!regNum) return null;
-  const normReg = String(regNum).trim().toUpperCase();
-  return doctorList.find(d =>
-    String(d.med_reg_num||"").trim().toUpperCase() === normReg ||
-    String(d.registration||"").trim().toUpperCase() === normReg
-  ) || null;
-}
-
 function parseClickUpLongDate(s){
   if(!s) return null;
   let t = String(s).trim();
@@ -4227,7 +4218,6 @@ function parseTimesheetsCSV(text){
   const iEnd      = col("End Locum (date)", "End Locum");
   const iTaskId   = col("Task ID");
   const iTaskName = col("Task Name");
-  const iRegNum   = col("Dr Med Registration #");
 
   if(iDoctor < 0 || iSite < 0 || iStart < 0 || iEnd < 0){
     const missing = [];
@@ -4257,9 +4247,8 @@ function parseTimesheetsCSV(text){
 
     const taskId = (iTaskId>=0 ? String(row[iTaskId]||"").trim() : "");
     const taskName = (iTaskName>=0 ? String(row[iTaskName]||"").trim() : "");
-    const regNum = (iRegNum>=0 ? String(row[iRegNum]||"").trim() : "");
 
-    out.push({ taskId, taskName, docName, siteName, startISO, endExISO, regNum, rawRow: row, header, lineNum: li + 1 });
+    out.push({ taskId, taskName, docName, siteName, startISO, endExISO, rawRow: row, header, lineNum: li + 1 });
   }
   return out;
 }
@@ -4313,15 +4302,11 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
       const errors = [];
 
       for(const r of rows){
-        // Doctor matching priority: 1) Name (fuzzy match), 2) Registration # (fallback only), 3) Error
+        // Doctor matching: search by doctor name only (best match with fuzzy matching)
         let doc = findBestMatchDoctor(r.docName, doctors);
 
-        if(!doc && r.regNum) {
-          doc = findDoctorByRegistration(r.regNum, doctors);
-        }
-
         if(!doc) {
-          errors.push(`Row ${r.lineNum}: Doctor "${r.docName}"${r.regNum ? ` (Reg: ${r.regNum})` : ""} not found`);
+          errors.push(`Row ${r.lineNum}: Doctor "${r.docName}" not found`);
           skipped++;
           continue;
         }
