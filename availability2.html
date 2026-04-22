@@ -4213,34 +4213,21 @@ function parseTimesheetsCSV(text){
   const header = splitCSVLine(lines[0]).map(h => String(h||"").trim());
   const headerLower = header.map(h => h.toLowerCase());
 
-  const findColumn = (keywords, fuzzyThreshold = 3) => {
-    for(const keyword of keywords){
-      const normalized = String(keyword).toLowerCase().replace(/[^a-z0-9]/g, "");
-      const exactIdx = headerLower.findIndex(h => h === keyword.toLowerCase());
-      if(exactIdx >= 0) return exactIdx;
-
-      let bestMatch = -1;
-      let bestDistance = Infinity;
-      for(let i = 0; i < headerLower.length; i++){
-        const headerNorm = headerLower[i].replace(/[^a-z0-9]/g, "");
-        const distance = levenshteinDistance(normalized, headerNorm);
-        if(distance < bestDistance){
-          bestDistance = distance;
-          bestMatch = i;
-        }
-      }
-      if(bestDistance <= fuzzyThreshold) return bestMatch;
+  const col = (...names) => {
+    for(const n of names){
+      const idx = headerLower.findIndex(h => h === String(n).toLowerCase());
+      if(idx >= 0) return idx;
     }
     return -1;
   };
 
-  const iTaskId   = findColumn(["task id", "task_id", "taskid"]);
-  const iTaskName = findColumn(["task name", "task_name", "taskname"]);
-  const iDoctor   = findColumn(["doctor", "doctor's name", "doctors name", "doctor name", "dr name", "physician"]);
-  const iSite     = findColumn(["site", "site name", "location", "facility"]);
-  const iStart    = findColumn(["start locum", "start locum (date)", "start locum  (date)"]);
-  const iEnd      = findColumn(["end locum", "end locum (date)"]);
-  const iRegNum   = findColumn(["registration", "reg number", "registration number", "med reg", "ahpra", "license", "dr med registration #"]);
+  const iDoctor   = col("Doctor's Name (short text)", "Doctor's Name", "Doctors Name");
+  const iSite     = col("Site Name (short text)", "Site Name");
+  const iStart    = col("Start Locum  (date)", "Start Locum (date)", "Start Locum");
+  const iEnd      = col("End Locum (date)", "End Locum");
+  const iTaskId   = col("Task ID");
+  const iTaskName = col("Task Name");
+  const iRegNum   = col("Dr Med Registration #");
 
   if(iDoctor < 0 || iSite < 0 || iStart < 0 || iEnd < 0){
     const missing = [];
@@ -4248,7 +4235,7 @@ function parseTimesheetsCSV(text){
     if(iSite < 0) missing.push("Site Name");
     if(iStart < 0) missing.push("Start Locum");
     if(iEnd < 0) missing.push("End Locum");
-    throw new Error(`Timesheets CSV missing required columns: ${missing.join(", ")}. Required columns must be 'Start Locum' and 'End Locum' (exactly). Found columns: ${header.join(", ")}`);
+    throw new Error(`Timesheets CSV missing required columns: ${missing.join(", ")}. Found columns: ${header.join(", ")}`);
   }
 
   const out = [];
@@ -4260,8 +4247,8 @@ function parseTimesheetsCSV(text){
     const siteName = String(row[iSite]||"").trim();
     if(!docName || !siteName) continue;
 
-    const dStart = parseFlexibleDate(row[iStart]) || parseClickUpLongDate(row[iStart]);
-    const dEndInc = parseFlexibleDate(row[iEnd]) || parseClickUpLongDate(row[iEnd]);
+    const dStart = parseClickUpLongDate(row[iStart]);
+    const dEndInc = parseClickUpLongDate(row[iEnd]);
     if(!dStart || !dEndInc) continue;
 
     const startISO = dStart.toISOString().slice(0,10);
