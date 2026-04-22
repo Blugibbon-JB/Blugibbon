@@ -4116,6 +4116,10 @@ function findDoctorByRegistration(regNum, doctorList) {
   ) || null;
 }
 
+function getDoctorByAhpra(ahpraId) {
+  return doctors.find(d => String(d.ahpra_id) === String(ahpraId)) || null;
+}
+
 function parseClickUpLongDate(s){
   if(!s) return null;
   let t = String(s).trim();
