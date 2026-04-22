@@ -4202,6 +4202,9 @@ function makeTempAhpraId(){
 }
 
 function parseTimesheetsCSV(text){
+  // Parse ClickUp timesheet CSV export
+  // Required columns: Doctor's Name, Site Name, Start Locum, End Locum
+  // Doctor matching: fuzzy match by name only (no registration number fallback)
   const lines = String(text||"")
     .replace(/\r\n/g,"\n")
     .replace(/\r/g,"\n")
