@@ -4311,19 +4311,12 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
           continue;
         }
 
-        // Create deduplication key: start + end + site (skip duplicate time slots)
-        const dedupeKey = `${r.startISO}|${r.endExISO}|${r.siteName}`;
+        // Create deduplication key: doctor + start + end + site
+        const dedupeKey = `${String(doc.ahpra_id)}|${r.startISO}|${r.endExISO}|${r.siteName}`;
         if(seen.has(dedupeKey)){
           duplicates++;
           continue; // Skip duplicate within this import
         }
-
-        // Also check if this event already exists in the system
-        if(events.some(e => e.start === r.startISO && e.end === r.endExISO && e.location === r.siteName)){
-          duplicates++;
-          continue; // Skip duplicate from previous import
-        }
-
         seen.add(dedupeKey);
 
         // Collect all unmapped fields for notes
@@ -4339,9 +4332,17 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
           }
         }
 
+        // Check if this event already exists (same doctor, site, dates)
+        const existingIdx = events.findIndex(e =>
+          String(e.ahpra_id) === String(doc.ahpra_id) &&
+          e.start === r.startISO &&
+          e.end === r.endExISO &&
+          e.location === r.siteName
+        );
+
         // Create event with 4 core fields + notes
         const rec = {
-          id: uid(),
+          id: existingIdx >= 0 ? events[existingIdx].id : uid(), // Reuse ID if updating
           ahpra_id: String(doc.ahpra_id),
           status: "Booked",
           title: "Timesheet",
@@ -4352,7 +4353,12 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
           source: "timesheets"
         };
 
-        events.push(rec);
+        if(existingIdx >= 0){
+          events[existingIdx] = rec; // Update existing event
+          duplicates++;
+        } else {
+          events.push(rec); // Create new event
+        }
         imported++;
       }
 
