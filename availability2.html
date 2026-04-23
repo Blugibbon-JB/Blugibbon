@@ -4355,9 +4355,11 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
         };
 
         if(existingIdx >= 0){
+          console.log(`Overwriting event: ${rec.ahpra_id} ${r.siteName} ${r.startISO}-${r.endExISO}`);
           events[existingIdx] = rec; // Update existing event
           duplicates++;
         } else {
+          console.log(`Creating new event: ${rec.ahpra_id} ${r.siteName} ${r.startISO}-${r.endExISO}`);
           events.push(rec); // Create new event
         }
         imported++;
@@ -4366,17 +4368,24 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
       // Cleanup: Remove any duplicate events that already exist (by start, end, location)
       const eventKeysToKeep = new Set();
       const cleanedEvents = [];
+      let cleanupCount = 0;
       for(const e of events){
         const key = `${e.start}|${e.end}|${e.location}`;
         if(!eventKeysToKeep.has(key)){
           eventKeysToKeep.add(key);
           cleanedEvents.push(e);
         } else {
+          console.log(`Cleanup: Removing duplicate ${e.ahpra_id} ${e.location} ${e.start}-${e.end}`);
+          cleanupCount++;
           duplicates++; // Count cleaned duplicates
         }
       }
+      console.log(`Cleanup complete: Removed ${cleanupCount} duplicates, kept ${cleanedEvents.length} events`);
 
-      saveEvents(cleanedEvents);
+      // Update global events variable with cleaned data before saving
+      events = cleanedEvents;
+
+      saveEvents(events);
       renderDoctorList();
       renderHeader();
       renderCalendar();
