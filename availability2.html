@@ -4315,8 +4315,15 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
         const dedupeKey = `${r.startISO}|${r.endExISO}|${r.siteName}`;
         if(seen.has(dedupeKey)){
           duplicates++;
-          continue; // Skip duplicate
+          continue; // Skip duplicate within this import
         }
+
+        // Also check if this event already exists in the system
+        if(events.some(e => e.start === r.startISO && e.end === r.endExISO && e.location === r.siteName)){
+          duplicates++;
+          continue; // Skip duplicate from previous import
+        }
+
         seen.add(dedupeKey);
 
         // Collect all unmapped fields for notes
