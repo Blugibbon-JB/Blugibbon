@@ -4300,9 +4300,18 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
       let imported = 0;
       let duplicates = 0;
       const errors = [];
-      const seen = new Set(); // Track unique combinations
+      const seen = new Set(); // Track unique combinations from CSV
 
       for(const r of rows){
+        // Deduplication key based on CSV data (not fuzzy match result)
+        // This ensures CSV rows with identical doctor name, reg number, dates, and site are deduplicated
+        const dedupeKey = `${r.docName}|${r.regNum}|${r.startISO}|${r.endExISO}|${r.siteName}`;
+        if(seen.has(dedupeKey)){
+          duplicates++;
+          continue; // Skip duplicate within this import
+        }
+        seen.add(dedupeKey);
+
         // Match doctor by name only (fuzzy matching)
         let doc = findBestMatchDoctor(r.docName, doctors);
 
@@ -4310,14 +4319,6 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
           errors.push(`Row ${r.lineNum}: Doctor "${r.docName}" not found`);
           continue;
         }
-
-        // Create deduplication key: doctor + start + end + site
-        const dedupeKey = `${String(doc.ahpra_id)}|${r.startISO}|${r.endExISO}|${r.siteName}`;
-        if(seen.has(dedupeKey)){
-          duplicates++;
-          continue; // Skip duplicate within this import
-        }
-        seen.add(dedupeKey);
 
         // Collect all unmapped fields for notes
         const notesLines = [];
@@ -4332,9 +4333,9 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
           }
         }
 
-        // Check if this event already exists (same doctor, site, dates)
+        // Check if this event already exists (same site + dates, regardless of doctor)
+        // This prevents duplicate time slots at the same site
         const existingIdx = events.findIndex(e =>
-          String(e.ahpra_id) === String(doc.ahpra_id) &&
           e.start === r.startISO &&
           e.end === r.endExISO &&
           e.location === r.siteName
