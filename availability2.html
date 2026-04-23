@@ -4363,7 +4363,20 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
         imported++;
       }
 
-      saveEvents(events);
+      // Cleanup: Remove any duplicate events that already exist (by start, end, location)
+      const eventKeysToKeep = new Set();
+      const cleanedEvents = [];
+      for(const e of events){
+        const key = `${e.start}|${e.end}|${e.location}`;
+        if(!eventKeysToKeep.has(key)){
+          eventKeysToKeep.add(key);
+          cleanedEvents.push(e);
+        } else {
+          duplicates++; // Count cleaned duplicates
+        }
+      }
+
+      saveEvents(cleanedEvents);
       renderDoctorList();
       renderHeader();
       renderCalendar();
