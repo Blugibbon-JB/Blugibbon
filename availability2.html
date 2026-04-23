@@ -4211,8 +4211,9 @@ function makeTempAhpraId(){
 
 function parseTimesheetsCSV(text){
   // Parse ClickUp timesheet CSV export
-  // Required columns: Doctor's Name, Site Name, Start Locum, End Locum
-  // Doctor matching: fuzzy match by name only (no registration number fallback)
+  // Supports two formats:
+  // 1. New format: Doctor's Name, Site Name, Week ending Date, Start Locum, End Locum
+  // 2. Old format: Doctor's Name, Site Name, Start Locum, End Locum (no week ending date)
   const lines = String(text||"")
     .replace(/\r\n/g,"\n")
     .replace(/\r/g,"\n")
@@ -4232,13 +4233,14 @@ function parseTimesheetsCSV(text){
     return -1;
   };
 
-  const iDoctor   = col("Doctor's Name (short text)", "Doctor's Name", "Doctors Name");
-  const iSite     = col("Site Name (short text)", "Site Name");
-  const iStart    = col("Start Locum  (date)", "Start Locum (date)", "Start Locum");
-  const iEnd      = col("End Locum (date)", "End Locum");
-  const iTaskId   = col("Task ID");
-  const iTaskName = col("Task Name");
-  const iRegNum   = col("Dr Med Registration #");
+  const iDoctor     = col("Doctor's Name (short text)", "Doctor's Name", "Doctors Name");
+  const iSite       = col("Site Name (short text)", "Site Name");
+  const iStart      = col("Start Locum  (date)", "Start Locum (date)", "Start Locum");
+  const iEnd        = col("End Locum (date)", "End Locum");
+  const iTaskId     = col("Task ID");
+  const iTaskName   = col("Task Name");
+  const iRegNum     = col("Dr Med Registration #");
+  const iWeekEnd    = col("Week ending Date (drop down)", "Week Ending Date", "Week ending Date"); // New field
 
   if(iDoctor < 0 || iSite < 0 || iStart < 0 || iEnd < 0){
     const missing = [];
@@ -4270,7 +4272,25 @@ function parseTimesheetsCSV(text){
     const taskName = (iTaskName>=0 ? String(row[iTaskName]||"").trim() : "");
     const regNum = (iRegNum>=0 ? String(row[iRegNum]||"").trim() : "");
 
-    out.push({ taskId, taskName, docName, siteName, startISO, endExISO, regNum, rawRow: row, header, lineNum: li + 1 });
+    // Week ending date (for new CSV format) - parse dd/mm/yyyy format
+    let weekEndISO = null;
+    if(iWeekEnd >= 0){
+      const weekEndStr = String(row[iWeekEnd]||"").trim();
+      if(weekEndStr && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(weekEndStr)){
+        const parts = weekEndStr.split("/");
+        const dd = parseInt(parts[0], 10);
+        const mm = parseInt(parts[1], 10);
+        const yyyy = parseInt(parts[2], 10);
+        const weekEndDate = new Date(Date.UTC(yyyy, mm-1, dd));
+        weekEndISO = weekEndDate.toISOString().slice(0,10);
+      }
+    }
+
+    out.push({
+      taskId, taskName, docName, siteName, startISO, endExISO, regNum,
+      weekEndISO, // New field: week ending date (if present in CSV)
+      rawRow: row, header, lineNum: li + 1
+    });
   }
   return out;
 }
@@ -4303,11 +4323,16 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
       const seen = new Set(); // Track unique combinations from CSV
 
       for(const r of rows){
-        // Deduplication key based on CSV data (not fuzzy match result)
-        // This ensures CSV rows with identical doctor name, reg number, dates, and site are deduplicated
-        const dedupeKey = `${r.docName}|${r.regNum}|${r.startISO}|${r.endExISO}|${r.siteName}`;
+        // Deduplication key based on CSV data
+        // If week ending date is available (new format), use: week | doctor | site
+        // Otherwise (old format), use: doctor | reg number | start | end | site
+        const dedupeKey = r.weekEndISO
+          ? `${r.weekEndISO}|${r.docName}|${r.siteName}`
+          : `${r.docName}|${r.regNum}|${r.startISO}|${r.endExISO}|${r.siteName}`;
+
         if(seen.has(dedupeKey)){
           duplicates++;
+          console.log(`Skip duplicate in import: ${dedupeKey}`);
           continue; // Skip duplicate within this import
         }
         seen.add(dedupeKey);
@@ -4355,11 +4380,13 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
         };
 
         if(existingIdx >= 0){
-          console.log(`Overwriting event: ${rec.ahpra_id} ${r.siteName} ${r.startISO}-${r.endExISO}`);
+          const weekStr = r.weekEndISO ? ` (week ending ${r.weekEndISO})` : "";
+          console.log(`Overwriting event: ${r.docName} ${r.siteName} ${r.startISO}-${r.endExISO}${weekStr}`);
           events[existingIdx] = rec; // Update existing event
           duplicates++;
         } else {
-          console.log(`Creating new event: ${rec.ahpra_id} ${r.siteName} ${r.startISO}-${r.endExISO}`);
+          const weekStr = r.weekEndISO ? ` (week ending ${r.weekEndISO})` : "";
+          console.log(`Creating new event: ${r.docName} ${r.siteName} ${r.startISO}-${r.endExISO}${weekStr}`);
           events.push(rec); // Create new event
         }
         imported++;
