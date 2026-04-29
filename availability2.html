@@ -2318,7 +2318,12 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
     const evId = info.event.id;
     const rec = events.find(e => e.id === evId);
     if(!rec) return;
-    openEventEditor({ mode:"edit", ...rec, start:new Date(rec.start), end:new Date(rec.end) });
+    // Route to placement editor if this is a placement event, otherwise use regular editor
+    if(rec.type === 'placement') {
+      openPlacementEditor(rec);
+    } else {
+      openEventEditor({ mode:"edit", ...rec, start:new Date(rec.start), end:new Date(rec.end) });
+    }
   },
   events: [],
   eventDidMount: function(arg){
@@ -3403,6 +3408,7 @@ function openEventEditor(payload){
   modalFooter.innerHTML = `
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
       ${mode === "edit" ? `<button class="danger" id="deleteBtn">Delete</button>` : `<span class="hint"> </span>`}
+      ${mode === "edit" && payload.type !== 'placement' ? `<button id="createPlacementBtn" style="background:#FF9800; color:#fff; border-color:#FF9800;">Create Placement</button>` : ``}
       ${mode === "edit" ? `<button id="placementBtn" style="background:#4CAF50; color:#fff; border-color:#4CAF50;">Make ClickUp Order</button>` : ``}
       ${mode === "edit" ? `<button id="cvSentBtn" style="background:#2196F3; color:#fff; border-color:#2196F3;">Record as CV Sent in ClickUp</button>` : ``}
     </div>
@@ -3641,6 +3647,50 @@ function openEventEditor(payload){
           console.error("Error creating order:", err);
           statusChip.textContent = "❌ Error creating order: " + (err.message || "Unknown error");
         }
+      });
+    }
+
+    const createPlacementBtn = document.getElementById("createPlacementBtn");
+    if(createPlacementBtn) {
+      createPlacementBtn.addEventListener("click", () => {
+        // Check if site is selected
+        const siteId = (document.getElementById("evSite").value||"").trim();
+        if(!siteId) {
+          alert("Please select a site before creating a placement");
+          return;
+        }
+
+        // Get the availability event data
+        const sStart = parseDateAU(document.getElementById("evStart").value);
+        const sEndInc = parseDateAU(document.getElementById("evEnd").value);
+        const sEndEx = addDaysUTC(sEndInc, 1);
+
+        // Initialize placement workflow with availability data
+        placementWorkflow.selectedDoctor = d; // doctor from outer scope
+        placementWorkflow.selectedSite = sitesCache[siteId];
+
+        // Initialize selectedDays from the availability date range
+        placementWorkflow.selectedDays = {};
+        let currentDate = new Date(sStart);
+        while(currentDate < sEndEx) {
+          const dateISO = currentDate.toISOString().slice(0, 10);
+          placementWorkflow.selectedDays[dateISO] = 'day'; // Default to day shifts
+          currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+        }
+
+        placementWorkflow.currentMonth = sStart.toISOString().substring(0, 7);
+        placementWorkflow.editingAvailabilityEventId = payload.id; // Track original availability event to delete later
+        placementWorkflow.unitType = 'daily';
+        placementWorkflow.standardRate = 0;
+        placementWorkflow.nightRate = 0;
+        placementWorkflow.overtimeRate = 0;
+        placementWorkflow.hoursPerShift = 8;
+        placementWorkflow.agencyFeePercent = 0;
+        placementWorkflow.defaultShiftType = 'day';
+
+        // Close the event editor and open placement wizard at rate selection step
+        closeModal();
+        document.getElementById('rateSelectionBackdrop').style.display = 'flex';
       });
     }
 
@@ -5011,6 +5061,8 @@ function openMakePlacementFlow() {
   placementWorkflow.selectedSite = null;
   placementWorkflow.selectedDays = {}; // Track shift type per day: { "YYYY-MM-DD": "day" | "night" }
   placementWorkflow.defaultShiftType = 'day';
+  placementWorkflow.editingEventId = null; // Clear any existing edit mode
+  placementWorkflow.editingAvailabilityEventId = null; // Clear any availability conversion mode
 
   // Populate doctor dropdown
   const doctorSelect = document.getElementById('placementDoctor');
@@ -5043,6 +5095,37 @@ function openMakePlacementFlow() {
   siteSearch.addEventListener('input', () => filterSiteDropdown(siteSearch.value));
 
   document.getElementById('makePlacementBackdrop').style.display = 'flex';
+}
+
+function openPlacementEditor(placementEvent) {
+  // Initialize workflow with existing placement data
+  const pd = placementEvent.placement_data || {};
+  const doctor = doctors.find(d => String(d.ahpra_id) === String(pd.doctor_id));
+  const site = sitesCache[pd.site_id];
+
+  if(!doctor || !site) {
+    alert('Could not load placement data. Doctor or site not found.');
+    return;
+  }
+
+  // Set workflow state from placement data
+  placementWorkflow.selectedDoctor = doctor;
+  placementWorkflow.selectedSite = site;
+  placementWorkflow.unitType = pd.unit_type || 'daily';
+  placementWorkflow.standardRate = pd.standard_rate || 0;
+  placementWorkflow.nightRate = pd.night_rate || 0;
+  placementWorkflow.overtimeRate = pd.overtime_rate || 0;
+  placementWorkflow.hoursPerShift = pd.hours_per_shift || 8;
+  placementWorkflow.agencyFeePercent = pd.agency_fee_percent || 0;
+  placementWorkflow.selectedDays = pd.day_shifts || {};
+  placementWorkflow.currentMonth = placementEvent.start.substring(0, 7); // YYYY-MM
+  placementWorkflow.editingEventId = placementEvent.id; // Track that we're editing
+  placementWorkflow.defaultShiftType = 'day';
+
+  // Show day picker directly (skip to step 3 since doctor/site/rates are already set)
+  updateDayPickerStats();
+  renderDayPicker();
+  document.getElementById('dayPickerBackdrop').style.display = 'flex';
 }
 
 function filterDoctorDropdown(searchTerm) {
@@ -5096,6 +5179,9 @@ function closeMakePlacementFlow() {
   document.getElementById('rateSelectionBackdrop').style.display = 'none';
   document.getElementById('dayPickerBackdrop').style.display = 'none';
   document.getElementById('placementDetailsBackdrop').style.display = 'none';
+  // Reset tracking variables
+  placementWorkflow.editingEventId = null;
+  placementWorkflow.editingAvailabilityEventId = null;
 }
 
 function proceedToRateSelection() {
@@ -5390,8 +5476,27 @@ function savePlacementAsDraft() {
 
   const placementEvent = createPlacementEvent('draft');
 
-  // Add to events array
-  events.push(placementEvent);
+  // Handle edit vs create
+  if(placementWorkflow.editingEventId) {
+    // Edit mode: replace existing placement event
+    const idx = events.findIndex(e => e.id === placementWorkflow.editingEventId);
+    if(idx >= 0) {
+      placementEvent.id = placementWorkflow.editingEventId;
+      placementEvent.created_at = events[idx].created_at; // Preserve original creation time
+      placementEvent.clickup_task_id = events[idx].clickup_task_id; // Preserve ClickUp ID if exists
+      events[idx] = placementEvent;
+    }
+    placementWorkflow.editingEventId = null;
+  } else if(placementWorkflow.editingAvailabilityEventId) {
+    // Converting availability to placement: add new placement and delete availability
+    events.push(placementEvent);
+    events = events.filter(e => e.id !== placementWorkflow.editingAvailabilityEventId);
+    placementWorkflow.editingAvailabilityEventId = null;
+  } else {
+    // Create mode: add new event
+    events.push(placementEvent);
+  }
+
   saveEvents(events);
 
   // Sync to Firebase
@@ -5415,14 +5520,36 @@ function savePlacementAndSendToClickUp() {
 
   const placementEvent = createPlacementEvent('pending');
 
-  // Add to events array
-  events.push(placementEvent);
+  // Handle edit vs create
+  if(placementWorkflow.editingEventId) {
+    // Edit mode: replace existing placement event
+    const idx = events.findIndex(e => e.id === placementWorkflow.editingEventId);
+    if(idx >= 0) {
+      placementEvent.id = placementWorkflow.editingEventId;
+      placementEvent.created_at = events[idx].created_at; // Preserve original creation time
+      placementEvent.clickup_task_id = events[idx].clickup_task_id; // Preserve ClickUp ID if exists
+      events[idx] = placementEvent;
+    }
+    placementWorkflow.editingEventId = null;
+  } else if(placementWorkflow.editingAvailabilityEventId) {
+    // Converting availability to placement: add new placement and delete availability
+    events.push(placementEvent);
+    events = events.filter(e => e.id !== placementWorkflow.editingAvailabilityEventId);
+    placementWorkflow.editingAvailabilityEventId = null;
+  } else {
+    // Create mode: add new event
+    events.push(placementEvent);
+  }
+
   saveEvents(events);
 
   // Sync to Firebase
   if(firebase_user && firebase_db) {
     firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).then(() => {
-      statusChip.textContent = `✓ Placement created! Ready to send to ClickUp (webhook pending)`;
+      let msgType = 'created';
+      if(placementWorkflow.editingEventId) msgType = 'updated';
+      else if(placementWorkflow.editingAvailabilityEventId) msgType = 'created from availability';
+      statusChip.textContent = `✓ Placement ${msgType}! Ready to send to ClickUp (webhook pending)`;
       closeMakePlacementFlow();
       renderCalendar();
     }).catch(err => {
