@@ -765,11 +765,6 @@
         <label>Agency Fee (%)</label>
         <input type="number" id="agencyFeePercent" placeholder="15" value="0" min="0" max="100" step="0.1" />
       </div>
-
-      <div class="field" id="marginPerUnitField">
-        <label>Margin Per Unit ($)</label>
-        <input type="number" id="marginPerUnitInput" placeholder="10" value="0" min="0" step="0.01" />
-      </div>
     </div>
 
     <div class="modalFooter">
@@ -860,19 +855,32 @@
         "></div>
       </div>
 
-      <!-- Auto-calculated fields -->
+      <!-- Auto-calculated margin fields -->
       <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; margin-top: 16px;">
-        <div style="font-size: 12px; font-weight: 600; margin-bottom: 12px;">Summary</div>
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 12px;">Calculated Margins</div>
 
-        <div id="marginSummaryDisplay" style="margin-bottom: 12px;">
-          <div style="font-size: 12px; margin-bottom: 6px;">
-            <span id="marginCalcMethod"></span>
+        <div style="font-size: 12px; margin-bottom: 12px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <strong>Day Rate Margin/Unit:</strong><br>
+              $<span id="dayRateMarginPerUnit">0</span>
+            </div>
+            <div>
+              <strong>Night Rate Margin/Unit:</strong><br>
+              $<span id="nightRateMarginPerUnit">0</span>
+            </div>
+            <div id="overtimeMarginDisplay" style="display:none;">
+              <strong>Overtime Margin/Unit:</strong><br>
+              $<span id="overtimeMarginPerUnit">0</span>
+            </div>
           </div>
         </div>
 
-        <div>Total Day Shifts: <strong id="totalDayShifts">0</strong></div>
-        <div>Total Night Shifts: <strong id="totalNightShifts">0</strong></div>
-        <div id="totalUnitsDisplay" style="display:none; margin-top: 6px;">Total Units: <strong id="totalUnitsAmount">0</strong></div>
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1);">
+          <div>Total Day Shifts: <strong id="totalDayShifts">0</strong></div>
+          <div>Total Night Shifts: <strong id="totalNightShifts">0</strong></div>
+          <div id="totalUnitsDisplay" style="display:none; margin-top: 6px;">Total Units: <strong id="totalUnitsAmount">0</strong></div>
+        </div>
 
         <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1);">
           <div style="font-size: 13px; font-weight: 600;">Total Estimated Placement Margin: <strong style="color: #2e7d32; font-size: 16px;">$<span id="totalPlacementMargin">0</span></strong></div>
@@ -4903,7 +4911,6 @@ let placementWorkflow = {
   overtimeRate: 0,
   hoursPerShift: 8,
   agencyFeePercent: 0,
-  marginPerUnit: 0,
   selectedDays: {},
   currentMonth: new Date().getUTCFullYear() + '-' + String(new Date().getUTCMonth() + 1).padStart(2, '0'),
   defaultShiftType: 'day'
@@ -5037,7 +5044,6 @@ function proceedToDaySelection() {
   placementWorkflow.overtimeRate = parseFloat(document.getElementById('overtimeRate').value) || 0;
   placementWorkflow.hoursPerShift = parseFloat(document.getElementById('hoursPerShift').value) || 8;
   placementWorkflow.agencyFeePercent = parseFloat(document.getElementById('agencyFeePercent').value) || 0;
-  placementWorkflow.marginPerUnit = parseFloat(document.getElementById('marginPerUnitInput').value) || 0;
 
   if(!placementWorkflow.standardRate) {
     alert('Please enter a standard rate');
@@ -5231,6 +5237,26 @@ function proceedToPlacementDetails() {
   const dayShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'day').length;
   const nightShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'night').length;
 
+  // Calculate rate margins from agency fee
+  const dayMarginPerUnit = (placementWorkflow.standardRate * placementWorkflow.agencyFeePercent) / 100;
+  const nightMarginPerUnit = (placementWorkflow.nightRate * placementWorkflow.agencyFeePercent) / 100;
+  const overtimeMarginPerUnit = (placementWorkflow.overtimeRate * placementWorkflow.agencyFeePercent) / 100;
+
+  // Calculate total margin
+  let totalMargin = 0;
+  if(placementWorkflow.unitType === 'hourly') {
+    const totalShifts = dayShiftCount + nightShiftCount;
+    const totalUnits = placementWorkflow.hoursPerShift * totalShifts;
+    // For hourly, calculate weighted margin per unit based on shift types
+    const weightedMarginPerUnit = (dayShiftCount * dayMarginPerUnit + nightShiftCount * nightMarginPerUnit) / totalShifts;
+    totalMargin = weightedMarginPerUnit * totalUnits;
+    document.getElementById('totalUnitsDisplay').style.display = 'block';
+    document.getElementById('totalUnitsAmount').textContent = totalUnits;
+  } else {
+    totalMargin = (dayShiftCount * dayMarginPerUnit) + (nightShiftCount * nightMarginPerUnit);
+    document.getElementById('totalUnitsDisplay').style.display = 'none';
+  }
+
   // Generate summary
   const summary = `
     <div><strong>Doctor:</strong> ${placementWorkflow.selectedDoctor.name}</div>
@@ -5244,38 +5270,21 @@ function proceedToPlacementDetails() {
     ${placementWorkflow.nightRate ? `<div><strong>Night Rate:</strong> $${placementWorkflow.nightRate}</div>` : ''}
     ${placementWorkflow.overtimeRate ? `<div><strong>Overtime Rate:</strong> $${placementWorkflow.overtimeRate}</div>` : ''}
     <div><strong>Agency Fee:</strong> ${placementWorkflow.agencyFeePercent}%</div>
-    <div><strong>Margin Per Unit:</strong> $${placementWorkflow.marginPerUnit}</div>
   `;
 
   document.getElementById('placementSummary').innerHTML = summary;
   document.getElementById('totalDayShifts').textContent = dayShiftCount;
   document.getElementById('totalNightShifts').textContent = nightShiftCount;
+  document.getElementById('dayRateMarginPerUnit').textContent = dayMarginPerUnit.toFixed(2);
+  document.getElementById('nightRateMarginPerUnit').textContent = nightMarginPerUnit.toFixed(2);
 
-  // Calculate and display margin summary
-  let marginCalcText = '';
-  let totalMargin = 0;
-
-  if(placementWorkflow.unitType === 'hourly') {
-    const totalShifts = dayShiftCount + nightShiftCount;
-    const totalUnits = placementWorkflow.hoursPerShift * totalShifts;
-    totalMargin = placementWorkflow.marginPerUnit * totalUnits;
-    marginCalcText = `Hourly: ${placementWorkflow.hoursPerShift}h × ${totalShifts} shifts = ${totalUnits} units`;
-    document.getElementById('totalUnitsDisplay').style.display = 'block';
-    document.getElementById('totalUnitsAmount').textContent = totalUnits;
+  if(placementWorkflow.overtimeRate > 0) {
+    document.getElementById('overtimeMarginDisplay').style.display = 'block';
+    document.getElementById('overtimeMarginPerUnit').textContent = overtimeMarginPerUnit.toFixed(2);
   } else {
-    const dayMarginPerUnit = placementWorkflow.agencyFeePercent > 0
-      ? (placementWorkflow.standardRate * placementWorkflow.agencyFeePercent) / 100
-      : placementWorkflow.marginPerUnit;
-    const nightMarginPerUnit = placementWorkflow.agencyFeePercent > 0
-      ? (placementWorkflow.nightRate * placementWorkflow.agencyFeePercent) / 100
-      : placementWorkflow.marginPerUnit;
-
-    totalMargin = (dayShiftCount * dayMarginPerUnit) + (nightShiftCount * nightMarginPerUnit);
-    marginCalcText = `Daily: (${dayShiftCount} days × $${dayMarginPerUnit.toFixed(2)}) + (${nightShiftCount} nights × $${nightMarginPerUnit.toFixed(2)})`;
-    document.getElementById('totalUnitsDisplay').style.display = 'none';
+    document.getElementById('overtimeMarginDisplay').style.display = 'none';
   }
 
-  document.getElementById('marginCalcMethod').textContent = marginCalcText;
   document.getElementById('totalPlacementMargin').textContent = totalMargin.toFixed(2);
 
   document.getElementById('dayPickerBackdrop').style.display = 'none';
@@ -5356,6 +5365,11 @@ function createPlacementEvent(status) {
   const dayShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'day').length;
   const nightShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'night').length;
 
+  // Calculate rate margins from agency fee
+  const dayMarginPerUnit = (placementWorkflow.standardRate * placementWorkflow.agencyFeePercent) / 100;
+  const nightMarginPerUnit = (placementWorkflow.nightRate * placementWorkflow.agencyFeePercent) / 100;
+  const overtimeMarginPerUnit = (placementWorkflow.overtimeRate * placementWorkflow.agencyFeePercent) / 100;
+
   // Calculate total margin based on unit type
   let estimatedTotalUnits = numDays;
   let totalMargin = 0;
@@ -5363,15 +5377,9 @@ function createPlacementEvent(status) {
   if(placementWorkflow.unitType === 'hourly') {
     const totalShifts = dayShiftCount + nightShiftCount;
     estimatedTotalUnits = placementWorkflow.hoursPerShift * totalShifts;
-    totalMargin = placementWorkflow.marginPerUnit * estimatedTotalUnits;
+    const weightedMarginPerUnit = (dayShiftCount * dayMarginPerUnit + nightShiftCount * nightMarginPerUnit) / totalShifts;
+    totalMargin = weightedMarginPerUnit * estimatedTotalUnits;
   } else {
-    const dayMarginPerUnit = placementWorkflow.agencyFeePercent > 0
-      ? (placementWorkflow.standardRate * placementWorkflow.agencyFeePercent) / 100
-      : placementWorkflow.marginPerUnit;
-    const nightMarginPerUnit = placementWorkflow.agencyFeePercent > 0
-      ? (placementWorkflow.nightRate * placementWorkflow.agencyFeePercent) / 100
-      : placementWorkflow.marginPerUnit;
-
     totalMargin = (dayShiftCount * dayMarginPerUnit) + (nightShiftCount * nightMarginPerUnit);
   }
 
@@ -5389,7 +5397,9 @@ Standard Rate: $${placementWorkflow.standardRate}/${placementWorkflow.unitType =
 ${placementWorkflow.nightRate ? `Night Rate: $${placementWorkflow.nightRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
 ${placementWorkflow.overtimeRate ? `Overtime Rate: $${placementWorkflow.overtimeRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
 Agency Fee: ${placementWorkflow.agencyFeePercent}%
-Margin Per Unit: $${placementWorkflow.marginPerUnit}
+Day Margin/Unit: $${dayMarginPerUnit.toFixed(2)}
+${placementWorkflow.nightRate ? `Night Margin/Unit: $${nightMarginPerUnit.toFixed(2)}` : ''}
+${placementWorkflow.overtimeRate ? `Overtime Margin/Unit: $${overtimeMarginPerUnit.toFixed(2)}` : ''}
 Total Margin: $${totalMargin.toFixed(2)}
 `.trim();
 
@@ -5419,7 +5429,9 @@ Total Margin: $${totalMargin.toFixed(2)}
       overtime_rate: placementWorkflow.overtimeRate,
       hours_per_shift: placementWorkflow.hoursPerShift,
       agency_fee_percent: placementWorkflow.agencyFeePercent,
-      margin_per_unit: placementWorkflow.marginPerUnit,
+      day_margin_per_unit: dayMarginPerUnit,
+      night_margin_per_unit: nightMarginPerUnit,
+      overtime_margin_per_unit: overtimeMarginPerUnit,
       estimated_total_units: estimatedTotalUnits,
       units_per_week: parseFloat(unitsPerWeek),
       total_estimated_margin: totalMargin
