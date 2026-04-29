@@ -2109,6 +2109,14 @@ function deleteSelectedEvents(){
   // Remove the events
   events = events.filter(e => !eventsToDelete.includes(e));
   saveEvents(events);
+
+  // Sync to Firebase
+  if(firebase_user && firebase_db) {
+    firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).catch(err => {
+      console.error("Firebase sync error after delete:", err);
+    });
+  }
+
   renderDoctorList();
   renderCalendar();
   calendar.unselect();
@@ -2942,6 +2950,13 @@ function clearAllAvailability(doctorId){
 
   saveEvents(events);
 
+  // Sync to Firebase
+  if(firebase_user && firebase_db) {
+    firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).catch(err => {
+      console.error("Firebase sync error after clear availability:", err);
+    });
+  }
+
   renderDoctorList();
   renderHeader();
   renderCalendar();
@@ -3465,6 +3480,14 @@ function openEventEditor(payload){
       pushUndo("Delete block");
       events = events.filter(e => e.id !== payload.id);
       saveEvents(events);
+
+      // Sync to Firebase
+      if(firebase_user && firebase_db) {
+        firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).catch(err => {
+          console.error("Firebase sync error after delete:", err);
+        });
+      }
+
       closeModal();
       renderDoctorList();
       renderCalendar();
@@ -3827,7 +3850,19 @@ function openDoctorEditor(existing){
         const id = String(existing.ahpra_id);
         doctors = doctors.filter(d=>String(d.ahpra_id)!==id);
         events = events.filter(e=>String(e.ahpra_id)!==id);
-        saveDoctors(doctors); saveEvents(events);
+        saveDoctors(doctors);
+        saveEvents(events);
+
+        // Sync to Firebase
+        if(firebase_user && firebase_db) {
+          Promise.all([
+            firebase_db.ref(`users/${firebase_user.uid}/doctors`).set(doctors),
+            firebase_db.ref(`users/${firebase_user.uid}/events`).set(events)
+          ]).catch(err => {
+            console.error("Firebase sync error after delete:", err);
+          });
+        }
+
         if(String(selectedDoctorId)===id) selectedDoctorId = null;
         closeModal();
         renderDoctorList();
