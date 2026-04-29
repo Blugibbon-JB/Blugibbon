@@ -3282,7 +3282,7 @@ function openEventEditor(payload){
     </div>
     <div class="field full">
       <label>Where / working location (optional)</label>
-      <input id="evLocation" value="" placeholder="e.g., Port Hedland Hospital, Perth Clinic" />
+      <input id="evLocation" value="${esc(defaultLocation)}" placeholder="e.g., Port Hedland Hospital, Perth Clinic" />
       <div class="hint" style="margin-top:4px; font-size:11px;">Free text location where the doctor will be working.</div>
     </div>
     <div class="field full">
@@ -3339,8 +3339,10 @@ function openEventEditor(payload){
   // Set site dropdown value if editing
   const evSiteEl = document.getElementById("evSite");
   if(evSiteEl){
-    if(mode === "edit" && payload.site_id){
-      evSiteEl.value = payload.site_id;
+    if(mode === "edit"){
+      // Check both regular site_id and placement_data.site_id
+      const siteId = payload.site_id || (payload.placement_data?.site_id);
+      evSiteEl.value = siteId || "";
     } else {
       evSiteEl.value = "";
     }
