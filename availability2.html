@@ -1084,6 +1084,8 @@ const STATUS = [
   { key:"Available", color:"#2e7d32" },
   { key:"Tentative", color:"#00796b" },
   { key:"Booked",    color:"#1565c0" },
+  { key:"Booking",   color:"#2196F3" },
+  { key:"Booking (Draft)", color:"#90CAF9" },
   { key:"Away",      color:"#757575" },
   { key:"Holiday",   color:"#f9a825" },
   { key:"Sick",      color:"#c62828" },
@@ -3130,11 +3132,6 @@ function renderCalendar(){
   const docById = new Map(doctors.map(x=>[String(x.ahpra_id), x]));
   let shown = showAllDoctors ? events : (d ? events.filter(e => String(e.ahpra_id) === String(d.ahpra_id)) : []);
 
-  // Add placements as calendar events
-  const placementEvents = placementsToCalendarEvents();
-  const shownPlacements = showAllDoctors
-    ? placementEvents
-    : (d ? placementEvents.filter(p => String(p.doctor_id) === String(d.ahpra_id)) : []);
   if(showAllDoctors && upcomingOnly){
     const days = Math.max(1, parseInt(upcomingDays, 10) || 30);
     const now = new Date();
@@ -3190,31 +3187,6 @@ function renderCalendar(){
     });
   }
 
-  // Render placements as blue events
-  for(const p of shownPlacements){
-    const doctorName = docById.get(String(p.doctor_id))?.name || p.doctor_name || "Doctor";
-
-    calendar.addEvent({
-      id: `placement_${p.placement_id}`,
-      title: (showAllDoctors
-        ? `${doctorName}: ${p.title} - ${p.site_name}`
-        : `${p.title} - ${p.site_name}`
-      ),
-      start: p.start,
-      end: p.end,
-      backgroundColor: "#2196F3",
-      borderColor: "#1976D2",
-      textColor: "#fff",
-      extendedProps: {
-        status: p.status,
-        notes: p.notes,
-        location: p.site_name,
-        doctor_name: doctorName,
-        sync_status: p.sync_status,
-        clickup_task_id: p.clickup_task_id
-      }
-    });
-  }
 }
 
 function openEventEditor(payload){
@@ -5322,12 +5294,18 @@ function savePlacementAsDraft() {
     return;
   }
 
-  const placement = createPlacementObject('draft');
+  const placementEvent = createPlacementEvent('draft');
 
-  // Save to placements collection in Firebase
-  const placementsRef = firebase_db.ref(`users/${firebase_user.uid}/placements`);
-  const newPlacementRef = placementsRef.push();
-  newPlacementRef.set(placement);
+  // Add to events array
+  events.push(placementEvent);
+  saveEvents(events);
+
+  // Sync to Firebase
+  if(firebase_user && firebase_db) {
+    firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).catch(err => {
+      console.error("Firebase sync error:", err);
+    });
+  }
 
   statusChip.textContent = `✓ Placement saved as draft (not sent to ClickUp yet)`;
   closeMakePlacementFlow();
@@ -5341,23 +5319,30 @@ function savePlacementAndSendToClickUp() {
     return;
   }
 
-  const placement = createPlacementObject('pending');
+  const placementEvent = createPlacementEvent('pending');
 
-  // Save to placements collection in Firebase
-  const placementsRef = firebase_db.ref(`users/${firebase_user.uid}/placements`);
-  const newPlacementRef = placementsRef.push();
-  placement.id = newPlacementRef.key;
+  // Add to events array
+  events.push(placementEvent);
+  saveEvents(events);
 
-  newPlacementRef.set(placement).then(() => {
-    statusChip.textContent = `✓ Placement created! Ready to send to ClickUp (webhook pending)`;
+  // Sync to Firebase
+  if(firebase_user && firebase_db) {
+    firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).then(() => {
+      statusChip.textContent = `✓ Placement created! Ready to send to ClickUp (webhook pending)`;
+      closeMakePlacementFlow();
+      renderCalendar();
+    }).catch(err => {
+      statusChip.textContent = `✗ Error saving placement: ${err.message}`;
+      console.error("Firebase sync error:", err);
+    });
+  } else {
+    statusChip.textContent = `✓ Placement created!`;
     closeMakePlacementFlow();
     renderCalendar();
-  }).catch(err => {
-    statusChip.textContent = `✗ Error saving placement: ${err.message}`;
-  });
+  }
 }
 
-function createPlacementObject(status) {
+function createPlacementEvent(status) {
   const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
   const startDate = selectedArray[0];
   const endDate = selectedArray[selectedArray.length - 1];
@@ -5392,30 +5377,54 @@ function createPlacementObject(status) {
 
   const unitsPerWeek = (estimatedTotalUnits / weeks).toFixed(1);
 
+  // Create end date (exclusive, so add 1 day)
+  const endDateExclusive = new Date(endDate);
+  endDateExclusive.setUTCDate(endDateExclusive.getUTCDate() + 1);
+  const endDateExclusiveISO = endDateExclusive.toISOString().slice(0, 10);
+
+  const notes = `
+Site: ${placementWorkflow.selectedSite.name}
+Day Shifts: ${dayShiftCount} | Night Shifts: ${nightShiftCount}
+Standard Rate: $${placementWorkflow.standardRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}
+${placementWorkflow.nightRate ? `Night Rate: $${placementWorkflow.nightRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
+${placementWorkflow.overtimeRate ? `Overtime Rate: $${placementWorkflow.overtimeRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
+Agency Fee: ${placementWorkflow.agencyFeePercent}%
+Margin Per Unit: $${placementWorkflow.marginPerUnit}
+Total Margin: $${totalMargin.toFixed(2)}
+`.trim();
+
   return {
     id: uid(),
-    doctor_id: placementWorkflow.selectedDoctor.ahpra_id,
-    doctor_name: placementWorkflow.selectedDoctor.name,
-    site_id: placementWorkflow.selectedSite.id,
-    site_name: placementWorkflow.selectedSite.name,
-    start_date: startDate,
-    end_date: endDate,
-    selected_days: selectedArray,
-    day_shifts: placementWorkflow.selectedDays,
-    day_shift_count: dayShiftCount,
-    night_shift_count: nightShiftCount,
-    unit_type: placementWorkflow.unitType,
-    standard_rate: placementWorkflow.standardRate,
-    night_rate: placementWorkflow.nightRate,
-    overtime_rate: placementWorkflow.overtimeRate,
-    hours_per_shift: placementWorkflow.hoursPerShift,
-    agency_fee_percent: placementWorkflow.agencyFeePercent,
-    margin_per_unit: placementWorkflow.marginPerUnit,
-    estimated_total_units: estimatedTotalUnits,
-    units_per_week: parseFloat(unitsPerWeek),
-    total_estimated_margin: totalMargin,
-    status: status,
-    sync_status: 'pending',
+    ahpra_id: placementWorkflow.selectedDoctor.ahpra_id,
+    status: status === 'draft' ? 'Booking (Draft)' : 'Booking',
+    title: `Placement - ${placementWorkflow.selectedSite.name}`,
+    location: placementWorkflow.selectedSite.name,
+    notes: notes,
+    start: startDate,
+    end: endDateExclusiveISO,
+    source: 'placement',
+    type: 'placement',
+    placement_data: {
+      doctor_id: placementWorkflow.selectedDoctor.ahpra_id,
+      doctor_name: placementWorkflow.selectedDoctor.name,
+      site_id: placementWorkflow.selectedSite.id,
+      site_name: placementWorkflow.selectedSite.name,
+      selected_days: selectedArray,
+      day_shifts: placementWorkflow.selectedDays,
+      day_shift_count: dayShiftCount,
+      night_shift_count: nightShiftCount,
+      unit_type: placementWorkflow.unitType,
+      standard_rate: placementWorkflow.standardRate,
+      night_rate: placementWorkflow.nightRate,
+      overtime_rate: placementWorkflow.overtimeRate,
+      hours_per_shift: placementWorkflow.hoursPerShift,
+      agency_fee_percent: placementWorkflow.agencyFeePercent,
+      margin_per_unit: placementWorkflow.marginPerUnit,
+      estimated_total_units: estimatedTotalUnits,
+      units_per_week: parseFloat(unitsPerWeek),
+      total_estimated_margin: totalMargin
+    },
+    placement_status: status,
     clickup_task_id: null,
     created_at: new Date().toISOString(),
     recruiter_uid: firebase_user.uid,
@@ -5441,69 +5450,6 @@ async function loadPlacementsFromFirebase() {
 }
 
 // Convert placements to calendar events
-function placementsToCalendarEvents() {
-  const calendarEvents = [];
-
-  for(const p of placements) {
-    if(!p.selected_days || p.selected_days.length === 0) continue;
-
-    // Group consecutive days into events
-    const days = p.selected_days.sort();
-    let eventStart = days[0];
-    let eventEnd = days[0];
-
-    for(let i = 1; i < days.length; i++) {
-      const prevDate = new Date(eventEnd);
-      const currentDate = new Date(days[i]);
-
-      // If not consecutive, create event and start new one
-      if((currentDate - prevDate) / (1000 * 60 * 60 * 24) > 1) {
-        const endExclusive = new Date(eventEnd);
-        endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
-
-        calendarEvents.push({
-          placement_id: p.id,
-          doctor_id: p.doctor_id,
-          doctor_name: p.doctor_name,
-          site_name: p.site_name,
-          start: eventStart,
-          end: endExclusive.toISOString().slice(0, 10),
-          title: `Booking`,
-          status: 'Booking',
-          notes: formatPlacementNotes(p),
-          sync_status: p.sync_status,
-          clickup_task_id: p.clickup_task_id
-        });
-
-        eventStart = days[i];
-        eventEnd = days[i];
-      } else {
-        eventEnd = days[i];
-      }
-    }
-
-    // Add final event
-    const endExclusive = new Date(eventEnd);
-    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
-
-    calendarEvents.push({
-      placement_id: p.id,
-      doctor_id: p.doctor_id,
-      doctor_name: p.doctor_name,
-      site_name: p.site_name,
-      start: eventStart,
-      end: endExclusive.toISOString().slice(0, 10),
-      title: `Placement`,
-      status: 'Placement',
-      notes: formatPlacementNotes(p),
-      sync_status: p.sync_status,
-      clickup_task_id: p.clickup_task_id
-    });
-  }
-
-  return calendarEvents;
-}
-
 function formatPlacementNotes(placement) {
   const notes = [
     `Site: ${placement.site_name}`,
@@ -5938,6 +5884,25 @@ async function syncFromFirebase() {
     events = cloudEvents;
     placements = Object.values(cloudPlacements);
 
+    // Migrate legacy placements to events if they exist
+    const placementEvents = placements.filter(p => !events.find(e => e.id === p.id));
+    if(placementEvents.length > 0) {
+      events.push(...placementEvents.map(p => ({
+        id: p.id,
+        ahpra_id: p.doctor_id,
+        status: p.status === 'draft' ? 'Booking (Draft)' : 'Booking',
+        title: `Placement - ${p.site_name}`,
+        location: p.site_name,
+        notes: `Site: ${p.site_name}\nRates: $${p.standard_rate}/${p.unit_type}\nMargin: $${p.total_estimated_margin || 0}`,
+        start: p.start_date,
+        end: p.end_date,
+        source: 'placement',
+        type: 'placement',
+        placement_data: p,
+        created_at: p.created_at
+      })));
+    }
+
     saveDoctors(doctors);
     saveEvents(events);
 
@@ -5946,7 +5911,9 @@ async function syncFromFirebase() {
     renderCalendar();
     updateSyncIndicator("synced");
 
-    console.log(`Synced: ${doctors.length} doctors, ${events.length} events, ${placements.length} placements`);
+    const eventCount = events.filter(e => e.type !== 'placement').length;
+    const placementCount = events.filter(e => e.type === 'placement').length;
+    console.log(`Synced: ${doctors.length} doctors, ${eventCount} events, ${placementCount} placements`);
   } catch(err) {
     console.error("Sync from Firebase failed:", err);
     updateSyncIndicator("error");
