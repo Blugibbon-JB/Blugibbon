@@ -490,6 +490,8 @@
     <button id="manageSitesBtn">Manage Sites</button>
     <button id="uploadTimesheetsBtn">Import Timesheets CSV</button>
     <input type="file" id="timesheetsCsvFile" accept=".csv" style="display:none" />
+    <button id="uploadPlacementsBtn">Import Placements CSV</button>
+    <input type="file" id="placementsCsvFile" accept=".csv" style="display:none" />
     <input type="file" id="csvFile" accept=".csv" style="display:none" />
 <button id="uploadBtn" style="display:none">Choose availability CSV</button>
 
@@ -3820,6 +3822,7 @@ function parseClickUpDoctorsCSV(text){
       level: level,
       pgy: pgy,
       tags: tags,
+      task_id: taskId,
       clickup_url: buildClickUpUrl(taskId)
     });
   }
@@ -4034,6 +4037,7 @@ if(uploadClickUpBtn && clickupCsvFile){
             pgy: d.pgy,
             level: d.level || "Senior",
             tags: d.tags || [],
+            task_id: d.task_id,
             clickup_url: d.clickup_url
           });
         } else {
@@ -4046,6 +4050,7 @@ if(uploadClickUpBtn && clickupCsvFile){
             const set = new Set([...(ex.tags||[]), ...d.tags]);
             ex.tags = Array.from(set);
           }
+          if(d.task_id) ex.task_id = d.task_id;
           if(d.clickup_url) ex.clickup_url = d.clickup_url;
         }
       }
@@ -4432,6 +4437,254 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
       statusChip.textContent = "Timesheets import failed: " + (err && err.message ? err.message : String(err));
     } finally {
       timesheetsCsvFile.value = "";
+    }
+  });
+}
+
+// ===== PLACEMENTS CSV PARSING =====
+function parsePlacementsCSV(text){
+  // Parse placements CSV with columns:
+  // BG Team Mate, Placement x BG Active Doctor (task IDs), Start Date, Due Date,
+  // Margin Per Unit, Total Estimated Units, Total Placement Estimated Margin $,
+  // Pay Inc Super, Pay Exc Super, Site Name
+
+  const lines = String(text||"")
+    .replace(/\r\n/g,"\n")
+    .replace(/\r/g,"\n")
+    .split("\n")
+    .filter(l => l.trim().length);
+
+  if(lines.length < 2) return [];
+
+  const header = splitCSVLine(lines[0]).map(h => String(h||"").trim());
+  const headerLower = header.map(h => h.toLowerCase());
+
+  const col = (...names) => {
+    for(const n of names){
+      const idx = headerLower.findIndex(h => h === String(n).toLowerCase());
+      if(idx >= 0) return idx;
+    }
+    return -1;
+  };
+
+  // Find columns - using flexible matching
+  const iTeamMate = col("bg team mate (drop down)", "bg team mate");
+  const iDoctorList = col("placement x bg active doctor (list relationship)", "placement x bg active doctor");
+  const iStart = col("start date");
+  const iEnd = col("due date");
+  const iSite = col("site name (short text)", "site name");
+  const iMargin = col("margin per unit (currency)", "margin per unit");
+  const iTotalUnits = col("total estimated units  (number)", "total estimated units");
+  const iTotalMargin = col("total placement estimated margin $ (formula)", "total placement estimated margin");
+  const iPayIncSuper = col("pay inc super (per unit) (currency)", "pay inc super");
+  const iPayExcSuper = col("pay exc super (per unit) (currency)", "pay exc super");
+
+  if(iDoctorList < 0 || iStart < 0 || iEnd < 0 || iSite < 0){
+    const missing = [];
+    if(iDoctorList < 0) missing.push("Placement x BG Active Doctor");
+    if(iStart < 0) missing.push("Start Date");
+    if(iEnd < 0) missing.push("Due Date");
+    if(iSite < 0) missing.push("Site Name");
+    throw new Error(`Placements CSV missing required columns: ${missing.join(", ")}. Found columns: ${header.join(", ")}`);
+  }
+
+  const out = [];
+  for(let li=1; li<lines.length; li++){
+    const row = splitCSVLine(lines[li]);
+    if(row.length < Math.max(iEnd, iStart, iSite, iDoctorList) + 1) continue;
+
+    const siteName = String(row[iSite]||"").trim().replace(/\s+/g, " ");
+    if(!siteName) continue;
+
+    // Parse start and end dates using ClickUp long date format
+    const dStart = parseClickUpLongDate(row[iStart]);
+    const dEnd = parseClickUpLongDate(row[iEnd]);
+    if(!dStart || !dEnd) continue;
+
+    const startISO = dStart.toISOString().slice(0,10);
+    const endISO = dEnd.toISOString().slice(0,10);
+    const endExISO = addDaysISO(endISO, 1); // make end exclusive
+
+    // Extract task IDs from bracket format: [86czb624e]
+    const doctorListStr = String(row[iDoctorList]||"").trim();
+    const taskIds = [];
+    const taskIdRegex = /\[([a-z0-9]+)\]/gi;
+    let match;
+    while((match = taskIdRegex.exec(doctorListStr)) !== null) {
+      taskIds.push(match[1].toLowerCase());
+    }
+
+    if(!taskIds.length) continue;
+
+    // Collect financial data for notes
+    const notesLines = [];
+    const financial = [
+      { name: "Margin Per Unit", val: row[iMargin] },
+      { name: "Total Estimated Units", val: row[iTotalUnits] },
+      { name: "Total Placement Estimated Margin", val: row[iTotalMargin] },
+      { name: "Pay Inc Super (per unit)", val: row[iPayIncSuper] },
+      { name: "Pay Exc Super (per unit)", val: row[iPayExcSuper] }
+    ];
+
+    for(const item of financial) {
+      const val = String(item.val||"").trim();
+      if(val) {
+        notesLines.push(`${item.name}: ${val}`);
+      }
+    }
+
+    out.push({
+      taskIds, siteName, startISO, endExISO,
+      notes: notesLines.join("\n"),
+      rawRow: row, header, lineNum: li + 1
+    });
+  }
+  return out;
+}
+
+const uploadPlacementsBtn = document.getElementById("uploadPlacementsBtn");
+const placementsCsvFile = document.getElementById("placementsCsvFile");
+
+if(uploadPlacementsBtn && placementsCsvFile){
+  uploadPlacementsBtn.addEventListener("click", ()=>placementsCsvFile.click());
+
+  placementsCsvFile.addEventListener("change", async (ev)=>{
+    const file = ev.target.files && ev.target.files[0];
+    if(!file) return;
+
+    const text = await file.text();
+
+    try{
+      const rows = parsePlacementsCSV(text);
+      if(!rows.length){
+        statusChip.textContent = "No valid placement rows found";
+        return;
+      }
+
+      pushUndo("Import placements");
+
+      // Build a map of taskId -> doctor for faster lookup
+      const taskIdToDoctorMap = new Map();
+      for(const doc of doctors) {
+        // Use task_id field directly if available (from ClickUp import)
+        if(doc.task_id) {
+          const taskId = String(doc.task_id).toLowerCase();
+          taskIdToDoctorMap.set(taskId, doc);
+        }
+        // Fallback: extract task ID from clickup_url if no task_id field
+        if(doc.clickup_url && !doc.task_id) {
+          const match = doc.clickup_url.match(/t\/([a-z0-9]+)/i);
+          if(match) {
+            const taskId = match[1].toLowerCase();
+            taskIdToDoctorMap.set(taskId, doc);
+          }
+        }
+      }
+
+      let imported = 0;
+      let duplicates = 0;
+      const errors = [];
+      const seen = new Set();
+
+      for(const r of rows){
+        // Match first task ID to doctor
+        let matchedDoc = null;
+        let matchedTaskId = null;
+
+        for(const taskId of r.taskIds) {
+          if(taskIdToDoctorMap.has(taskId)) {
+            matchedDoc = taskIdToDoctorMap.get(taskId);
+            matchedTaskId = taskId;
+            break;
+          }
+        }
+
+        if(!matchedDoc) {
+          const taskIdStr = r.taskIds.join(", ");
+          errors.push(`Row ${r.lineNum}: No doctor found for task IDs [${taskIdStr}] at ${r.siteName}`);
+          continue;
+        }
+
+        // Deduplication key: start | end | location | doctor
+        const dedupeKey = `${r.startISO}|${r.endExISO}|${r.siteName}|${matchedDoc.ahpra_id}`;
+
+        if(seen.has(dedupeKey)){
+          duplicates++;
+          console.log(`Skip duplicate in placement import: ${dedupeKey}`);
+          continue;
+        }
+        seen.add(dedupeKey);
+
+        // Check if event already exists at this site and dates
+        const existingIdx = events.findIndex(e =>
+          e.start === r.startISO &&
+          e.end === r.endExISO &&
+          e.location === r.siteName &&
+          String(e.ahpra_id) === String(matchedDoc.ahpra_id)
+        );
+
+        // Create event
+        const rec = {
+          id: existingIdx >= 0 ? events[existingIdx].id : uid(),
+          ahpra_id: String(matchedDoc.ahpra_id),
+          status: "Booked",
+          title: "Placement",
+          location: r.siteName,
+          notes: r.notes,
+          start: r.startISO,
+          end: r.endExISO,
+          source: "placements"
+        };
+
+        if(existingIdx >= 0){
+          console.log(`Overwriting placement: ${matchedDoc.name} ${r.siteName} ${r.startISO}-${r.endExISO}`);
+          events[existingIdx] = rec;
+          duplicates++;
+        } else {
+          console.log(`Creating new placement: ${matchedDoc.name} ${r.siteName} ${r.startISO}-${r.endExISO}`);
+          events.push(rec);
+        }
+        imported++;
+      }
+
+      // Cleanup: Remove any duplicate events (by start, end, location, ahpra_id)
+      const eventKeysToKeep = new Set();
+      const cleanedEvents = [];
+      let cleanupCount = 0;
+      for(const e of events){
+        const key = `${e.start}|${e.end}|${e.location}|${e.ahpra_id}`;
+        if(!eventKeysToKeep.has(key)){
+          eventKeysToKeep.add(key);
+          cleanedEvents.push(e);
+        } else {
+          console.log(`Cleanup: Removing duplicate ${e.ahpra_id} ${e.location} ${e.start}-${e.end}`);
+          cleanupCount++;
+          duplicates++;
+        }
+      }
+
+      events = cleanedEvents;
+
+      saveEvents(events);
+      renderDoctorList();
+      renderHeader();
+      renderCalendar();
+      updateUndoButton();
+
+      let msg = `Placements: ${imported} imported`;
+      if(duplicates > 0) msg += ` (${duplicates} duplicates skipped)`;
+      if(errors.length > 0) {
+        msg += `, ${errors.length} errors:\n` + errors.slice(0, 5).join("\n");
+        if(errors.length > 5) msg += `\n... and ${errors.length - 5} more`;
+      }
+
+      statusChip.textContent = msg;
+
+    }catch(err){
+      console.error(err);
+      statusChip.textContent = "Placements import failed: " + (err && err.message ? err.message : String(err));
+    } finally {
+      placementsCsvFile.value = "";
     }
   });
 }
