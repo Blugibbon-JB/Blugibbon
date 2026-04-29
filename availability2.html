@@ -5945,10 +5945,12 @@ async function syncToFirebase() {
     const uid = firebase_user.uid;
     const doctorsRef = firebase_db.ref(`users/${uid}/doctors`);
     const eventsRef = firebase_db.ref(`users/${uid}/events`);
+    const placementsRef = firebase_db.ref(`users/${uid}/placements`);
 
     await Promise.all([
       doctorsRef.set(doctors),
-      eventsRef.set(events)
+      eventsRef.set(events),
+      placementsRef.remove() // Remove old placements collection - now using events
     ]);
 
     updateSyncIndicator("synced");
@@ -5967,36 +5969,15 @@ async function syncFromFirebase() {
     const uid = firebase_user.uid;
     const snapshot = await Promise.all([
       firebase_db.ref(`users/${uid}/doctors`).get(),
-      firebase_db.ref(`users/${uid}/events`).get(),
-      firebase_db.ref(`users/${uid}/placements`).get()
+      firebase_db.ref(`users/${uid}/events`).get()
     ]);
 
     const cloudDoctors = snapshot[0].val() || [];
     const cloudEvents = snapshot[1].val() || [];
-    const cloudPlacements = snapshot[2].val() || {};
 
     doctors = cloudDoctors;
     events = cloudEvents;
-    placements = Object.values(cloudPlacements);
-
-    // Migrate legacy placements to events if they exist
-    const placementEvents = placements.filter(p => !events.find(e => e.id === p.id));
-    if(placementEvents.length > 0) {
-      events.push(...placementEvents.map(p => ({
-        id: p.id,
-        ahpra_id: p.doctor_id,
-        status: p.status === 'draft' ? 'Booking (Draft)' : 'Booking',
-        title: `Placement - ${p.site_name}`,
-        location: p.site_name,
-        notes: `Site: ${p.site_name}\nRates: $${p.standard_rate}/${p.unit_type}\nMargin: $${p.total_estimated_margin || 0}`,
-        start: p.start_date,
-        end: p.end_date,
-        source: 'placement',
-        type: 'placement',
-        placement_data: p,
-        created_at: p.created_at
-      })));
-    }
+    placements = []; // Clear old placements - they're now in events
 
     saveDoctors(doctors);
     saveEvents(events);
