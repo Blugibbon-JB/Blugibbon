@@ -2112,16 +2112,31 @@ function deleteSelectedEvents(){
 
   // Sync to Firebase
   if(firebase_user && firebase_db) {
-    firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).catch(err => {
-      console.error("Firebase sync error after delete:", err);
-    });
+    firebase_db.ref(`users/${firebase_user.uid}/events`).set(events)
+      .then(() => {
+        console.log("Batch deletion synced to Firebase successfully");
+        renderDoctorList();
+        renderCalendar();
+        calendar.unselect();
+        lastSelection = null;
+        updateActionButtons();
+      })
+      .catch(err => {
+        console.error("Firebase sync error after delete:", err);
+        statusChip.textContent = "Warning: Could not sync deletion to Firebase";
+        renderDoctorList();
+        renderCalendar();
+        calendar.unselect();
+        lastSelection = null;
+        updateActionButtons();
+      });
+  } else {
+    renderDoctorList();
+    renderCalendar();
+    calendar.unselect();
+    lastSelection = null;
+    updateActionButtons();
   }
-
-  renderDoctorList();
-  renderCalendar();
-  calendar.unselect();
-  lastSelection = null;
-  updateActionButtons();
 
   try{
     const s = formatDateAU(selStart);
@@ -2952,18 +2967,31 @@ function clearAllAvailability(doctorId){
 
   // Sync to Firebase
   if(firebase_user && firebase_db) {
-    firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).catch(err => {
-      console.error("Firebase sync error after clear availability:", err);
-    });
+    firebase_db.ref(`users/${firebase_user.uid}/events`).set(events)
+      .then(() => {
+        console.log("Cleared availability synced to Firebase successfully");
+        renderDoctorList();
+        renderHeader();
+        renderCalendar();
+        if(viewMode==="heatmap") renderHeatmap();
+        if(viewMode==="strips") renderStrips();
+        statusChip.textContent = removed ? "Availability cleared (bookings kept)" : "No availability blocks to clear (bookings kept)";
+      })
+      .catch(err => {
+        console.error("Firebase sync error after clear availability:", err);
+        statusChip.textContent = "Warning: Could not sync cleared availability to Firebase";
+        renderDoctorList();
+        renderHeader();
+        renderCalendar();
+      });
+  } else {
+    renderDoctorList();
+    renderHeader();
+    renderCalendar();
+    if(viewMode==="heatmap") renderHeatmap();
+    if(viewMode==="strips") renderStrips();
+    statusChip.textContent = removed ? "Availability cleared (bookings kept)" : "No availability blocks to clear (bookings kept)";
   }
-
-  renderDoctorList();
-  renderHeader();
-  renderCalendar();
-  if(viewMode==="heatmap") renderHeatmap();
-  if(viewMode==="strips") renderStrips();
-
-  statusChip.textContent = removed ? "Availability cleared (bookings kept)" : "No availability blocks to clear (bookings kept)";
 }
 
 
@@ -3476,16 +3504,20 @@ function openEventEditor(payload){
 
 
   if(mode === "edit"){
-    document.getElementById("deleteBtn").addEventListener("click", ()=>{
+    document.getElementById("deleteBtn").addEventListener("click", async ()=>{
       pushUndo("Delete block");
       events = events.filter(e => e.id !== payload.id);
       saveEvents(events);
 
-      // Sync to Firebase
+      // Sync to Firebase and wait for completion
       if(firebase_user && firebase_db) {
-        firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).catch(err => {
+        try {
+          await firebase_db.ref(`users/${firebase_user.uid}/events`).set(events);
+          console.log("Deletion synced to Firebase successfully");
+        } catch(err) {
           console.error("Firebase sync error after delete:", err);
-        });
+          statusChip.textContent = "Warning: Could not sync deletion to Firebase";
+        }
       }
 
       closeModal();
@@ -3858,17 +3890,33 @@ function openDoctorEditor(existing){
           Promise.all([
             firebase_db.ref(`users/${firebase_user.uid}/doctors`).set(doctors),
             firebase_db.ref(`users/${firebase_user.uid}/events`).set(events)
-          ]).catch(err => {
-            console.error("Firebase sync error after delete:", err);
-          });
+          ])
+            .then(() => {
+              console.log("Doctor and events synced to Firebase successfully");
+              if(String(selectedDoctorId)===id) selectedDoctorId = null;
+              closeModal();
+              renderDoctorList();
+              renderHeader();
+              renderCalendar();
+              statusChip.textContent = "Doctor deleted";
+            })
+            .catch(err => {
+              console.error("Firebase sync error after delete:", err);
+              statusChip.textContent = "Warning: Could not sync doctor deletion to Firebase";
+              if(String(selectedDoctorId)===id) selectedDoctorId = null;
+              closeModal();
+              renderDoctorList();
+              renderHeader();
+              renderCalendar();
+            });
+        } else {
+          if(String(selectedDoctorId)===id) selectedDoctorId = null;
+          closeModal();
+          renderDoctorList();
+          renderHeader();
+          renderCalendar();
+          statusChip.textContent = "Doctor deleted";
         }
-
-        if(String(selectedDoctorId)===id) selectedDoctorId = null;
-        closeModal();
-        renderDoctorList();
-        renderHeader();
-        renderCalendar();
-        statusChip.textContent = "Doctor deleted";
       }
     } catch(err) {
       console.error("Error in doctor modal action:", err);
