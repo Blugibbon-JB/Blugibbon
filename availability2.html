@@ -702,14 +702,16 @@
     <div class="modalBody">
       <div class="field full">
         <label>Doctor</label>
-        <select id="placementDoctor" required>
+        <input type="text" id="placementDoctorSearch" placeholder="Search doctors by name..." />
+        <select id="placementDoctor" required style="margin-top: 8px;">
           <option value="">Select a doctor...</option>
         </select>
       </div>
 
       <div class="field full">
         <label>Site</label>
-        <select id="placementSite" required>
+        <input type="text" id="placementSiteSearch" placeholder="Search sites by name..." />
+        <select id="placementSite" required style="margin-top: 8px;">
           <option value="">Select a site...</option>
         </select>
         <div style="font-size:12px; color:#666; margin-top:4px;">💡 Need a new site? Contact management</div>
@@ -733,10 +735,15 @@
     <div class="modalBody">
       <div class="field full">
         <label>Unit Type</label>
-        <select id="unitType" required>
+        <select id="unitType" required onchange="toggleHoursPerShift()">
           <option value="hourly">Hourly</option>
           <option value="daily">Daily</option>
         </select>
+      </div>
+
+      <div class="field" id="hoursPerShiftField" style="display:none;">
+        <label>Hours Per Shift</label>
+        <input type="number" id="hoursPerShift" placeholder="8" value="8" min="1" />
       </div>
 
       <div class="field">
@@ -785,6 +792,22 @@
         margin-bottom: 16px;
       "></div>
 
+      <!-- Shift Type Selector -->
+      <div style="margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-radius: 8px;">
+        <label style="font-weight: 600; display: block; margin-bottom: 8px;">Default Shift Type</label>
+        <div style="display: flex; gap: 12px;">
+          <label style="display: flex; align-items: center; gap: 6px;">
+            <input type="radio" name="defaultShiftType" value="day" checked onchange="updateDefaultShiftType('day')" />
+            Day Shift
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px;">
+            <input type="radio" name="defaultShiftType" value="night" onchange="updateDefaultShiftType('night')" />
+            Night Shift
+          </label>
+        </div>
+        <div style="font-size: 11px; color: #666; margin-top: 6px;">💡 Tip: Click days to toggle shift type</div>
+      </div>
+
       <!-- Controls -->
       <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
         <button onclick="selectAllDaysInMonth()" style="padding: 6px 12px; font-size: 12px;">Select All This Month</button>
@@ -796,6 +819,7 @@
       <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
         <div>Selected Days: <strong id="selectedDayCount">0</strong></div>
         <div>Date Range: <strong id="selectedDateRange">None</strong></div>
+        <div>Day Shifts: <strong id="dayShiftCount">0</strong> | Night Shifts: <strong id="nightShiftCount">0</strong></div>
       </div>
     </div>
 
@@ -828,31 +852,24 @@
 
       <div class="field full">
         <label>Margin Per Unit ($)</label>
-        <input type="number" id="marginPerUnit" placeholder="50" step="0.01" required />
-      </div>
-
-      <div class="field full">
-        <label>Pay Inc Super (per unit) ($)</label>
-        <input type="number" id="payIncSuper" placeholder="100" step="0.01" />
-      </div>
-
-      <div class="field full">
-        <label>Pay Exc Super (per unit) ($)</label>
-        <input type="number" id="payExcSuper" placeholder="90" step="0.01" />
+        <input type="number" id="marginPerUnit" placeholder="50" step="0.01" required onchange="calculatePlacementMargin()" />
       </div>
 
       <!-- Auto-calculated fields -->
       <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; margin-top: 16px;">
-        <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px;">Auto-Calculated</div>
-        <div>Estimated Total Units: <strong id="estimatedTotalUnits">0</strong></div>
-        <div>Units Per Week: <strong id="unitsPerWeek">0</strong></div>
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px;">Calculated Summary</div>
+        <div>Total Day Shifts: <strong id="totalDayShifts">0</strong></div>
+        <div>Total Night Shifts: <strong id="totalNightShifts">0</strong></div>
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1);">
+          <div style="font-size: 13px; font-weight: 600;">Total Estimated Placement Margin: <strong style="color: #2e7d32; font-size: 16px;">$<span id="totalPlacementMargin">0</span></strong></div>
+        </div>
       </div>
     </div>
 
     <div class="modalFooter">
       <button onclick="backToDaySelection()">Back</button>
-      <button style="background: #FFA500; color: #fff; border: none; padding: 8px 16px; cursor: pointer; border-radius: 6px;" onclick="savePlacementAsDraft()">Save as Draft</button>
-      <button class="primary" onclick="savePlacementAndSendToClickUp()">Create & Send to ClickUp</button>
+      <button style="background: #FF9800; color: #fff; border: none; padding: 8px 16px; cursor: pointer; border-radius: 6px;" onclick="savePlacementAsDraft()">Save</button>
+      <button class="primary" onclick="savePlacementAndSendToClickUp()">Save & Send to ClickUp</button>
     </div>
   </div>
 </div>
@@ -4898,11 +4915,10 @@ let placementWorkflow = {
   standardRate: 0,
   nightRate: 0,
   overtimeRate: 0,
-  selectedDays: new Set(),
+  selectedDays: {},
   currentMonth: new Date().getUTCFullYear() + '-' + String(new Date().getUTCMonth() + 1).padStart(2, '0'),
   marginPerUnit: 0,
-  payIncSuper: 0,
-  payExcSuper: 0
+  defaultShiftType: 'day'
 };
 
 const makePlacementBtn = document.getElementById('makePlacementBtn');
@@ -4913,7 +4929,8 @@ if(makePlacementBtn) {
 function openMakePlacementFlow() {
   placementWorkflow.selectedDoctor = null;
   placementWorkflow.selectedSite = null;
-  placementWorkflow.selectedDays.clear();
+  placementWorkflow.selectedDays = {}; // Track shift type per day: { "YYYY-MM-DD": "day" | "night" }
+  placementWorkflow.defaultShiftType = 'day';
 
   // Populate doctor dropdown
   const doctorSelect = document.getElementById('placementDoctor');
@@ -4935,7 +4952,51 @@ function openMakePlacementFlow() {
     siteSelect.appendChild(opt);
   });
 
+  // Add search functionality
+  const doctorSearch = document.getElementById('placementDoctorSearch');
+  const siteSearch = document.getElementById('placementSiteSearch');
+
+  doctorSearch.value = '';
+  siteSearch.value = '';
+
+  doctorSearch.addEventListener('input', () => filterDoctorDropdown(doctorSearch.value));
+  siteSearch.addEventListener('input', () => filterSiteDropdown(siteSearch.value));
+
   document.getElementById('makePlacementBackdrop').style.display = 'flex';
+}
+
+function filterDoctorDropdown(searchTerm) {
+  const doctorSelect = document.getElementById('placementDoctor');
+  const options = doctorSelect.querySelectorAll('option');
+  const searchLower = searchTerm.toLowerCase();
+
+  options.forEach((opt, idx) => {
+    if(idx === 0) return; // Keep placeholder
+    const matches = opt.textContent.toLowerCase().includes(searchLower);
+    opt.style.display = matches ? 'block' : 'none';
+  });
+}
+
+function filterSiteDropdown(searchTerm) {
+  const siteSelect = document.getElementById('placementSite');
+  const options = siteSelect.querySelectorAll('option');
+  const searchLower = searchTerm.toLowerCase();
+
+  options.forEach((opt, idx) => {
+    if(idx === 0) return; // Keep placeholder
+    const matches = opt.textContent.toLowerCase().includes(searchLower);
+    opt.style.display = matches ? 'block' : 'none';
+  });
+}
+
+function toggleHoursPerShift() {
+  const unitType = document.getElementById('unitType').value;
+  const field = document.getElementById('hoursPerShiftField');
+  field.style.display = unitType === 'hourly' ? 'block' : 'none';
+}
+
+function updateDefaultShiftType(type) {
+  placementWorkflow.defaultShiftType = type;
 }
 
 function closeMakePlacementFlow() {
@@ -4977,7 +5038,8 @@ function proceedToDaySelection() {
     return;
   }
 
-  placementWorkflow.selectedDays.clear();
+  placementWorkflow.selectedDays = {};
+  updateDayPickerStats();
   renderDayPicker();
 
   document.getElementById('rateSelectionBackdrop').style.display = 'none';
@@ -5020,36 +5082,54 @@ function renderDayPicker() {
     const dateISO = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const dayBtn = document.createElement('button');
 
-    dayBtn.textContent = day;
+    const isSelected = dateISO in placementWorkflow.selectedDays;
+    const shiftType = placementWorkflow.selectedDays[dateISO] || 'day';
+
     dayBtn.style.cssText = `
-      padding: 12px 4px;
+      padding: 8px 2px;
       border: 2px solid #ddd;
       border-radius: 6px;
       background: white;
       cursor: pointer;
       font-weight: 500;
       transition: all 0.2s;
+      position: relative;
     `;
 
-    if(placementWorkflow.selectedDays.has(dateISO)) {
-      dayBtn.style.background = '#2196F3';
-      dayBtn.style.color = 'white';
-      dayBtn.style.borderColor = '#2196F3';
+    if(isSelected) {
+      if(shiftType === 'night') {
+        dayBtn.style.background = '#1976D2';
+        dayBtn.style.color = 'white';
+        dayBtn.style.borderColor = '#1976D2';
+        dayBtn.innerHTML = `${day}<div style="font-size:8px; line-height:1;">🌙</div>`;
+      } else {
+        dayBtn.style.background = '#4CAF50';
+        dayBtn.style.color = 'white';
+        dayBtn.style.borderColor = '#4CAF50';
+        dayBtn.innerHTML = `${day}<div style="font-size:8px; line-height:1;">☀️</div>`;
+      }
+    } else {
+      dayBtn.textContent = day;
     }
 
     dayBtn.onclick = () => {
-      if(placementWorkflow.selectedDays.has(dateISO)) {
-        placementWorkflow.selectedDays.delete(dateISO);
-        dayBtn.style.background = 'white';
-        dayBtn.style.color = 'black';
-        dayBtn.style.borderColor = '#ddd';
+      if(dateISO in placementWorkflow.selectedDays) {
+        delete placementWorkflow.selectedDays[dateISO];
       } else {
-        placementWorkflow.selectedDays.add(dateISO);
-        dayBtn.style.background = '#2196F3';
-        dayBtn.style.color = 'white';
-        dayBtn.style.borderColor = '#2196F3';
+        placementWorkflow.selectedDays[dateISO] = placementWorkflow.defaultShiftType;
       }
       updateDayPickerStats();
+      renderDayPicker();
+    };
+
+    // Double-click to toggle shift type
+    dayBtn.ondblclick = (e) => {
+      e.stopPropagation();
+      if(dateISO in placementWorkflow.selectedDays) {
+        placementWorkflow.selectedDays[dateISO] = placementWorkflow.selectedDays[dateISO] === 'day' ? 'night' : 'day';
+        updateDayPickerStats();
+        renderDayPicker();
+      }
     };
 
     grid.appendChild(dayBtn);
@@ -5086,14 +5166,14 @@ function selectAllDaysInMonth() {
 
   for(let day = 1; day <= daysInMonth; day++) {
     const dateISO = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    placementWorkflow.selectedDays.add(dateISO);
+    placementWorkflow.selectedDays[dateISO] = placementWorkflow.defaultShiftType;
   }
   renderDayPicker();
   updateDayPickerStats();
 }
 
 function clearAllDays() {
-  placementWorkflow.selectedDays.clear();
+  placementWorkflow.selectedDays = {};
   renderDayPicker();
   updateDayPickerStats();
 }
@@ -5104,10 +5184,10 @@ function invertSelection() {
 
   for(let day = 1; day <= daysInMonth; day++) {
     const dateISO = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    if(placementWorkflow.selectedDays.has(dateISO)) {
-      placementWorkflow.selectedDays.delete(dateISO);
+    if(dateISO in placementWorkflow.selectedDays) {
+      delete placementWorkflow.selectedDays[dateISO];
     } else {
-      placementWorkflow.selectedDays.add(dateISO);
+      placementWorkflow.selectedDays[dateISO] = placementWorkflow.defaultShiftType;
     }
   }
   renderDayPicker();
@@ -5115,8 +5195,13 @@ function invertSelection() {
 }
 
 function updateDayPickerStats() {
-  const selectedArray = Array.from(placementWorkflow.selectedDays).sort();
+  const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
+  const dayShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'day').length;
+  const nightShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'night').length;
+
   document.getElementById('selectedDayCount').textContent = selectedArray.length;
+  document.getElementById('dayShiftCount').textContent = dayShiftCount;
+  document.getElementById('nightShiftCount').textContent = nightShiftCount;
 
   if(selectedArray.length > 0) {
     document.getElementById('selectedDateRange').textContent = `${selectedArray[0]} to ${selectedArray[selectedArray.length - 1]}`;
@@ -5126,26 +5211,19 @@ function updateDayPickerStats() {
 }
 
 function proceedToPlacementDetails() {
-  if(placementWorkflow.selectedDays.size === 0) {
+  const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
+  if(selectedArray.length === 0) {
     alert('Please select at least one working day');
     return;
   }
 
-  const selectedArray = Array.from(placementWorkflow.selectedDays).sort();
   const startDate = selectedArray[0];
   const endDate = selectedArray[selectedArray.length - 1];
   const numDays = selectedArray.length;
 
-  // Calculate weeks
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const daysSpan = (end - start) / (1000 * 60 * 60 * 24) + 1;
-  const weeks = Math.ceil(daysSpan / 7);
-
-  // Estimate units (assume 8 units per day for now)
-  const unitsPerDay = placementWorkflow.unitType === 'hourly' ? 1 : 8;
-  const estimatedTotalUnits = numDays * unitsPerDay;
-  const unitsPerWeek = (estimatedTotalUnits / weeks).toFixed(1);
+  // Count day and night shifts
+  const dayShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'day').length;
+  const nightShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'night').length;
 
   // Generate summary
   const summary = `
@@ -5153,6 +5231,8 @@ function proceedToPlacementDetails() {
     <div><strong>Site:</strong> ${placementWorkflow.selectedSite.name}</div>
     <div><strong>Date Range:</strong> ${startDate} to ${endDate}</div>
     <div><strong>Total Days:</strong> ${numDays}</div>
+    <div><strong>Day Shifts:</strong> ${dayShiftCount}</div>
+    <div><strong>Night Shifts:</strong> ${nightShiftCount}</div>
     <div><strong>Unit Type:</strong> ${placementWorkflow.unitType === 'hourly' ? 'Hourly' : 'Daily'}</div>
     <div><strong>Standard Rate:</strong> $${placementWorkflow.standardRate}</div>
     ${placementWorkflow.nightRate ? `<div><strong>Night Rate:</strong> $${placementWorkflow.nightRate}</div>` : ''}
@@ -5160,8 +5240,10 @@ function proceedToPlacementDetails() {
   `;
 
   document.getElementById('placementSummary').innerHTML = summary;
-  document.getElementById('estimatedTotalUnits').textContent = estimatedTotalUnits;
-  document.getElementById('unitsPerWeek').textContent = unitsPerWeek;
+  document.getElementById('totalDayShifts').textContent = dayShiftCount;
+  document.getElementById('totalNightShifts').textContent = nightShiftCount;
+  document.getElementById('marginPerUnit').value = '';
+  document.getElementById('totalPlacementMargin').textContent = '0';
 
   document.getElementById('dayPickerBackdrop').style.display = 'none';
   document.getElementById('placementDetailsBackdrop').style.display = 'flex';
@@ -5172,8 +5254,26 @@ function backToDaySelection() {
   document.getElementById('dayPickerBackdrop').style.display = 'flex';
 }
 
+function calculatePlacementMargin() {
+  const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
+  if(selectedArray.length === 0) {
+    document.getElementById('totalPlacementMargin').textContent = '0';
+    return;
+  }
+
+  const dayShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'day').length;
+  const nightShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'night').length;
+  const marginPerUnit = parseFloat(document.getElementById('marginPerUnit').value) || 0;
+
+  const standardRate = placementWorkflow.standardRate || 0;
+  const nightRate = placementWorkflow.nightRate || standardRate;
+
+  const totalMargin = (dayShiftCount * standardRate + nightShiftCount * nightRate) * marginPerUnit;
+  document.getElementById('totalPlacementMargin').textContent = totalMargin.toFixed(2);
+}
+
 function savePlacementAsDraft() {
-  const selectedArray = Array.from(placementWorkflow.selectedDays).sort();
+  const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
   if(selectedArray.length === 0) {
     alert('Please select at least one day');
     return;
@@ -5192,7 +5292,7 @@ function savePlacementAsDraft() {
 }
 
 function savePlacementAndSendToClickUp() {
-  const selectedArray = Array.from(placementWorkflow.selectedDays).sort();
+  const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
   if(selectedArray.length === 0) {
     alert('Please select at least one day');
     return;
@@ -5215,7 +5315,7 @@ function savePlacementAndSendToClickUp() {
 }
 
 function createPlacementObject(status) {
-  const selectedArray = Array.from(placementWorkflow.selectedDays).sort();
+  const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
   const startDate = selectedArray[0];
   const endDate = selectedArray[selectedArray.length - 1];
   const numDays = selectedArray.length;
@@ -5230,8 +5330,9 @@ function createPlacementObject(status) {
   const unitsPerWeek = (estimatedTotalUnits / weeks).toFixed(1);
 
   const marginPerUnit = parseFloat(document.getElementById('marginPerUnit').value) || 0;
-  const payIncSuper = parseFloat(document.getElementById('payIncSuper').value) || 0;
-  const payExcSuper = parseFloat(document.getElementById('payExcSuper').value) || 0;
+  const dayShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'day').length;
+  const nightShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'night').length;
+  const totalMargin = (dayShiftCount * placementWorkflow.standardRate + nightShiftCount * (placementWorkflow.nightRate || placementWorkflow.standardRate)) * marginPerUnit;
 
   return {
     id: uid(),
@@ -5242,6 +5343,9 @@ function createPlacementObject(status) {
     start_date: startDate,
     end_date: endDate,
     selected_days: selectedArray,
+    day_shifts: placementWorkflow.selectedDays,
+    day_shift_count: dayShiftCount,
+    night_shift_count: nightShiftCount,
     unit_type: placementWorkflow.unitType,
     standard_rate: placementWorkflow.standardRate,
     night_rate: placementWorkflow.nightRate,
@@ -5249,8 +5353,7 @@ function createPlacementObject(status) {
     estimated_total_units: estimatedTotalUnits,
     units_per_week: parseFloat(unitsPerWeek),
     margin_per_unit: marginPerUnit,
-    pay_inc_super: payIncSuper,
-    pay_exc_super: payExcSuper,
+    total_estimated_margin: totalMargin,
     status: status,
     sync_status: 'pending',
     clickup_task_id: null,
@@ -5305,8 +5408,8 @@ function placementsToCalendarEvents() {
           site_name: p.site_name,
           start: eventStart,
           end: endExclusive.toISOString().slice(0, 10),
-          title: `Placement`,
-          status: 'Placement',
+          title: `Booking`,
+          status: 'Booking',
           notes: formatPlacementNotes(p),
           sync_status: p.sync_status,
           clickup_task_id: p.clickup_task_id
@@ -5347,11 +5450,12 @@ function formatPlacementNotes(placement) {
     `Rate: $${placement.standard_rate}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}`,
     placement.night_rate ? `Night Rate: $${placement.night_rate}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}` : '',
     placement.overtime_rate ? `OT Rate: $${placement.overtime_rate}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}` : '',
+    `Day Shifts: ${placement.day_shift_count || 0}`,
+    `Night Shifts: ${placement.night_shift_count || 0}`,
     `Total Units: ${placement.estimated_total_units}`,
     `Units/Week: ${placement.units_per_week}`,
     placement.margin_per_unit ? `Margin/Unit: $${placement.margin_per_unit}` : '',
-    placement.pay_inc_super ? `Pay Inc Super: $${placement.pay_inc_super}` : '',
-    placement.pay_exc_super ? `Pay Exc Super: $${placement.pay_exc_super}` : '',
+    placement.total_estimated_margin ? `Total Margin: $${placement.total_estimated_margin.toFixed(2)}` : '',
     `Status: ${placement.sync_status}`
   ].filter(Boolean).join('\n');
 
