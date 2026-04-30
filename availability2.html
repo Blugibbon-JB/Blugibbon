@@ -6359,12 +6359,80 @@ function renderDayPicker() {
   const firstDay = (dayOfWeek + 6) % 7; // Convert Sun=0 to Mon=0 (Sun becomes 6)
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
 
-  // Empty cells
-  for(let i = 0; i < firstDay; i++) {
-    grid.appendChild(document.createElement('div'));
+  // Previous month overflow days
+  let prevMonth = month - 1;
+  let prevYear = year;
+  if(prevMonth < 1) {
+    prevMonth = 12;
+    prevYear = year - 1;
+  }
+  const daysInPrevMonth = new Date(Date.UTC(prevYear, prevMonth, 0)).getUTCDate();
+
+  for(let i = firstDay - 1; i >= 0; i--) {
+    const prevDay = daysInPrevMonth - i;
+    const dateISO = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(prevDay).padStart(2, '0')}`;
+    const dayBtn = document.createElement('button');
+
+    const isSelected = dateISO in placementWorkflow.selectedDays;
+    const shiftType = placementWorkflow.selectedDays[dateISO] || 'day';
+
+    dayBtn.style.cssText = `
+      padding: 8px 2px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      background: #f5f5f5;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+      position: relative;
+      color: #999;
+    `;
+
+    if(isSelected) {
+      let emoji;
+      if(shiftType === 'night') {
+        emoji = '🌙';
+      } else if(shiftType === 'extra1') {
+        emoji = '➕';
+      } else if(shiftType === 'extra2') {
+        emoji = '➕➕';
+      } else {
+        emoji = '☀️';
+      }
+      dayBtn.style.background = '#1976D2';
+      dayBtn.style.color = 'white';
+      dayBtn.style.borderColor = '#1565C0';
+      dayBtn.innerHTML = `${prevDay}<div style="font-size:8px; line-height:1;">${emoji}</div>`;
+    } else {
+      dayBtn.textContent = prevDay;
+    }
+
+    dayBtn.onclick = () => {
+      if(dateISO in placementWorkflow.selectedDays) {
+        delete placementWorkflow.selectedDays[dateISO];
+      } else {
+        placementWorkflow.selectedDays[dateISO] = placementWorkflow.defaultShiftType;
+      }
+      updateDayPickerStats();
+      renderDayPicker();
+    };
+
+    dayBtn.ondblclick = (e) => {
+      e.stopPropagation();
+      if(dateISO in placementWorkflow.selectedDays) {
+        const types = ['day', 'night', 'extra1', 'extra2'];
+        const currentIndex = types.indexOf(placementWorkflow.selectedDays[dateISO]);
+        const nextIndex = (currentIndex + 1) % types.length;
+        placementWorkflow.selectedDays[dateISO] = types[nextIndex];
+        updateDayPickerStats();
+        renderDayPicker();
+      }
+    };
+
+    grid.appendChild(dayBtn);
   }
 
-  // Days
+  // Current month days
   for(let day = 1; day <= daysInMonth; day++) {
     const dateISO = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const dayBtn = document.createElement('button');
@@ -6413,6 +6481,80 @@ function renderDayPicker() {
     };
 
     // Double-click to toggle shift type through all 4 types
+    dayBtn.ondblclick = (e) => {
+      e.stopPropagation();
+      if(dateISO in placementWorkflow.selectedDays) {
+        const types = ['day', 'night', 'extra1', 'extra2'];
+        const currentIndex = types.indexOf(placementWorkflow.selectedDays[dateISO]);
+        const nextIndex = (currentIndex + 1) % types.length;
+        placementWorkflow.selectedDays[dateISO] = types[nextIndex];
+        updateDayPickerStats();
+        renderDayPicker();
+      }
+    };
+
+    grid.appendChild(dayBtn);
+  }
+
+  // Next month overflow days
+  let nextMonth = month + 1;
+  let nextYear = year;
+  if(nextMonth > 12) {
+    nextMonth = 1;
+    nextYear = year + 1;
+  }
+
+  const totalCells = firstDay + daysInMonth;
+  const remainingCells = (42 - totalCells) % 7; // 6 rows × 7 days = 42
+
+  for(let day = 1; day <= remainingCells; day++) {
+    const dateISO = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dayBtn = document.createElement('button');
+
+    const isSelected = dateISO in placementWorkflow.selectedDays;
+    const shiftType = placementWorkflow.selectedDays[dateISO] || 'day';
+
+    dayBtn.style.cssText = `
+      padding: 8px 2px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      background: #f5f5f5;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+      position: relative;
+      color: #999;
+    `;
+
+    if(isSelected) {
+      let emoji;
+      if(shiftType === 'night') {
+        emoji = '🌙';
+      } else if(shiftType === 'extra1') {
+        emoji = '➕';
+      } else if(shiftType === 'extra2') {
+        emoji = '➕➕';
+      } else {
+        emoji = '☀️';
+      }
+      dayBtn.style.background = '#1976D2';
+      dayBtn.style.color = 'white';
+      dayBtn.style.borderColor = '#1565C0';
+      dayBtn.innerHTML = `${day}<div style="font-size:8px; line-height:1;">${emoji}</div>`;
+    } else {
+      dayBtn.textContent = day;
+    }
+
+    dayBtn.onclick = () => {
+      if(dateISO in placementWorkflow.selectedDays) {
+        delete placementWorkflow.selectedDays[dateISO];
+      } else {
+        placementWorkflow.selectedDays[dateISO] = placementWorkflow.defaultShiftType;
+      }
+      updateDayPickerStats();
+      renderDayPicker();
+    };
+
     dayBtn.ondblclick = (e) => {
       e.stopPropagation();
       if(dateISO in placementWorkflow.selectedDays) {
