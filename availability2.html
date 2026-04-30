@@ -746,7 +746,15 @@
           <option value="by-week">By Week</option>
           <option value="by-doctor">By Doctor</option>
         </select>
-        <input id="timesheetWeekPicker" type="date" title="Pick week" />
+        <select id="timesheetStatusFilter" title="Filter by status">
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="processed">Processed</option>
+        </select>
+        <input id="timesheetDateStart" type="date" title="Week range start" />
+        <span style="color:var(--muted); font-size:12px;">to</span>
+        <input id="timesheetDateEnd" type="date" title="Week range end" />
+        <button id="timesheetClearFilters" style="padding:6px 12px; font-size:12px;">Clear Filters</button>
       </div>
     </div>
     <div id="timesheetsContainer"></div>
@@ -1455,6 +1463,9 @@ let viewMode = localStorage.getItem("bg_view_mode") || "calendar"; // calendar|h
 let heatmapMode = localStorage.getItem("bg_heatmap_mode") || "weeks";
 let stripsMode  = localStorage.getItem("bg_strips_mode")  || "months";
 let timesheetViewMode = localStorage.getItem("bg_timesheet_view") || "by-week"; // by-week|by-doctor
+let timesheetDateRangeStart = null; // Start of selected week range
+let timesheetDateRangeEnd = null;   // End of selected week range
+let timesheetStatusFilter = "all"; // all|pending|processed
 let showBookingsOverlay = (localStorage.getItem("bg_show_bookings") ?? "true") === "true";
 let showAvailabilityOverlay = (localStorage.getItem("bg_show_availability") ?? "true") === "true";
 let finderOpen = (localStorage.getItem("bg_finder_open") ?? "false") === "true";
@@ -2116,17 +2127,42 @@ function renderTimesheets() {
 
   generateTimesheets(); // Ensure timesheets are up to date
 
+  // Filter timesheets by date range and status
+  let filteredTimesheets = timesheets.filter(ts => {
+    // Apply status filter
+    if (timesheetStatusFilter !== 'all' && ts.status !== timesheetStatusFilter) {
+      return false;
+    }
+
+    // Apply date range filter
+    if (timesheetDateRangeStart && timesheetDateRangeEnd) {
+      const tsDate = new Date(ts.weekEnd + 'T00:00:00Z');
+      const startDate = new Date(timesheetDateRangeStart + 'T00:00:00Z');
+      const endDate = new Date(timesheetDateRangeEnd + 'T00:00:00Z');
+      if (tsDate < startDate || tsDate > endDate) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Sort oldest first (ascending)
+  filteredTimesheets.sort((a, b) => new Date(a.weekEnd) - new Date(b.weekEnd));
+
   if (timesheetViewMode === 'by-week') {
-    renderTimesheetsByWeek(container);
+    renderTimesheetsByWeek(container, filteredTimesheets);
   } else {
-    renderTimesheetsByDoctor(container);
+    renderTimesheetsByDoctor(container, filteredTimesheets);
   }
 }
 
-function renderTimesheetsByWeek(container) {
+function renderTimesheetsByWeek(container, filteredTimesheets = null) {
+  const tsList = filteredTimesheets || timesheets;
+
   // Get all unique weeks from timesheets
   const weeks = {};
-  for (const ts of timesheets) {
+  for (const ts of tsList) {
     if (!weeks[ts.weekEnd]) {
       weeks[ts.weekEnd] = [];
     }
@@ -2134,7 +2170,7 @@ function renderTimesheetsByWeek(container) {
   }
 
   let html = '';
-  const sortedWeeks = Object.keys(weeks).sort().reverse(); // Most recent first
+  const sortedWeeks = Object.keys(weeks).sort(); // Oldest first
 
   for (const weekEnd of sortedWeeks) {
     const weekTimesheets = weeks[weekEnd];
@@ -2170,9 +2206,11 @@ function renderTimesheetsByWeek(container) {
   addTimesheetListeners();
 }
 
-function renderTimesheetsByDoctor(container) {
+function renderTimesheetsByDoctor(container, filteredTimesheets = null) {
+  const tsList = filteredTimesheets || timesheets;
+
   const doctors = {};
-  for (const ts of timesheets) {
+  for (const ts of tsList) {
     if (!doctors[ts.doctor]) {
       doctors[ts.doctor] = [];
     }
@@ -2187,7 +2225,7 @@ function renderTimesheetsByDoctor(container) {
     html += `<div class="timesheetSection">
       <div class="timesheetDoctor">${doctor}</div>`;
 
-    for (const ts of doctorTimesheets.sort((a, b) => new Date(b.weekEnd) - new Date(a.weekEnd))) {
+    for (const ts of doctorTimesheets.sort((a, b) => new Date(a.weekEnd) - new Date(b.weekEnd))) {
       html += renderTimesheetCard(ts);
     }
 
@@ -2206,11 +2244,44 @@ function renderTimesheetCard(ts) {
   const weekEnd = new Date(ts.weekEnd + 'T00:00:00Z');
   const weekStart = new Date(ts.weekStart + 'T00:00:00Z');
 
+  // Get placement data for rates
+  const placement = events.find(e => e.id === ts.placementId);
+  const placementData = placement?.placement_data || {};
+  const savedData = placement?.timesheet_data?.[ts.weekStart] || {};
+
+  // Extract rates from placement or use saved overrides
+  const dayRate = savedData.dayRate ?? placementData.standard_rate ?? 0;
+  const nightRate = savedData.nightRate ?? placementData.night_rate ?? 0;
+  const extraRate1 = savedData.extraRate1 ?? placementData.extra1_rate ?? 0;
+  const extraRate2 = savedData.extraRate2 ?? placementData.extra2_rate ?? 0;
+  const chargeRate = savedData.chargeRate ?? placementData.charge_rate ?? 0;
+  const agencyFeePercent = savedData.agencyFeePercent ?? placementData.agency_fee_percent ?? 0;
+
+  // Get actual values
+  const actualDays = ts.actualDays ?? savedData.actualDays ?? null;
+  const actualNights = ts.actualNights ?? savedData.actualNights ?? null;
+  const actualExtra1 = ts.actualExtra1 ?? savedData.actualExtra1 ?? null;
+  const actualExtra2 = ts.actualExtra2 ?? savedData.actualExtra2 ?? null;
+
+  // Calculate margins
+  const marginPerDay = (dayRate * agencyFeePercent) / 100;
+  const marginPerNight = (nightRate * agencyFeePercent) / 100;
+  const marginPerExtra1 = (extraRate1 * agencyFeePercent) / 100;
+  const marginPerExtra2 = (extraRate2 * agencyFeePercent) / 100;
+
+  const estimatedMargin = (ts.estimatedDays * marginPerDay).toFixed(2);
+  const actualMargin = (
+    (actualDays || 0) * marginPerDay +
+    (actualNights || 0) * marginPerNight +
+    (actualExtra1 || 0) * marginPerExtra1 +
+    (actualExtra2 || 0) * marginPerExtra2
+  ).toFixed(2);
+
   const statusClass = ts.status === 'processed' ? 'processed' : (ts.status === 'overdue' ? 'overdue' : 'pending');
   const statusLabel = ts.status === 'processed' ? 'Processed' : (ts.status === 'overdue' ? 'Overdue' : 'Pending');
 
   return `<div class="timesheetCard" data-ts-id="${ts.id}">
-    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;">
       <div>
         <div style="font-weight:600;">${ts.doctor} | ${ts.site}</div>
         <div style="font-size:12px; color:var(--muted);">
@@ -2220,41 +2291,110 @@ function renderTimesheetCard(ts) {
       <span class="tsStatus ${statusClass}">${statusLabel}</span>
     </div>
 
-    <div class="timesheetInfo">
-      <div class="item">
-        <div class="label">Est Days</div>
-        <div class="value">${ts.estimatedDays} days</div>
+    <!-- Agency Fee Section -->
+    <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px;">
+      <div style="display:flex; gap:20px; align-items:center;">
+        <div style="flex:1;">
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Agency Fee %</div>
+          <input type="number" class="ts-agency-fee" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="width:100px; padding:6px 8px;" />
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Margin/Day</div>
+          <div style="font-weight:600; padding:6px 8px;">$${marginPerDay.toFixed(2)}</div>
+        </div>
       </div>
-      <div class="item">
-        <div class="label">Actual Days</div>
-        <div class="value">${ts.actualDays !== null ? ts.actualDays : '-'}</div>
+    </div>
+
+    <!-- Shift Types Section -->
+    <div style="border:1px solid #e0e0e0; border-radius:8px; padding:12px; margin-bottom:12px;">
+      <div style="font-weight:600; font-size:13px; margin-bottom:12px; color:#333;">Actual Shifts Worked</div>
+
+      <!-- Day Shifts -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Days Worked</label>
+          <input type="number" class="ts-actual-days" min="0" value="${actualDays ?? ''}" placeholder="0" style="width:100%; padding:6px 8px;" />
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Day Rate</label>
+          <input type="number" class="ts-day-rate" min="0" step="0.01" value="${dayRate}" style="width:100%; padding:6px 8px;" placeholder="$0.00" />
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Day Margin</label>
+          <div style="padding:6px 8px; font-weight:600;">$${((actualDays || 0) * marginPerDay).toFixed(2)}</div>
+        </div>
       </div>
-      <div class="item">
-        <div class="label">Nights</div>
-        <div class="value">${ts.actualNights !== null ? ts.actualNights : '-'}</div>
+
+      <!-- Night Shifts -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Nights Worked</label>
+          <input type="number" class="ts-actual-nights" min="0" value="${actualNights ?? ''}" placeholder="0" style="width:100%; padding:6px 8px;" />
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Night Rate</label>
+          <input type="number" class="ts-night-rate" min="0" step="0.01" value="${nightRate}" style="width:100%; padding:6px 8px;" placeholder="$0.00" />
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Night Margin</label>
+          <div style="padding:6px 8px; font-weight:600;">$${((actualNights || 0) * marginPerNight).toFixed(2)}</div>
+        </div>
+      </div>
+
+      <!-- Extra Rate 1 -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 1 Worked</label>
+          <input type="number" class="ts-actual-extra1" min="0" value="${actualExtra1 ?? ''}" placeholder="0" style="width:100%; padding:6px 8px;" />
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 1 Rate</label>
+          <input type="number" class="ts-extra1-rate" min="0" step="0.01" value="${extraRate1}" style="width:100%; padding:6px 8px;" placeholder="$0.00" />
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 1 Margin</label>
+          <div style="padding:6px 8px; font-weight:600;">$${((actualExtra1 || 0) * marginPerExtra1).toFixed(2)}</div>
+        </div>
+      </div>
+
+      <!-- Extra Rate 2 -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 2 Worked</label>
+          <input type="number" class="ts-actual-extra2" min="0" value="${actualExtra2 ?? ''}" placeholder="0" style="width:100%; padding:6px 8px;" />
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 2 Rate</label>
+          <input type="number" class="ts-extra2-rate" min="0" step="0.01" value="${extraRate2}" style="width:100%; padding:6px 8px;" placeholder="$0.00" />
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 2 Margin</label>
+          <div style="padding:6px 8px; font-weight:600;">$${((actualExtra2 || 0) * marginPerExtra2).toFixed(2)}</div>
+        </div>
       </div>
     </div>
 
-    <div class="timesheetInput">
-      <label>Actual Days:</label>
-      <input type="number" class="ts-actual-days" min="0" value="${ts.actualDays ?? ''}" placeholder="Days worked" />
+    <!-- Margin Summary -->
+    <div style="background:#f0f7ff; padding:12px; border-radius:8px; margin-bottom:12px; border-left:4px solid #2196F3;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+        <div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Estimated Margin</div>
+          <div style="font-size:18px; font-weight:700; color:#2196F3;">$${estimatedMargin}</div>
+        </div>
+        <div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Actual Margin</div>
+          <div style="font-size:18px; font-weight:700; color:#4CAF50;">$${actualMargin}</div>
+        </div>
+      </div>
     </div>
 
-    <div class="timesheetInput">
-      <label>Nights:</label>
-      <input type="number" class="ts-actual-nights" min="0" value="${ts.actualNights ?? ''}" placeholder="Nights worked" />
+    <!-- Notes -->
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Notes</label>
+      <textarea class="ts-notes" placeholder="e.g., 1 day sick leave..." style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-family:var(--font); font-size:12px; min-height:60px; resize:vertical;">${ts.notes || ''}</textarea>
     </div>
 
-    <div class="timesheetInput">
-      <label>RDO/Days Off:</label>
-      <input type="number" class="ts-actual-rdo" min="0" value="${ts.actualRDO ?? ''}" placeholder="Days off" />
-    </div>
-
-    <div class="timesheetInput full">
-      <label>Notes:</label>
-      <textarea class="ts-notes" placeholder="e.g., 1 day sick leave...">${ts.notes || ''}</textarea>
-    </div>
-
+    <!-- Actions -->
     <div class="timesheetActions">
       <button class="ts-save-btn" data-ts-id="${ts.id}">Save</button>
       <button class="ts-process-btn" data-ts-id="${ts.id}" ${ts.status === 'processed' ? 'disabled' : ''}>✓ Mark Processed</button>
@@ -2274,8 +2414,15 @@ function addTimesheetListeners() {
       if (ts) {
         ts.actualDays = parseInt(card.querySelector('.ts-actual-days').value) || null;
         ts.actualNights = parseInt(card.querySelector('.ts-actual-nights').value) || null;
-        ts.actualRDO = parseInt(card.querySelector('.ts-actual-rdo').value) || null;
+        ts.actualExtra1 = parseInt(card.querySelector('.ts-actual-extra1').value) || null;
+        ts.actualExtra2 = parseInt(card.querySelector('.ts-actual-extra2').value) || null;
         ts.notes = card.querySelector('.ts-notes').value;
+
+        const dayRate = parseFloat(card.querySelector('.ts-day-rate').value) || 0;
+        const nightRate = parseFloat(card.querySelector('.ts-night-rate').value) || 0;
+        const extraRate1 = parseFloat(card.querySelector('.ts-extra1-rate').value) || 0;
+        const extraRate2 = parseFloat(card.querySelector('.ts-extra2-rate').value) || 0;
+        const agencyFeePercent = parseFloat(card.querySelector('.ts-agency-fee').value) || 0;
 
         // Persist timesheet data to the placement event
         const placement = events.find(e => e.id === ts.placementId);
@@ -2284,8 +2431,14 @@ function addTimesheetListeners() {
           placement.timesheet_data[ts.weekStart] = {
             actualDays: ts.actualDays,
             actualNights: ts.actualNights,
-            actualRDO: ts.actualRDO,
+            actualExtra1: ts.actualExtra1,
+            actualExtra2: ts.actualExtra2,
             notes: ts.notes,
+            dayRate: dayRate,
+            nightRate: nightRate,
+            extraRate1: extraRate1,
+            extraRate2: extraRate2,
+            agencyFeePercent: agencyFeePercent,
             status: ts.status
           };
           saveEvents(events);
@@ -3103,6 +3256,45 @@ if(tsViewSelect){
   tsViewSelect.addEventListener("change", ()=>{
     timesheetViewMode = tsViewSelect.value || "by-week";
     localStorage.setItem("bg_timesheet_view", timesheetViewMode);
+    if(viewMode==="timesheets") renderTimesheets();
+  });
+}
+
+// Timesheet filters
+const tsStatusFilter = document.getElementById("timesheetStatusFilter");
+const tsDateStart = document.getElementById("timesheetDateStart");
+const tsDateEnd = document.getElementById("timesheetDateEnd");
+const tsClearFilters = document.getElementById("timesheetClearFilters");
+
+if(tsStatusFilter){
+  tsStatusFilter.addEventListener("change", ()=>{
+    timesheetStatusFilter = tsStatusFilter.value || "all";
+    if(viewMode==="timesheets") renderTimesheets();
+  });
+}
+
+if(tsDateStart){
+  tsDateStart.addEventListener("change", ()=>{
+    timesheetDateRangeStart = tsDateStart.value || null;
+    if(viewMode==="timesheets") renderTimesheets();
+  });
+}
+
+if(tsDateEnd){
+  tsDateEnd.addEventListener("change", ()=>{
+    timesheetDateRangeEnd = tsDateEnd.value || null;
+    if(viewMode==="timesheets") renderTimesheets();
+  });
+}
+
+if(tsClearFilters){
+  tsClearFilters.addEventListener("click", ()=>{
+    timesheetDateRangeStart = null;
+    timesheetDateRangeEnd = null;
+    timesheetStatusFilter = "all";
+    if(tsDateStart) tsDateStart.value = "";
+    if(tsDateEnd) tsDateEnd.value = "";
+    if(tsStatusFilter) tsStatusFilter.value = "all";
     if(viewMode==="timesheets") renderTimesheets();
   });
 }
