@@ -867,7 +867,7 @@
             </div>
           </div>
           <div style="background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-            <label style="display: block; margin-bottom: 3px; color: #666;">⭐ Extra Rate 2</label>
+            <label style="display: block; margin-bottom: 3px; color: #666;">➕➕ Extra Rate 2</label>
             <div style="display: flex; align-items: center; gap: 4px;">
               <span style="font-weight: 600;">$</span>
               <input type="number" id="quickEditExtra2Rate" style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateQuickEditRate('extra2')" />
@@ -924,7 +924,7 @@
               $<span id="extra1RateMarginPerUnit">0</span>
             </div>
             <div id="extra2MarginDisplay" style="display:none;">
-              <strong>⭐ Extra Rate 2 Margin/Unit:</strong><br>
+              <strong>➕➕ Extra Rate 2 Margin/Unit:</strong><br>
               $<span id="extra2RateMarginPerUnit">0</span>
             </div>
           </div>
@@ -6044,7 +6044,7 @@ function formatPlacementNotes(placement) {
     placement.day_margin_per_unit ? `  ☀️ Day: $${placement.day_margin_per_unit.toFixed(2)}/unit` : '',
     placement.night_margin_per_unit ? `  🌙 Night: $${placement.night_margin_per_unit.toFixed(2)}/unit` : '',
     placement.extra1_margin_per_unit ? `  ➕ Extra 1: $${placement.extra1_margin_per_unit.toFixed(2)}/unit` : '',
-    placement.extra2_margin_per_unit ? `  ⭐ Extra 2: $${placement.extra2_margin_per_unit.toFixed(2)}/unit` : '',
+    placement.extra2_margin_per_unit ? `  ➕➕ Extra 2: $${placement.extra2_margin_per_unit.toFixed(2)}/unit` : '',
     `  TOTAL: $${placement.total_estimated_margin ? placement.total_estimated_margin.toFixed(2) : '0.00'}`,
     ``,
     `Status: ${placement.sync_status}`
