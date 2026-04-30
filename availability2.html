@@ -6314,7 +6314,11 @@ function proceedToDaySelection() {
     return;
   }
 
-  placementWorkflow.selectedDays = {};
+  // Only reset selectedDays if NOT creating from availability event
+  // (preserve pre-filled dates from availability calendar)
+  if(!placementWorkflow.editingAvailabilityEventId) {
+    placementWorkflow.selectedDays = {};
+  }
   updateDayPickerStats();
   renderDayPicker();
 
