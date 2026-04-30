@@ -1366,10 +1366,10 @@ function generateTimesheets() {
     if (evt.type === 'placement' || evt.eventType === 'placement') {
       allPlacements.push({
         id: evt.id,
-        doctor: evt.doctor,
-        site: evt.site,
-        dateStart: evt.dateStart,
-        dateEnd: evt.dateEnd,
+        doctor: evt.placement_data?.doctor_name || evt.doctor,
+        site: evt.placement_data?.site_name || evt.site,
+        dateStart: evt.start || evt.dateStart,
+        dateEnd: evt.end || evt.dateEnd,
         status: evt.status || 'draft',
         rate: evt.rate
       });
@@ -1377,8 +1377,13 @@ function generateTimesheets() {
   }
 
   for (const placement of allPlacements) {
+    if (!placement.dateStart || !placement.dateEnd) continue; // Skip invalid placements
+
     const startDate = new Date(placement.dateStart + 'T00:00:00Z');
     const endDate = new Date(placement.dateEnd + 'T00:00:00Z');
+
+    // Skip if dates are invalid
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) continue;
 
     // Split placement into weekly chunks (Mon-Sun)
     let currentDate = new Date(startDate);
@@ -1396,20 +1401,26 @@ function generateTimesheets() {
       // Calculate estimated days/shifts for this week
       const weekDays = Math.ceil((weekEnd - weekStart) / (1000 * 60 * 60 * 24)) + 1;
 
+      const weekStartISO = weekStart.toISOString().split('T')[0];
+
+      // Check if there's persisted timesheet data for this week
+      const placementEvent = events.find(e => e.id === placement.id);
+      const savedData = placementEvent?.timesheet_data?.[weekStartISO] || {};
+
       const timesheet = {
-        id: `ts_${placement.id}_${weekStart.toISOString().split('T')[0]}`,
+        id: `ts_${placement.id}_${weekStartISO}`,
         placementId: placement.id,
         doctor: placement.doctor,
         site: placement.site,
-        weekStart: weekStart.toISOString().split('T')[0],
+        weekStart: weekStartISO,
         weekEnd: weekEnd.toISOString().split('T')[0],
         estimatedDays: weekDays,
-        actualDays: null,
-        actualNights: null,
-        actualRDO: null,
-        notes: '',
-        status: 'pending', // pending|processed
-        sentToClickUp: false
+        actualDays: savedData.actualDays ?? null,
+        actualNights: savedData.actualNights ?? null,
+        actualRDO: savedData.actualRDO ?? null,
+        notes: savedData.notes || '',
+        status: savedData.status || 'pending', // pending|processed
+        sentToClickUp: savedData.sentToClickUp || false
       };
 
       timesheets.push(timesheet);
@@ -2266,6 +2277,20 @@ function addTimesheetListeners() {
         ts.actualRDO = parseInt(card.querySelector('.ts-actual-rdo').value) || null;
         ts.notes = card.querySelector('.ts-notes').value;
 
+        // Persist timesheet data to the placement event
+        const placement = events.find(e => e.id === ts.placementId);
+        if (placement) {
+          if (!placement.timesheet_data) placement.timesheet_data = {};
+          placement.timesheet_data[ts.weekStart] = {
+            actualDays: ts.actualDays,
+            actualNights: ts.actualNights,
+            actualRDO: ts.actualRDO,
+            notes: ts.notes,
+            status: ts.status
+          };
+          saveEvents(events);
+        }
+
         alert('Timesheet saved!');
         renderTimesheets(); // Re-render
       }
@@ -2280,6 +2305,16 @@ function addTimesheetListeners() {
 
       if (ts) {
         ts.status = 'processed';
+
+        // Persist status to the placement event
+        const placement = events.find(e => e.id === ts.placementId);
+        if (placement) {
+          if (!placement.timesheet_data) placement.timesheet_data = {};
+          placement.timesheet_data[ts.weekStart] = placement.timesheet_data[ts.weekStart] || {};
+          placement.timesheet_data[ts.weekStart].status = 'processed';
+          saveEvents(events);
+        }
+
         alert('Timesheet marked as processed!');
         renderTimesheets(); // Re-render
       }
