@@ -3530,6 +3530,7 @@ function openEventEditor(payload){
         const newEvent = {
           id: newId,
           ahpra_id: String(payload.ahpra_id),
+          type: 'availability',
           status,
           title: title || status,
           location,
