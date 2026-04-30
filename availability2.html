@@ -48,30 +48,6 @@
     }
     button{ cursor:pointer; }
     button.primary{ background:#111; color:#fff; border-color:#111; }
-
-    /* Loading states */
-    .loading { position: relative; }
-    .loading::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(255, 255, 255, 0.5);
-      border-radius: inherit;
-      animation: spin 1s linear infinite;
-      pointer-events: none;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    button:disabled, button.loading {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
     .chip{
       font-size:12px; padding:6px 10px; border:1px solid #ddd; border-radius:999px; background:#fff; color:var(--muted);
     }
@@ -1075,10 +1051,10 @@ async function initializeFirebase() {
     firebase_auth = firebase.auth();
     firebase_db = firebase.database();
     firebaseReady = true;
-    Utils.log("Firebase initialized successfully");
+    console.log("Firebase initialized successfully");
     return true;
   } catch(err) {
-    Utils.log("Firebase initialization error:", err, true);
+    console.error("Firebase initialization error:", err);
     throw err;
   }
 }
@@ -1166,9 +1142,9 @@ const Utils = {
   log(message, data = null, isError = false) {
     if (window.DEBUG_MODE === false) return; // Skip in production
     if (isError) {
-      Utils.log(message, data, true);
+      console.error(message, data);
     } else {
-      Utils.log(message, data);
+      console.log(message, data);
     }
   },
 
@@ -2219,7 +2195,7 @@ try {
     localStorage.setItem(UNDO_KEY, "[]");
   }
 } catch(e){
-  Utils.log("Error loading undo stack:", e, true);
+  console.error("Error loading undo stack:", e);
   undoStack = [];
   try { localStorage.setItem(UNDO_KEY, "[]"); } catch(e2) {}
 }
@@ -2247,11 +2223,11 @@ function pushUndo(label){
       try {
         localStorage.setItem(UNDO_KEY, "[]");
       } catch(e) {
-        Utils.log("Could not clear undo stack:", e, true);
+        console.error("Could not clear undo stack:", e);
       }
       DOM.statusChip.textContent = "⚠ Storage full - undo history cleared";
     } else {
-      Utils.log("Error pushing undo:", err, true);
+      console.error("Error pushing undo:", err);
       throw err;
     }
   }
@@ -2389,7 +2365,7 @@ function deleteSelectedEvents(){
   if(firebase_user && firebase_db) {
     firebase_db.ref(`users/${firebase_user.uid}/events`).set(events)
       .then(() => {
-        Utils.log("Batch deletion synced to Firebase successfully");
+        console.log("Batch deletion synced to Firebase successfully");
         renderDoctorList();
         renderCalendar();
         calendar.unselect();
@@ -2397,7 +2373,7 @@ function deleteSelectedEvents(){
         updateActionButtons();
       })
       .catch(err => {
-        Utils.log("Firebase sync error after delete:", err, true);
+        console.error("Firebase sync error after delete:", err);
         DOM.statusChip.textContent = "Warning: Could not sync deletion to Firebase";
         renderDoctorList();
         renderCalendar();
@@ -3261,7 +3237,7 @@ function clearAllAvailability(doctorId){
   if(firebase_user && firebase_db) {
     firebase_db.ref(`users/${firebase_user.uid}/events`).set(events)
       .then(() => {
-        Utils.log("Cleared availability synced to Firebase successfully");
+        console.log("Cleared availability synced to Firebase successfully");
         renderDoctorList();
         renderHeader();
         renderCalendar();
@@ -3270,7 +3246,7 @@ function clearAllAvailability(doctorId){
         DOM.statusChip.textContent = removed ? "Availability cleared (bookings kept)" : "No availability blocks to clear (bookings kept)";
       })
       .catch(err => {
-        Utils.log("Firebase sync error after clear availability:", err, true);
+        console.error("Firebase sync error after clear availability:", err);
         DOM.statusChip.textContent = "Warning: Could not sync cleared availability to Firebase";
         renderDoctorList();
         renderHeader();
@@ -3464,7 +3440,7 @@ function importJSONBackup(file){
       updateActionButtons();
       DOM.statusChip.textContent = `JSON backup restored: ${doctors.length} doctor(s), ${events.length} event(s)`;
     }catch(err){
-      Utils.log("JSON import error:", err, true);
+      console.error("JSON import error:", err);
       alert(`Invalid JSON file: ${err.message || 'Unknown error'}`);
     }
   };
@@ -3773,7 +3749,7 @@ function openEventEditor(payload){
 
   // Show Create Placement button for editing availability events (not placements)
   const showCreatePlacement = mode === "edit" && (!payload.type || payload.type === 'availability');
-  Utils.log("Mode:", mode, "Payload type:", payload.type, "Show create placement:", showCreatePlacement);
+  console.log("Mode:", mode, "Payload type:", payload.type, "Show create placement:", showCreatePlacement);
 
   modalFooter.innerHTML = `
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
@@ -3876,7 +3852,7 @@ function openEventEditor(payload){
         DOM.statusChip.textContent = "✓ Saved";
       }
     } catch(err) {
-      Utils.log("Error saving availability:", err, true);
+      console.error("Error saving availability:", err);
       DOM.statusChip.textContent = "❌ Error saving: " + (err.message || "Unknown error");
     }
   });
@@ -3892,9 +3868,9 @@ function openEventEditor(payload){
       if(firebase_user && firebase_db) {
         try {
           await firebase_db.ref(`users/${firebase_user.uid}/events`).set(events);
-          Utils.log("Deletion synced to Firebase successfully");
+          console.log("Deletion synced to Firebase successfully");
         } catch(err) {
-          Utils.log("Firebase sync error after delete:", err, true);
+          console.error("Firebase sync error after delete:", err);
           DOM.statusChip.textContent = "Warning: Could not sync deletion to Firebase";
         }
       }
@@ -3975,14 +3951,14 @@ function openEventEditor(payload){
             if(clickupResult.message && typeof clickupResult.message === "string"){
               try {
                 responseData = JSON.parse(clickupResult.message);
-                Utils.log("Parsed message string to object:", responseData);
+                console.log("Parsed message string to object:", responseData);
               } catch(e){
-                Utils.log("JSON parse failed, extracting URL with regex...");
+                console.log("JSON parse failed, extracting URL with regex...");
                 // Extract URL manually using regex (handles unquoted URLs in the string)
                 const urlMatch = clickupResult.message.match(/https?:\/\/app\.clickup\.com\/t\/[a-zA-Z0-9]+/);
                 if(urlMatch){
                   clickupUrl = urlMatch[0];
-                  Utils.log("Extracted URL via regex:", clickupUrl);
+                  console.log("Extracted URL via regex:", clickupUrl);
                 }
               }
             }
@@ -3998,10 +3974,10 @@ function openEventEditor(payload){
               }
             }
 
-            Utils.log("Final extracted ClickUp URL:", clickupUrl);
+            console.log("Final extracted ClickUp URL:", clickupUrl);
           }
 
-          Utils.log("DEBUG: Final clickupUrl =", clickupUrl);
+          console.log("DEBUG: Final clickupUrl =", clickupUrl);
           if(clickupUrl){
             DOM.statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline;">Order created in ClickUp</a>`;
           } else {
@@ -4015,7 +3991,7 @@ function openEventEditor(payload){
           // Close modal after 1.5 seconds
           setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
         } catch(err){
-          Utils.log("Error creating order:", err, true);
+          console.error("Error creating order:", err);
           DOM.statusChip.textContent = "❌ Error creating order: " + (err.message || "Unknown error");
         }
       });
@@ -4023,9 +3999,9 @@ function openEventEditor(payload){
 
     const createPlacementBtn = document.getElementById("createPlacementBtn");
     if(createPlacementBtn) {
-      Utils.log("Create Placement button found and attaching listener");
+      console.log("Create Placement button found and attaching listener");
       createPlacementBtn.addEventListener("click", (e) => {
-        Utils.log("Create Placement button clicked");
+        console.log("Create Placement button clicked");
         e.preventDefault();
         e.stopPropagation();
         try {
@@ -4089,8 +4065,8 @@ function openEventEditor(payload){
           closeModal();
           document.getElementById('rateSelectionBackdrop').style.display = 'flex';
         } catch(err) {
-          Utils.log("Error creating placement:", err, true);
-          Utils.log("Stack trace:", err.stack, true);
+          console.error("Error creating placement:", err);
+          console.error("Stack trace:", err.stack);
           alert("Error creating placement: " + (err.message || "Unknown error"));
         }
       });
@@ -4191,7 +4167,7 @@ function openEventEditor(payload){
           // Close modal after 1.5 seconds
           setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
         } catch(err){
-          Utils.log("Error creating CV Sent task:", err, true);
+          console.error("Error creating CV Sent task:", err);
           DOM.statusChip.textContent = "❌ Error creating CV Sent task: " + (err.message || "Unknown error");
         }
       });
@@ -4346,7 +4322,7 @@ function openDoctorEditor(existing){
             firebase_db.ref(`users/${firebase_user.uid}/events`).set(events)
           ])
             .then(() => {
-              Utils.log("Doctor and events synced to Firebase successfully");
+              console.log("Doctor and events synced to Firebase successfully");
               if(String(selectedDoctorId)===id) selectedDoctorId = null;
               closeModal();
               renderDoctorList();
@@ -4355,7 +4331,7 @@ function openDoctorEditor(existing){
               DOM.statusChip.textContent = "Doctor deleted";
             })
             .catch(err => {
-              Utils.log("Firebase sync error after delete:", err, true);
+              console.error("Firebase sync error after delete:", err);
               DOM.statusChip.textContent = "Warning: Could not sync doctor deletion to Firebase";
               if(String(selectedDoctorId)===id) selectedDoctorId = null;
               closeModal();
@@ -4373,7 +4349,7 @@ function openDoctorEditor(existing){
         }
       }
     } catch(err) {
-      Utils.log("Error in doctor modal action:", err, true);
+      console.error("Error in doctor modal action:", err);
       DOM.statusChip.textContent = "Error: " + (err.message || "Unknown error");
     }
   };
@@ -4391,7 +4367,7 @@ function openDoctorEditor(existing){
         if(btn){ btn.click(); }
       }
     } catch(err) {
-      Utils.log("Error in keyboard handler:", err, true);
+      console.error("Error in keyboard handler:", err);
     }
   };
 
@@ -5085,7 +5061,7 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
 
         if(seen.has(dedupeKey)){
           duplicates++;
-          Utils.log(`Skip duplicate in import: ${dedupeKey}`);
+          console.log(`Skip duplicate in import: ${dedupeKey}`);
           continue; // Skip duplicate within this import
         }
         seen.add(dedupeKey);
@@ -5134,12 +5110,12 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
 
         if(existingIdx >= 0){
           const weekStr = r.weekEndISO ? ` (week ending ${r.weekEndISO})` : "";
-          Utils.log(`Overwriting event: ${r.docName} ${r.siteName} ${r.startISO}-${r.endExISO}${weekStr}`);
+          console.log(`Overwriting event: ${r.docName} ${r.siteName} ${r.startISO}-${r.endExISO}${weekStr}`);
           events[existingIdx] = rec; // Update existing event
           duplicates++;
         } else {
           const weekStr = r.weekEndISO ? ` (week ending ${r.weekEndISO})` : "";
-          Utils.log(`Creating new event: ${r.docName} ${r.siteName} ${r.startISO}-${r.endExISO}${weekStr}`);
+          console.log(`Creating new event: ${r.docName} ${r.siteName} ${r.startISO}-${r.endExISO}${weekStr}`);
           events.push(rec); // Create new event
         }
         imported++;
@@ -5155,12 +5131,12 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
           eventKeysToKeep.add(key);
           cleanedEvents.push(e);
         } else {
-          Utils.log(`Cleanup: Removing duplicate ${e.ahpra_id} ${e.location} ${e.start}-${e.end}`);
+          console.log(`Cleanup: Removing duplicate ${e.ahpra_id} ${e.location} ${e.start}-${e.end}`);
           cleanupCount++;
           duplicates++; // Count cleaned duplicates
         }
       }
-      Utils.log(`Cleanup complete: Removed ${cleanupCount} duplicates, kept ${cleanedEvents.length} events`);
+      console.log(`Cleanup complete: Removed ${cleanupCount} duplicates, kept ${cleanedEvents.length} events`);
 
       // Update global events variable with cleaned data before saving
       events = cleanedEvents;
@@ -5358,7 +5334,7 @@ if(uploadPlacementsBtn && placementsCsvFile){
 
         if(seen.has(dedupeKey)){
           duplicates++;
-          Utils.log(`Skip duplicate in placement import: ${dedupeKey}`);
+          console.log(`Skip duplicate in placement import: ${dedupeKey}`);
           continue;
         }
         seen.add(dedupeKey);
@@ -5385,11 +5361,11 @@ if(uploadPlacementsBtn && placementsCsvFile){
         };
 
         if(existingIdx >= 0){
-          Utils.log(`Overwriting placement: ${matchedDoc.name} ${r.siteName} ${r.startISO}-${r.endExISO}`);
+          console.log(`Overwriting placement: ${matchedDoc.name} ${r.siteName} ${r.startISO}-${r.endExISO}`);
           events[existingIdx] = rec;
           duplicates++;
         } else {
-          Utils.log(`Creating new placement: ${matchedDoc.name} ${r.siteName} ${r.startISO}-${r.endExISO}`);
+          console.log(`Creating new placement: ${matchedDoc.name} ${r.siteName} ${r.startISO}-${r.endExISO}`);
           events.push(rec);
         }
         imported++;
@@ -5405,7 +5381,7 @@ if(uploadPlacementsBtn && placementsCsvFile){
           eventKeysToKeep.add(key);
           cleanedEvents.push(e);
         } else {
-          Utils.log(`Cleanup: Removing duplicate ${e.ahpra_id} ${e.location} ${e.start}-${e.end}`);
+          console.log(`Cleanup: Removing duplicate ${e.ahpra_id} ${e.location} ${e.start}-${e.end}`);
           cleanupCount++;
           duplicates++;
         }
@@ -6082,7 +6058,7 @@ function proceedToPlacementDetails() {
     const placementDetailsBackdropEl = document.getElementById('placementDetailsBackdrop');
     if(placementDetailsBackdropEl) placementDetailsBackdropEl.style.display = 'flex';
   } catch(err) {
-    Utils.log('Error in proceedToPlacementDetails:', err, true);
+    console.error('Error in proceedToPlacementDetails:', err);
     alert('Error proceeding to details: ' + err.message);
   }
 }
@@ -6127,22 +6103,18 @@ function savePlacementAsDraft() {
 
     // Sync to Firebase
     if(firebase_user && firebase_db) {
-      DOM.statusChip.classList.add('loading');
-      DOM.statusChip.textContent = `⏳ Saving placement...`;
       const sanitized = sanitizeEventsForFirebase(events);
       firebase_db.ref(`users/${firebase_user.uid}/events`).set(sanitized).then(() => {
-        DOM.statusChip.classList.remove('loading');
         DOM.statusChip.textContent = `✓ Placement saved as draft (not sent to ClickUp yet)`;
         closeMakePlacementFlow();
         renderCalendar();
       }).catch(err => {
-        DOM.statusChip.classList.remove('loading');
         const errMsg = `Firebase sync error: ${err.message || 'Unknown error'}`;
         DOM.statusChip.textContent = `✗ ${errMsg}`;
         alert(`Error saving placement:\n${err.message}\n\nCheck browser console for details.`);
-        Utils.log("Firebase sync error:", err, true);
-        Utils.log("Full events array:", JSON.stringify(events, null, 2));
-        Utils.log("Sanitized array would be:", JSON.stringify(sanitized, null, 2));
+        console.error("Firebase sync error:", err);
+        console.error("Full events array:", JSON.stringify(events, null, 2));
+        console.error("Sanitized array would be:", JSON.stringify(sanitized, null, 2));
       });
     } else {
       DOM.statusChip.textContent = `✓ Placement saved as draft (not sent to ClickUp yet)`;
@@ -6151,7 +6123,7 @@ function savePlacementAsDraft() {
     }
   } catch(err) {
     DOM.statusChip.textContent = `✗ Error creating placement: ${err.message}`;
-    Utils.log("Placement creation error:", err, true);
+    console.error("Placement creation error:", err);
   }
 }
 
@@ -6202,9 +6174,9 @@ function savePlacementAndSendToClickUp() {
         const errMsg = `Firebase sync error: ${err.message || 'Unknown error'}`;
         DOM.statusChip.textContent = `✗ ${errMsg}`;
         alert(`Error saving placement:\n${err.message}\n\nCheck browser console for details.`);
-        Utils.log("Firebase sync error:", err, true);
-        Utils.log("Full events array:", JSON.stringify(events, null, 2), true);
-        Utils.log("Sanitized array would be:", JSON.stringify(sanitized, null, 2), true);
+        console.error("Firebase sync error:", err);
+        console.error("Full events array:", JSON.stringify(events, null, 2));
+        console.error("Sanitized array would be:", JSON.stringify(sanitized, null, 2));
       });
     } else {
       DOM.statusChip.textContent = `✓ Placement created!`;
@@ -6213,7 +6185,7 @@ function savePlacementAndSendToClickUp() {
     }
   } catch(err) {
     DOM.statusChip.textContent = `✗ Error creating placement: ${err.message}`;
-    Utils.log("Placement creation error:", err, true);
+    console.error("Placement creation error:", err);
   }
 }
 
@@ -6327,7 +6299,7 @@ async function loadPlacementsFromFirebase() {
     const snapshot = await firebase_db.ref(`users/${firebase_user.uid}/placements`).once('value');
     const data = snapshot.val() || {};
     placements = Object.values(data);
-    Utils.log(`Loaded ${placements.length} placements from Firebase`);
+    console.log(`Loaded ${placements.length} placements from Firebase`);
 
     // Check for overlaps and warn
     checkPlacementOverlaps();
@@ -6396,13 +6368,13 @@ function checkPlacementOverlaps() {
 let sitesCache = {}; // { siteId: { id, name }, ... }
 
 async function loadSitesFromFirebase(){
-  Utils.log("loadSitesFromFirebase called - firebase_db:", !!firebase_db, "firebase_user:", !!firebase_user);
+  console.log("loadSitesFromFirebase called - firebase_db:", !!firebase_db, "firebase_user:", !!firebase_user);
 
   // Load from localStorage cache immediately (fast)
   const cached = localStorage.getItem("sitesCache");
   if(cached) {
     sitesCache = JSON.parse(cached);
-    Utils.log("Loaded sites from localStorage cache:", Object.keys(sitesCache).length);
+    console.log("Loaded sites from localStorage cache:", Object.keys(sitesCache).length);
   }
 
   // Then fetch fresh from Firebase in background (slow but updates)
@@ -6414,7 +6386,7 @@ async function loadSitesFromFirebase(){
   try {
     const snapshot = await firebase_db.ref("sites").once("value");
     const freshSites = snapshot.val() || {};
-    Utils.log("Sites loaded from Firebase:", Object.keys(freshSites).length);
+    console.log("Sites loaded from Firebase:", Object.keys(freshSites).length);
     sitesCache = freshSites;
     localStorage.setItem("sitesCache", JSON.stringify(sitesCache));
   } catch(e){
@@ -6427,7 +6399,7 @@ async function saveSitesToFirebase(){
   if(!firebase_db || !isOnline || !firebase_user) return;
   try {
     await firebase_db.ref("sites").set(sitesCache);
-    Utils.log("Sites synced to Firebase");
+    console.log("Sites synced to Firebase");
   } catch(e){
     console.warn("Could not sync sites to Firebase:", e);
   }
@@ -6495,9 +6467,9 @@ if(uploadSitesBtn && sitesCsvFile){
         DOM.statusChip.textContent = `✓ Imported ${Object.keys(newSites).length} sites (local only - sign in to sync)`;
       }
 
-      Utils.log("Sites imported:", newSites);
+      console.log("Sites imported:", newSites);
     } catch(err){
-      Utils.log("Error importing sites:", err, true);
+      console.error("Error importing sites:", err);
       DOM.statusChip.textContent = "❌ Error importing sites: " + (err.message || "Unknown error");
     } finally {
       sitesCsvFile.value = "";
@@ -6661,13 +6633,13 @@ async function createClickUpPlacement(placementData){
       result = { message: text };
     }
 
-    Utils.log("Placement created successfully. Full response:", result);
-    Utils.log("Response type:", typeof result);
-    Utils.log("Response keys:", Object.keys(result || {}));
-    Utils.log("Response JSON:", JSON.stringify(result, null, 2));
+    console.log("Placement created successfully. Full response:", result);
+    console.log("Response type:", typeof result);
+    console.log("Response keys:", Object.keys(result || {}));
+    console.log("Response JSON:", JSON.stringify(result, null, 2));
     return result;
   } catch(err){
-    Utils.log("Failed to create placement:", err, true);
+    console.error("Failed to create placement:", err);
     throw err;
   }
 }
@@ -6702,13 +6674,13 @@ async function createClickUpCVSent(cvData){
       result = { message: text };
     }
 
-    Utils.log("CV Sent task created successfully. Full response:", result);
-    Utils.log("Response type:", typeof result);
-    Utils.log("Response keys:", Object.keys(result || {}));
-    Utils.log("Response JSON:", JSON.stringify(result, null, 2));
+    console.log("CV Sent task created successfully. Full response:", result);
+    console.log("Response type:", typeof result);
+    console.log("Response keys:", Object.keys(result || {}));
+    console.log("Response JSON:", JSON.stringify(result, null, 2));
     return result;
   } catch(err){
-    Utils.log("Failed to create CV Sent task:", err, true);
+    console.error("Failed to create CV Sent task:", err);
     throw err;
   }
 }
@@ -6798,9 +6770,9 @@ async function syncFromFirebase() {
 
     const eventCount = events.filter(e => e.type !== 'placement').length;
     const placementCount = events.filter(e => e.type === 'placement').length;
-    Utils.log(`Synced: ${doctors.length} doctors, ${eventCount} events, ${placementCount} placements`);
+    console.log(`Synced: ${doctors.length} doctors, ${eventCount} events, ${placementCount} placements`);
   } catch(err) {
-    Utils.log("Sync from Firebase failed:", err, true);
+    console.error("Sync from Firebase failed:", err);
     updateSyncIndicator("error");
   }
 }
@@ -6835,7 +6807,7 @@ async function handleGoogleSignIn() {
 
     DOM.statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email}`;
   } catch(err) {
-    Utils.log("Sign in failed:", err, true);
+    console.error("Sign in failed:", err);
     DOM.statusChip.textContent = "Sign in failed: " + (err.message || String(err));
     updateAuthUI();
   }
@@ -6849,7 +6821,7 @@ async function handleGoogleSignOut() {
     updateAuthUI();
     DOM.statusChip.textContent = "Signed out - click 'Sign in with Google' to sign in with a different account";
   } catch(err) {
-    Utils.log("Sign out failed:", err, true);
+    console.error("Sign out failed:", err);
     DOM.statusChip.textContent = "Sign out failed: " + (err.message || String(err));
   }
 }
@@ -6896,11 +6868,11 @@ function updateAuthUI() {
 
       if(firebase_auth) {
         firebase_auth.onAuthStateChanged((user) => {
-          Utils.log("onAuthStateChanged fired - user:", user ? user.email : "null");
+          console.log("onAuthStateChanged fired - user:", user ? user.email : "null");
           if(user) {
             firebase_user = user;
             isOnline = true;
-            Utils.log("User authenticated, loading sites...");
+            console.log("User authenticated, loading sites...");
             loadSitesFromFirebase();
             syncFromFirebase();
           } else {
