@@ -795,6 +795,19 @@
         <button onclick="nextMonth()" style="padding: 4px 8px; font-size: 12px;">Next →</button>
       </div>
 
+      <!-- Date Range Selector -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; padding: 12px; background: #e8f5e9; border-radius: 8px; border: 1px solid #81c784;">
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: #333;">Start Date (dd/mm/yyyy)</label>
+          <input type="text" id="dateRangeStart" placeholder="e.g., 01/04/2026" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;" />
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: #333;">End Date (dd/mm/yyyy)</label>
+          <input type="text" id="dateRangeEnd" placeholder="e.g., 30/04/2026" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;" />
+        </div>
+        <button onclick="applyDateRange()" style="grid-column: 1/-1; padding: 8px; background: #81c784; color: #fff; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 12px;">Apply Date Range</button>
+      </div>
+
       <!-- Calendar Grid -->
       <div id="dayPickerGrid" style="
         display: grid;
@@ -5487,6 +5500,17 @@ function renderDayPicker() {
   const grid = document.getElementById('dayPickerGrid');
   grid.innerHTML = '';
 
+  // Pre-populate date range inputs if dates are already selected (from availability event)
+  const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
+  if(selectedArray.length > 0) {
+    const startDate = new Date(selectedArray[0]);
+    const endDate = new Date(selectedArray[selectedArray.length - 1]);
+    const startFormatted = formatDateAU(startDate.toISOString().slice(0, 10));
+    const endFormatted = formatDateAU(endDate.toISOString().slice(0, 10));
+    document.getElementById('dateRangeStart').value = startFormatted;
+    document.getElementById('dateRangeEnd').value = endFormatted;
+  }
+
   // Update month label
   const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
   document.getElementById('currentMonthLabel').textContent = monthName;
@@ -5627,6 +5651,43 @@ function invertSelection() {
       placementWorkflow.selectedDays[dateISO] = placementWorkflow.defaultShiftType;
     }
   }
+  renderDayPicker();
+  updateDayPickerStats();
+}
+
+function applyDateRange() {
+  const startStr = document.getElementById('dateRangeStart').value.trim();
+  const endStr = document.getElementById('dateRangeEnd').value.trim();
+
+  if(!startStr || !endStr) {
+    alert('Please enter both start and end dates');
+    return;
+  }
+
+  const startDate = parseDateAU(startStr);
+  const endDate = parseDateAU(endStr);
+
+  if(!startDate || !endDate) {
+    alert('Invalid date format. Please use dd/mm/yyyy format.');
+    return;
+  }
+
+  if(startDate > endDate) {
+    alert('Start date must be before end date');
+    return;
+  }
+
+  // Add all dates in range with default shift type
+  let currentDate = new Date(startDate);
+  const endDateExclusive = new Date(endDate);
+  endDateExclusive.setUTCDate(endDateExclusive.getUTCDate() + 1);
+
+  while(currentDate < endDateExclusive) {
+    const dateISO = currentDate.toISOString().slice(0, 10);
+    placementWorkflow.selectedDays[dateISO] = placementWorkflow.defaultShiftType;
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+  }
+
   renderDayPicker();
   updateDayPickerStats();
 }
