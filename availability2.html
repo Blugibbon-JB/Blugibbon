@@ -757,8 +757,13 @@
       </div>
 
       <div class="field">
-        <label>Overtime Rate</label>
-        <input type="number" id="overtimeRate" placeholder="200" />
+        <label>Extra Rate 1</label>
+        <input type="number" id="extraRate1" placeholder="200" />
+      </div>
+
+      <div class="field">
+        <label>Extra Rate 2</label>
+        <input type="number" id="extraRate2" placeholder="220" />
       </div>
 
       <div class="field" id="agencyFeeField">
@@ -779,6 +784,7 @@
   <div class="modal" style="width:min(800px, 92vw);">
     <div class="modalHeader">
       <div class="h">Step 3: Select Working Days</div>
+      <button onclick="closeMakePlacementFlow()" style="background:none; border:none; font-size:24px; cursor:pointer; padding:0; color:#666;">✕</button>
     </div>
 
     <div class="modalBody" style="grid-template-columns: 1fr; max-height: 60vh; overflow-y: auto;">
@@ -800,7 +806,7 @@
       <!-- Shift Type Selector -->
       <div style="margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-radius: 8px;">
         <label style="font-weight: 600; display: block; margin-bottom: 8px;">Default Shift Type</label>
-        <div style="display: flex; gap: 12px;">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
           <label style="display: flex; align-items: center; gap: 6px;">
             <input type="radio" name="defaultShiftType" value="day" checked onchange="updateDefaultShiftType('day')" />
             Day Shift
@@ -808,6 +814,14 @@
           <label style="display: flex; align-items: center; gap: 6px;">
             <input type="radio" name="defaultShiftType" value="night" onchange="updateDefaultShiftType('night')" />
             Night Shift
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px;">
+            <input type="radio" name="defaultShiftType" value="extra1" onchange="updateDefaultShiftType('extra1')" />
+            Extra Rate 1
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px;">
+            <input type="radio" name="defaultShiftType" value="extra2" onchange="updateDefaultShiftType('extra2')" />
+            Extra Rate 2
           </label>
         </div>
         <div style="font-size: 11px; color: #666; margin-top: 6px;">💡 Tip: Click days to toggle shift type</div>
@@ -824,7 +838,7 @@
       <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
         <div>Selected Days: <strong id="selectedDayCount">0</strong></div>
         <div>Date Range: <strong id="selectedDateRange">None</strong></div>
-        <div>Day Shifts: <strong id="dayShiftCount">0</strong> | Night Shifts: <strong id="nightShiftCount">0</strong></div>
+        <div>Day Shifts: <strong id="dayShiftCount">0</strong> | Night Shifts: <strong id="nightShiftCount">0</strong> | Extra 1: <strong id="extra1ShiftCount">0</strong> | Extra 2: <strong id="extra2ShiftCount">0</strong></div>
       </div>
     </div>
 
@@ -840,6 +854,7 @@
   <div class="modal">
     <div class="modalHeader">
       <div class="h">Step 4: Confirm Placement Details</div>
+      <button onclick="closeMakePlacementFlow()" style="background:none; border:none; font-size:24px; cursor:pointer; padding:0; color:#666;">✕</button>
     </div>
 
     <div class="modalBody">
@@ -3759,7 +3774,8 @@ function openEventEditor(payload){
         placementWorkflow.unitType = 'daily';
         placementWorkflow.standardRate = 0;
         placementWorkflow.nightRate = 0;
-        placementWorkflow.overtimeRate = 0;
+        placementWorkflow.extraRate1 = 0;
+        placementWorkflow.extraRate2 = 0;
         placementWorkflow.hoursPerShift = 8;
         placementWorkflow.agencyFeePercent = 0;
         placementWorkflow.defaultShiftType = 'day';
@@ -5119,7 +5135,8 @@ let placementWorkflow = {
   unitType: 'hourly',
   standardRate: 0,
   nightRate: 0,
-  overtimeRate: 0,
+  extraRate1: 0,
+  extraRate2: 0,
   hoursPerShift: 8,
   agencyFeePercent: 0,
   selectedDays: {},
@@ -5190,7 +5207,8 @@ function openPlacementEditor(placementEvent) {
   placementWorkflow.unitType = pd.unit_type || 'daily';
   placementWorkflow.standardRate = pd.standard_rate || 0;
   placementWorkflow.nightRate = pd.night_rate || 0;
-  placementWorkflow.overtimeRate = pd.overtime_rate || 0;
+  placementWorkflow.extraRate1 = pd.extra_rate_1 || 0;
+  placementWorkflow.extraRate2 = pd.extra_rate_2 || 0;
   placementWorkflow.hoursPerShift = pd.hours_per_shift || 8;
   placementWorkflow.agencyFeePercent = pd.agency_fee_percent || 0;
   placementWorkflow.selectedDays = pd.day_shifts || {};
@@ -5288,7 +5306,8 @@ function proceedToDaySelection() {
   placementWorkflow.unitType = document.getElementById('unitType').value;
   placementWorkflow.standardRate = parseFloat(document.getElementById('standardRate').value) || 0;
   placementWorkflow.nightRate = parseFloat(document.getElementById('nightRate').value) || 0;
-  placementWorkflow.overtimeRate = parseFloat(document.getElementById('overtimeRate').value) || 0;
+  placementWorkflow.extraRate1 = parseFloat(document.getElementById('extraRate1').value) || 0;
+  placementWorkflow.extraRate2 = parseFloat(document.getElementById('extraRate2').value) || 0;
   placementWorkflow.hoursPerShift = parseFloat(document.getElementById('hoursPerShift').value) || 8;
   placementWorkflow.agencyFeePercent = parseFloat(document.getElementById('agencyFeePercent').value) || 0;
 
@@ -5457,13 +5476,21 @@ function updateDayPickerStats() {
   const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
   const dayShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'day').length;
   const nightShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'night').length;
+  const extra1ShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'extra1').length;
+  const extra2ShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'extra2').length;
 
   document.getElementById('selectedDayCount').textContent = selectedArray.length;
   document.getElementById('dayShiftCount').textContent = dayShiftCount;
   document.getElementById('nightShiftCount').textContent = nightShiftCount;
+  document.getElementById('extra1ShiftCount').textContent = extra1ShiftCount;
+  document.getElementById('extra2ShiftCount').textContent = extra2ShiftCount;
 
   if(selectedArray.length > 0) {
-    document.getElementById('selectedDateRange').textContent = `${selectedArray[0]} to ${selectedArray[selectedArray.length - 1]}`;
+    const formatISODate = (iso) => {
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    };
+    document.getElementById('selectedDateRange').textContent = `${formatISODate(selectedArray[0])} to ${formatISODate(selectedArray[selectedArray.length - 1])}`;
   } else {
     document.getElementById('selectedDateRange').textContent = 'None';
   }
@@ -5480,27 +5507,36 @@ function proceedToPlacementDetails() {
   const endDate = selectedArray[selectedArray.length - 1];
   const numDays = selectedArray.length;
 
-  // Count day and night shifts
+  // Helper to format YYYY-MM-DD to DD/MM/YYYY
+  const formatISODate = (iso) => {
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  };
+
+  // Count day, night, and extra rate shifts
   const dayShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'day').length;
   const nightShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'night').length;
+  const extra1ShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'extra1').length;
+  const extra2ShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'extra2').length;
 
   // Calculate rate margins from agency fee
   const dayMarginPerUnit = (placementWorkflow.standardRate * placementWorkflow.agencyFeePercent) / 100;
   const nightMarginPerUnit = (placementWorkflow.nightRate * placementWorkflow.agencyFeePercent) / 100;
-  const overtimeMarginPerUnit = (placementWorkflow.overtimeRate * placementWorkflow.agencyFeePercent) / 100;
+  const extra1MarginPerUnit = (placementWorkflow.extraRate1 * placementWorkflow.agencyFeePercent) / 100;
+  const extra2MarginPerUnit = (placementWorkflow.extraRate2 * placementWorkflow.agencyFeePercent) / 100;
 
   // Calculate total margin
   let totalMargin = 0;
   if(placementWorkflow.unitType === 'hourly') {
-    const totalShifts = dayShiftCount + nightShiftCount;
+    const totalShifts = dayShiftCount + nightShiftCount + extra1ShiftCount + extra2ShiftCount;
     const totalUnits = placementWorkflow.hoursPerShift * totalShifts;
     // For hourly, calculate weighted margin per unit based on shift types
-    const weightedMarginPerUnit = (dayShiftCount * dayMarginPerUnit + nightShiftCount * nightMarginPerUnit) / totalShifts;
+    const weightedMarginPerUnit = (dayShiftCount * dayMarginPerUnit + nightShiftCount * nightMarginPerUnit + extra1ShiftCount * extra1MarginPerUnit + extra2ShiftCount * extra2MarginPerUnit) / (totalShifts || 1);
     totalMargin = weightedMarginPerUnit * totalUnits;
     document.getElementById('totalUnitsDisplay').style.display = 'block';
     document.getElementById('totalUnitsAmount').textContent = totalUnits;
   } else {
-    totalMargin = (dayShiftCount * dayMarginPerUnit) + (nightShiftCount * nightMarginPerUnit);
+    totalMargin = (dayShiftCount * dayMarginPerUnit) + (nightShiftCount * nightMarginPerUnit) + (extra1ShiftCount * extra1MarginPerUnit) + (extra2ShiftCount * extra2MarginPerUnit);
     document.getElementById('totalUnitsDisplay').style.display = 'none';
   }
 
@@ -5508,14 +5544,17 @@ function proceedToPlacementDetails() {
   const summary = `
     <div><strong>Doctor:</strong> ${placementWorkflow.selectedDoctor.name}</div>
     <div><strong>Site:</strong> ${placementWorkflow.selectedSite.name}</div>
-    <div><strong>Date Range:</strong> ${startDate} to ${endDate}</div>
+    <div><strong>Date Range:</strong> ${formatISODate(startDate)} to ${formatISODate(endDate)}</div>
     <div><strong>Total Days:</strong> ${numDays}</div>
     <div><strong>Day Shifts:</strong> ${dayShiftCount}</div>
     <div><strong>Night Shifts:</strong> ${nightShiftCount}</div>
+    ${extra1ShiftCount > 0 ? `<div><strong>Extra Rate 1 Shifts:</strong> ${extra1ShiftCount}</div>` : ''}
+    ${extra2ShiftCount > 0 ? `<div><strong>Extra Rate 2 Shifts:</strong> ${extra2ShiftCount}</div>` : ''}
     <div><strong>Unit Type:</strong> ${placementWorkflow.unitType === 'hourly' ? 'Hourly' : 'Daily'}</div>
     <div><strong>Standard Rate:</strong> $${placementWorkflow.standardRate}</div>
     ${placementWorkflow.nightRate ? `<div><strong>Night Rate:</strong> $${placementWorkflow.nightRate}</div>` : ''}
-    ${placementWorkflow.overtimeRate ? `<div><strong>Overtime Rate:</strong> $${placementWorkflow.overtimeRate}</div>` : ''}
+    ${placementWorkflow.extraRate1 ? `<div><strong>Extra Rate 1:</strong> $${placementWorkflow.extraRate1}</div>` : ''}
+    ${placementWorkflow.extraRate2 ? `<div><strong>Extra Rate 2:</strong> $${placementWorkflow.extraRate2}</div>` : ''}
     <div><strong>Agency Fee:</strong> ${placementWorkflow.agencyFeePercent}%</div>
   `;
 
@@ -5524,14 +5563,7 @@ function proceedToPlacementDetails() {
   document.getElementById('totalNightShifts').textContent = nightShiftCount;
   document.getElementById('dayRateMarginPerUnit').textContent = dayMarginPerUnit.toFixed(2);
   document.getElementById('nightRateMarginPerUnit').textContent = nightMarginPerUnit.toFixed(2);
-
-  if(placementWorkflow.overtimeRate > 0) {
-    document.getElementById('overtimeMarginDisplay').style.display = 'block';
-    document.getElementById('overtimeMarginPerUnit').textContent = overtimeMarginPerUnit.toFixed(2);
-  } else {
-    document.getElementById('overtimeMarginDisplay').style.display = 'none';
-  }
-
+  document.getElementById('overtimeMarginDisplay').style.display = 'none';
   document.getElementById('totalPlacementMargin').textContent = totalMargin.toFixed(2);
 
   document.getElementById('dayPickerBackdrop').style.display = 'none';
@@ -5652,23 +5684,26 @@ function createPlacementEvent(status) {
 
   const dayShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'day').length;
   const nightShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'night').length;
+  const extra1ShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'extra1').length;
+  const extra2ShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'extra2').length;
 
   // Calculate rate margins from agency fee
   const dayMarginPerUnit = (placementWorkflow.standardRate * placementWorkflow.agencyFeePercent) / 100;
   const nightMarginPerUnit = (placementWorkflow.nightRate * placementWorkflow.agencyFeePercent) / 100;
-  const overtimeMarginPerUnit = (placementWorkflow.overtimeRate * placementWorkflow.agencyFeePercent) / 100;
+  const extra1MarginPerUnit = (placementWorkflow.extraRate1 * placementWorkflow.agencyFeePercent) / 100;
+  const extra2MarginPerUnit = (placementWorkflow.extraRate2 * placementWorkflow.agencyFeePercent) / 100;
 
   // Calculate total margin based on unit type
   let estimatedTotalUnits = numDays;
   let totalMargin = 0;
 
   if(placementWorkflow.unitType === 'hourly') {
-    const totalShifts = dayShiftCount + nightShiftCount;
+    const totalShifts = dayShiftCount + nightShiftCount + extra1ShiftCount + extra2ShiftCount;
     estimatedTotalUnits = placementWorkflow.hoursPerShift * totalShifts;
-    const weightedMarginPerUnit = (dayShiftCount * dayMarginPerUnit + nightShiftCount * nightMarginPerUnit) / totalShifts;
+    const weightedMarginPerUnit = (dayShiftCount * dayMarginPerUnit + nightShiftCount * nightMarginPerUnit + extra1ShiftCount * extra1MarginPerUnit + extra2ShiftCount * extra2MarginPerUnit) / (totalShifts || 1);
     totalMargin = weightedMarginPerUnit * estimatedTotalUnits;
   } else {
-    totalMargin = (dayShiftCount * dayMarginPerUnit) + (nightShiftCount * nightMarginPerUnit);
+    totalMargin = (dayShiftCount * dayMarginPerUnit) + (nightShiftCount * nightMarginPerUnit) + (extra1ShiftCount * extra1MarginPerUnit) + (extra2ShiftCount * extra2MarginPerUnit);
   }
 
   const unitsPerWeek = (estimatedTotalUnits / weeks).toFixed(1);
@@ -5680,14 +5715,16 @@ function createPlacementEvent(status) {
 
   const notes = `
 Site: ${placementWorkflow.selectedSite.name}
-Day Shifts: ${dayShiftCount} | Night Shifts: ${nightShiftCount}
+Day Shifts: ${dayShiftCount} | Night Shifts: ${nightShiftCount} | Extra 1: ${extra1ShiftCount} | Extra 2: ${extra2ShiftCount}
 Standard Rate: $${placementWorkflow.standardRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}
 ${placementWorkflow.nightRate ? `Night Rate: $${placementWorkflow.nightRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
-${placementWorkflow.overtimeRate ? `Overtime Rate: $${placementWorkflow.overtimeRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
+${placementWorkflow.extraRate1 ? `Extra Rate 1: $${placementWorkflow.extraRate1}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
+${placementWorkflow.extraRate2 ? `Extra Rate 2: $${placementWorkflow.extraRate2}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
 Agency Fee: ${placementWorkflow.agencyFeePercent}%
 Day Margin/Unit: $${dayMarginPerUnit.toFixed(2)}
 ${placementWorkflow.nightRate ? `Night Margin/Unit: $${nightMarginPerUnit.toFixed(2)}` : ''}
-${placementWorkflow.overtimeRate ? `Overtime Margin/Unit: $${overtimeMarginPerUnit.toFixed(2)}` : ''}
+${placementWorkflow.extraRate1 ? `Extra 1 Margin/Unit: $${extra1MarginPerUnit.toFixed(2)}` : ''}
+${placementWorkflow.extraRate2 ? `Extra 2 Margin/Unit: $${extra2MarginPerUnit.toFixed(2)}` : ''}
 Total Margin: $${totalMargin.toFixed(2)}
 `.trim();
 
@@ -5711,15 +5748,19 @@ Total Margin: $${totalMargin.toFixed(2)}
       day_shifts: placementWorkflow.selectedDays,
       day_shift_count: dayShiftCount,
       night_shift_count: nightShiftCount,
+      extra1_shift_count: extra1ShiftCount,
+      extra2_shift_count: extra2ShiftCount,
       unit_type: placementWorkflow.unitType,
       standard_rate: placementWorkflow.standardRate,
       night_rate: placementWorkflow.nightRate,
-      overtime_rate: placementWorkflow.overtimeRate,
+      extra_rate_1: placementWorkflow.extraRate1,
+      extra_rate_2: placementWorkflow.extraRate2,
       hours_per_shift: placementWorkflow.hoursPerShift,
       agency_fee_percent: placementWorkflow.agencyFeePercent,
       day_margin_per_unit: dayMarginPerUnit,
       night_margin_per_unit: nightMarginPerUnit,
-      overtime_margin_per_unit: overtimeMarginPerUnit,
+      extra1_margin_per_unit: extra1MarginPerUnit,
+      extra2_margin_per_unit: extra2MarginPerUnit,
       estimated_total_units: estimatedTotalUnits,
       units_per_week: parseFloat(unitsPerWeek),
       total_estimated_margin: totalMargin
@@ -5755,7 +5796,8 @@ function formatPlacementNotes(placement) {
     `Site: ${placement.site_name}`,
     `Rate: $${placement.standard_rate}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}`,
     placement.night_rate ? `Night Rate: $${placement.night_rate}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}` : '',
-    placement.overtime_rate ? `OT Rate: $${placement.overtime_rate}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}` : '',
+    placement.extra_rate_1 ? `Extra Rate 1: $${placement.extra_rate_1}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}` : '',
+    placement.extra_rate_2 ? `Extra Rate 2: $${placement.extra_rate_2}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}` : '',
     `Day Shifts: ${placement.day_shift_count || 0}`,
     `Night Shifts: ${placement.night_shift_count || 0}`,
     `Total Units: ${placement.estimated_total_units}`,
