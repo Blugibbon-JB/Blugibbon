@@ -1393,6 +1393,11 @@ function generateTimesheets() {
     // Skip if dates are invalid
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) continue;
 
+    // Get placement event for day_shifts and rates
+    const placementEvent = events.find(e => e.id === placement.id);
+    const dayShifts = placementEvent?.placement_data?.day_shifts || {};
+    const placementData = placementEvent?.placement_data || {};
+
     // Split placement into weekly chunks (Mon-Sun)
     let currentDate = new Date(startDate);
 
@@ -1405,14 +1410,22 @@ function generateTimesheets() {
 
       const weekEnd = new Date(Math.min(sundayDate.getTime(), endDate.getTime()));
       const weekStart = new Date(currentDate);
-
-      // Calculate estimated days/shifts for this week
-      const weekDays = Math.ceil((weekEnd - weekStart) / (1000 * 60 * 60 * 24)) + 1;
-
       const weekStartISO = weekStart.toISOString().split('T')[0];
 
+      // Count estimated units per shift type for this week
+      let estimatedDays = 0, estimatedNights = 0, estimatedExtra1 = 0, estimatedExtra2 = 0;
+      let loopDate = new Date(weekStart);
+      while (loopDate <= weekEnd) {
+        const dateISO = loopDate.toISOString().split('T')[0];
+        const shiftType = dayShifts[dateISO];
+        if (shiftType === 'day') estimatedDays++;
+        else if (shiftType === 'night') estimatedNights++;
+        else if (shiftType === 'extra1') estimatedExtra1++;
+        else if (shiftType === 'extra2') estimatedExtra2++;
+        loopDate.setUTCDate(loopDate.getUTCDate() + 1);
+      }
+
       // Check if there's persisted timesheet data for this week
-      const placementEvent = events.find(e => e.id === placement.id);
       const savedData = placementEvent?.timesheet_data?.[weekStartISO] || {};
 
       const timesheet = {
@@ -1422,10 +1435,14 @@ function generateTimesheets() {
         site: placement.site,
         weekStart: weekStartISO,
         weekEnd: weekEnd.toISOString().split('T')[0],
-        estimatedDays: weekDays,
+        estimatedDays: estimatedDays,
+        estimatedNights: estimatedNights,
+        estimatedExtra1: estimatedExtra1,
+        estimatedExtra2: estimatedExtra2,
         actualDays: savedData.actualDays ?? null,
         actualNights: savedData.actualNights ?? null,
-        actualRDO: savedData.actualRDO ?? null,
+        actualExtra1: savedData.actualExtra1 ?? null,
+        actualExtra2: savedData.actualExtra2 ?? null,
         notes: savedData.notes || '',
         status: savedData.status || 'pending', // pending|processed
         sentToClickUp: savedData.sentToClickUp || false
@@ -2263,19 +2280,31 @@ function renderTimesheetCard(ts) {
   const actualExtra1 = ts.actualExtra1 ?? savedData.actualExtra1 ?? null;
   const actualExtra2 = ts.actualExtra2 ?? savedData.actualExtra2 ?? null;
 
-  // Calculate margins
+  // Calculate margins per shift type
   const marginPerDay = (dayRate * agencyFeePercent) / 100;
   const marginPerNight = (nightRate * agencyFeePercent) / 100;
   const marginPerExtra1 = (extraRate1 * agencyFeePercent) / 100;
   const marginPerExtra2 = (extraRate2 * agencyFeePercent) / 100;
 
-  const estimatedMargin = (ts.estimatedDays * marginPerDay).toFixed(2);
-  const actualMargin = (
-    (actualDays || 0) * marginPerDay +
-    (actualNights || 0) * marginPerNight +
-    (actualExtra1 || 0) * marginPerExtra1 +
-    (actualExtra2 || 0) * marginPerExtra2
-  ).toFixed(2);
+  // Estimated margins
+  const estimatedDayMargin = (ts.estimatedDays * marginPerDay);
+  const estimatedNightMargin = (ts.estimatedNights * marginPerNight);
+  const estimatedExtra1Margin = (ts.estimatedExtra1 * marginPerExtra1);
+  const estimatedExtra2Margin = (ts.estimatedExtra2 * marginPerExtra2);
+  const totalEstimatedMargin = (estimatedDayMargin + estimatedNightMargin + estimatedExtra1Margin + estimatedExtra2Margin).toFixed(2);
+
+  // Actual margins
+  const actualDayMargin = ((actualDays || 0) * marginPerDay);
+  const actualNightMargin = ((actualNights || 0) * marginPerNight);
+  const actualExtra1Margin = ((actualExtra1 || 0) * marginPerExtra1);
+  const actualExtra2Margin = ((actualExtra2 || 0) * marginPerExtra2);
+  const totalActualMargin = (actualDayMargin + actualNightMargin + actualExtra1Margin + actualExtra2Margin).toFixed(2);
+
+  // Forecast differences
+  const dayForecast = (actualDayMargin - estimatedDayMargin).toFixed(2);
+  const nightForecast = (actualNightMargin - estimatedNightMargin).toFixed(2);
+  const extra1Forecast = (actualExtra1Margin - estimatedExtra1Margin).toFixed(2);
+  const extra2Forecast = (actualExtra2Margin - estimatedExtra2Margin).toFixed(2);
 
   const statusClass = ts.status === 'processed' ? 'processed' : (ts.status === 'overdue' ? 'overdue' : 'pending');
   const statusLabel = ts.status === 'processed' ? 'Processed' : (ts.status === 'overdue' ? 'Overdue' : 'Pending');
@@ -2307,83 +2336,131 @@ function renderTimesheetCard(ts) {
 
     <!-- Shift Types Section -->
     <div style="border:1px solid #e0e0e0; border-radius:8px; padding:12px; margin-bottom:12px;">
-      <div style="font-weight:600; font-size:13px; margin-bottom:12px; color:#333;">Actual Shifts Worked</div>
+      <div style="font-weight:600; font-size:13px; margin-bottom:12px; color:#333;">Shifts & Margins</div>
 
       <!-- Day Shifts -->
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Days Worked</label>
-          <input type="number" class="ts-actual-days" min="0" value="${actualDays ?? ''}" placeholder="0" style="width:100%; padding:6px 8px;" />
+      <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+          <div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. Days</div>
+            <div style="padding:4px; font-weight:600;">${ts.estimatedDays}</div>
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual Days</label>
+            <input type="number" class="ts-actual-days" min="0" value="${actualDays ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate</label>
+            <input type="number" class="ts-day-rate" min="0" step="0.01" value="${dayRate}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" />
+          </div>
+          <div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
+            <div style="padding:4px; font-weight:600; ${dayForecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
+              ${dayForecast >= 0 ? '+' : ''}$${dayForecast}
+            </div>
+          </div>
         </div>
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Day Rate</label>
-          <input type="number" class="ts-day-rate" min="0" step="0.01" value="${dayRate}" style="width:100%; padding:6px 8px;" placeholder="$0.00" />
-        </div>
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Day Margin</label>
-          <div style="padding:6px 8px; font-weight:600;">$${((actualDays || 0) * marginPerDay).toFixed(2)}</div>
-        </div>
+        <div style="font-size:11px; color:var(--muted);">Est. Margin: <strong>$${estimatedDayMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualDayMargin.toFixed(2)}</strong></div>
       </div>
 
       <!-- Night Shifts -->
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Nights Worked</label>
-          <input type="number" class="ts-actual-nights" min="0" value="${actualNights ?? ''}" placeholder="0" style="width:100%; padding:6px 8px;" />
+      ${ts.estimatedNights > 0 || actualNights ? `
+      <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+          <div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. Nights</div>
+            <div style="padding:4px; font-weight:600;">${ts.estimatedNights}</div>
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual Nights</label>
+            <input type="number" class="ts-actual-nights" min="0" value="${actualNights ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate</label>
+            <input type="number" class="ts-night-rate" min="0" step="0.01" value="${nightRate}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" />
+          </div>
+          <div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
+            <div style="padding:4px; font-weight:600; ${nightForecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
+              ${nightForecast >= 0 ? '+' : ''}$${nightForecast}
+            </div>
+          </div>
         </div>
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Night Rate</label>
-          <input type="number" class="ts-night-rate" min="0" step="0.01" value="${nightRate}" style="width:100%; padding:6px 8px;" placeholder="$0.00" />
-        </div>
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Night Margin</label>
-          <div style="padding:6px 8px; font-weight:600;">$${((actualNights || 0) * marginPerNight).toFixed(2)}</div>
-        </div>
+        <div style="font-size:11px; color:var(--muted);">Est. Margin: <strong>$${estimatedNightMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualNightMargin.toFixed(2)}</strong></div>
       </div>
+      ` : ''}
 
       <!-- Extra Rate 1 -->
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 1 Worked</label>
-          <input type="number" class="ts-actual-extra1" min="0" value="${actualExtra1 ?? ''}" placeholder="0" style="width:100%; padding:6px 8px;" />
+      ${ts.estimatedExtra1 > 0 || actualExtra1 ? `
+      <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+          <div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. Extra 1</div>
+            <div style="padding:4px; font-weight:600;">${ts.estimatedExtra1}</div>
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual Extra 1</label>
+            <input type="number" class="ts-actual-extra1" min="0" value="${actualExtra1 ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate</label>
+            <input type="number" class="ts-extra1-rate" min="0" step="0.01" value="${extraRate1}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" />
+          </div>
+          <div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
+            <div style="padding:4px; font-weight:600; ${extra1Forecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
+              ${extra1Forecast >= 0 ? '+' : ''}$${extra1Forecast}
+            </div>
+          </div>
         </div>
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 1 Rate</label>
-          <input type="number" class="ts-extra1-rate" min="0" step="0.01" value="${extraRate1}" style="width:100%; padding:6px 8px;" placeholder="$0.00" />
-        </div>
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 1 Margin</label>
-          <div style="padding:6px 8px; font-weight:600;">$${((actualExtra1 || 0) * marginPerExtra1).toFixed(2)}</div>
-        </div>
+        <div style="font-size:11px; color:var(--muted);">Est. Margin: <strong>$${estimatedExtra1Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra1Margin.toFixed(2)}</strong></div>
       </div>
+      ` : ''}
 
       <!-- Extra Rate 2 -->
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 2 Worked</label>
-          <input type="number" class="ts-actual-extra2" min="0" value="${actualExtra2 ?? ''}" placeholder="0" style="width:100%; padding:6px 8px;" />
+      ${ts.estimatedExtra2 > 0 || actualExtra2 ? `
+      <div style="padding:10px; background:#f9f9f9; border-radius:6px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+          <div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. Extra 2</div>
+            <div style="padding:4px; font-weight:600;">${ts.estimatedExtra2}</div>
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual Extra 2</label>
+            <input type="number" class="ts-actual-extra2" min="0" value="${actualExtra2 ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate</label>
+            <input type="number" class="ts-extra2-rate" min="0" step="0.01" value="${extraRate2}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" />
+          </div>
+          <div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
+            <div style="padding:4px; font-weight:600; ${extra2Forecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
+              ${extra2Forecast >= 0 ? '+' : ''}$${extra2Forecast}
+            </div>
+          </div>
         </div>
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 2 Rate</label>
-          <input type="number" class="ts-extra2-rate" min="0" step="0.01" value="${extraRate2}" style="width:100%; padding:6px 8px;" placeholder="$0.00" />
-        </div>
-        <div>
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Extra 2 Margin</label>
-          <div style="padding:6px 8px; font-weight:600;">$${((actualExtra2 || 0) * marginPerExtra2).toFixed(2)}</div>
-        </div>
+        <div style="font-size:11px; color:var(--muted);">Est. Margin: <strong>$${estimatedExtra2Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra2Margin.toFixed(2)}</strong></div>
       </div>
+      ` : ''}
     </div>
 
     <!-- Margin Summary -->
     <div style="background:#f0f7ff; padding:12px; border-radius:8px; margin-bottom:12px; border-left:4px solid #2196F3;">
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
         <div>
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Estimated Margin</div>
-          <div style="font-size:18px; font-weight:700; color:#2196F3;">$${estimatedMargin}</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Estimated Total</div>
+          <div style="font-size:16px; font-weight:700; color:#2196F3;">$${totalEstimatedMargin}</div>
         </div>
         <div>
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Actual Margin</div>
-          <div style="font-size:18px; font-weight:700; color:#4CAF50;">$${actualMargin}</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Actual Total</div>
+          <div style="font-size:16px; font-weight:700; color:#4CAF50;">$${totalActualMargin}</div>
+        </div>
+        <div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Forecast Diff</div>
+          <div style="font-size:16px; font-weight:700; ${totalActualMargin - totalEstimatedMargin >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
+            ${(totalActualMargin - totalEstimatedMargin) >= 0 ? '+' : ''}$${(totalActualMargin - totalEstimatedMargin).toFixed(2)}
+          </div>
         </div>
       </div>
     </div>
