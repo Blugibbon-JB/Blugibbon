@@ -6347,7 +6347,7 @@ function renderDayPicker() {
   document.getElementById('currentMonthLabel').textContent = monthName;
 
   // Day headers
-  const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayHeaders = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   dayHeaders.forEach(day => {
     const header = document.createElement('div');
     header.style.cssText = 'text-align:center; font-weight:bold; font-size:12px; margin-bottom:8px;';
@@ -6355,7 +6355,8 @@ function renderDayPicker() {
     grid.appendChild(header);
   });
 
-  const firstDay = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const dayOfWeek = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const firstDay = (dayOfWeek + 6) % 7; // Convert Sun=0 to Mon=0 (Sun becomes 6)
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
 
   // Empty cells
