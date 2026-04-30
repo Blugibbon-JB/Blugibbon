@@ -3361,25 +3361,25 @@ function expandPlacementToDailyEvents(placement, docById) {
       backgroundColor = '#1976D2'; // Blue
       borderColor = '#1565C0';
       emoji = '☀️';
-      rate = placement.standard_rate || 0;
+      rate = pd.standard_rate || 0;
       dayLabel = `${emoji} $${rate}`;
     } else if(shiftType === 'night') {
       backgroundColor = '#1976D2'; // Blue
       borderColor = '#1565C0';
       emoji = '🌙';
-      rate = placement.night_rate || 0;
+      rate = pd.night_rate || 0;
       dayLabel = `${emoji} $${rate}`;
     } else if(shiftType === 'extra1') {
       backgroundColor = '#1976D2'; // Blue
       borderColor = '#1565C0';
       emoji = '➕';
-      rate = placement.extra_rate_1 || 0;
+      rate = pd.extra_rate_1 || 0;
       dayLabel = `${emoji} $${rate}`;
     } else if(shiftType === 'extra2') {
       backgroundColor = '#1976D2'; // Blue
       borderColor = '#1565C0';
       emoji = '➕➕';
-      rate = placement.extra_rate_2 || 0;
+      rate = pd.extra_rate_2 || 0;
       dayLabel = `${emoji} $${rate}`;
     } else {
       // RDO - unselected day within placement range
