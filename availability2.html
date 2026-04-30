@@ -2481,15 +2481,15 @@ function renderTimesheetCard(ts) {
       <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
         <div>
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Estimated Total</div>
-          <div style="font-size:16px; font-weight:700; color:#2196F3;">$${totalEstimatedMargin}</div>
+          <div style="font-size:16px; font-weight:700; color:#2196F3;" data-summary="est-total">$${totalEstimatedMargin}</div>
         </div>
         <div>
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Actual Total</div>
-          <div style="font-size:16px; font-weight:700; color:#4CAF50;">$${totalActualMargin}</div>
+          <div style="font-size:16px; font-weight:700; color:#4CAF50;" data-summary="act-total">$${totalActualMargin}</div>
         </div>
         <div>
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Forecast Diff</div>
-          <div style="font-size:16px; font-weight:700; ${totalActualMargin - totalEstimatedMargin >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
+          <div style="font-size:16px; font-weight:700; ${totalActualMargin - totalEstimatedMargin >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}" data-summary="forecast-diff">
             ${(totalActualMargin - totalEstimatedMargin) >= 0 ? '+' : ''}$${(totalActualMargin - totalEstimatedMargin).toFixed(2)}
           </div>
         </div>
@@ -2615,6 +2615,20 @@ function updateTimesheetMargins(card) {
       extra2ForecastEl.textContent = `${extra2Forecast >= 0 ? '+' : ''}$${extra2Forecast}`;
       extra2ForecastEl.style.color = extra2Forecast >= 0 ? '#4CAF50' : '#f44336';
     }
+  }
+
+  // Update summary section at the bottom
+  const summaryEstEl = card.querySelector('[data-summary="est-total"]');
+  if (summaryEstEl) summaryEstEl.textContent = `$${totalEstimatedMargin}`;
+
+  const summaryActEl = card.querySelector('[data-summary="act-total"]');
+  if (summaryActEl) summaryActEl.textContent = `$${totalActualMargin}`;
+
+  const summaryForecastEl = card.querySelector('[data-summary="forecast-diff"]');
+  if (summaryForecastEl) {
+    const forecastDiff = (totalActualMargin - totalEstimatedMargin).toFixed(2);
+    summaryForecastEl.textContent = `${forecastDiff >= 0 ? '+' : ''}$${forecastDiff}`;
+    summaryForecastEl.style.color = forecastDiff >= 0 ? '#4CAF50' : '#f44336';
   }
 }
 
