@@ -827,6 +827,43 @@
         <div style="font-size: 11px; color: #666; margin-top: 6px;">💡 Tip: Click days to toggle shift type</div>
       </div>
 
+      <!-- Weekly Pattern Builder (NEW FEATURE) -->
+      <div style="margin-bottom: 16px; padding: 12px; background: #fff3e0; border-radius: 8px; border: 1px solid #ffb74d;">
+        <label style="font-weight: 600; display: block; margin-bottom: 8px;">📅 Quick Fill with Weekly Pattern</label>
+
+        <!-- Quick Presets -->
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 11px; color: #666; display: block; margin-bottom: 6px;">Presets:</label>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button onclick="applyWeeklyPattern('weekdays', 'day')" style="padding: 6px 10px; font-size: 11px; background: #fff; border: 1px solid #ffb74d; border-radius: 4px; cursor: pointer;">Weekdays (Mon-Fri)</button>
+            <button onclick="applyWeeklyPattern('weekends', 'day')" style="padding: 6px 10px; font-size: 11px; background: #fff; border: 1px solid #ffb74d; border-radius: 4px; cursor: pointer;">Weekends (Sat-Sun)</button>
+            <button onclick="applyWeeklyPattern('every-day', 'day')" style="padding: 6px 10px; font-size: 11px; background: #fff; border: 1px solid #ffb74d; border-radius: 4px; cursor: pointer;">Every Day</button>
+          </div>
+        </div>
+
+        <!-- Custom Weekly Pattern -->
+        <div>
+          <label style="font-size: 11px; color: #666; display: block; margin-bottom: 6px;">Or define custom pattern (applies Mon-Sun across date range):</label>
+          <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 8px;">
+            <div style="font-size: 10px; font-weight: 600; text-align: center;">Mon</div>
+            <div style="font-size: 10px; font-weight: 600; text-align: center;">Tue</div>
+            <div style="font-size: 10px; font-weight: 600; text-align: center;">Wed</div>
+            <div style="font-size: 10px; font-weight: 600; text-align: center;">Thu</div>
+            <div style="font-size: 10px; font-weight: 600; text-align: center;">Fri</div>
+            <div style="font-size: 10px; font-weight: 600; text-align: center;">Sat</div>
+            <div style="font-size: 10px; font-weight: 600; text-align: center;">Sun</div>
+            <select id="weeklyPatternMon" style="padding: 4px; font-size: 10px;"><option value="">None</option><option value="day">Day</option><option value="night">Night</option><option value="extra1">Extra 1</option><option value="extra2">Extra 2</option></select>
+            <select id="weeklyPatternTue" style="padding: 4px; font-size: 10px;"><option value="">None</option><option value="day">Day</option><option value="night">Night</option><option value="extra1">Extra 1</option><option value="extra2">Extra 2</option></select>
+            <select id="weeklyPatternWed" style="padding: 4px; font-size: 10px;"><option value="">None</option><option value="day">Day</option><option value="night">Night</option><option value="extra1">Extra 1</option><option value="extra2">Extra 2</option></select>
+            <select id="weeklyPatternThu" style="padding: 4px; font-size: 10px;"><option value="">None</option><option value="day">Day</option><option value="night">Night</option><option value="extra1">Extra 1</option><option value="extra2">Extra 2</option></select>
+            <select id="weeklyPatternFri" style="padding: 4px; font-size: 10px;"><option value="">None</option><option value="day">Day</option><option value="night">Night</option><option value="extra1">Extra 1</option><option value="extra2">Extra 2</option></select>
+            <select id="weeklyPatternSat" style="padding: 4px; font-size: 10px;"><option value="">None</option><option value="day">Day</option><option value="night">Night</option><option value="extra1">Extra 1</option><option value="extra2">Extra 2</option></select>
+            <select id="weeklyPatternSun" style="padding: 4px; font-size: 10px;"><option value="">None</option><option value="day">Day</option><option value="night">Night</option><option value="extra1">Extra 1</option><option value="extra2">Extra 2</option></select>
+          </div>
+          <button onclick="applyCustomWeeklyPattern()" style="padding: 6px 12px; font-size: 11px; background: #ffb74d; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Apply Pattern to Date Range</button>
+        </div>
+      </div>
+
       <!-- Controls -->
       <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
         <button onclick="selectAllDaysInMonth()" style="padding: 6px 12px; font-size: 12px;">Select All This Month</button>
@@ -5590,6 +5627,87 @@ function invertSelection() {
       placementWorkflow.selectedDays[dateISO] = placementWorkflow.defaultShiftType;
     }
   }
+  renderDayPicker();
+  updateDayPickerStats();
+}
+
+function applyWeeklyPattern(preset, shiftType) {
+  const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
+  if(selectedArray.length === 0) {
+    alert('Please select a date range first before applying a pattern');
+    return;
+  }
+
+  const startDate = new Date(selectedArray[0]);
+  const endDate = new Date(selectedArray[selectedArray.length - 1]);
+
+  let currentDate = new Date(startDate);
+  while(currentDate <= endDate) {
+    const dateISO = currentDate.toISOString().slice(0, 10);
+    const dayOfWeek = currentDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+
+    let shouldInclude = false;
+    if(preset === 'weekdays' && dayOfWeek >= 1 && dayOfWeek <= 5) {
+      shouldInclude = true;
+    } else if(preset === 'weekends' && (dayOfWeek === 0 || dayOfWeek === 6)) {
+      shouldInclude = true;
+    } else if(preset === 'every-day') {
+      shouldInclude = true;
+    }
+
+    if(shouldInclude) {
+      placementWorkflow.selectedDays[dateISO] = shiftType;
+    } else {
+      delete placementWorkflow.selectedDays[dateISO];
+    }
+
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+  }
+
+  renderDayPicker();
+  updateDayPickerStats();
+}
+
+function applyCustomWeeklyPattern() {
+  const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
+  if(selectedArray.length === 0) {
+    alert('Please select a date range first before applying a pattern');
+    return;
+  }
+
+  // Get the pattern from the selectors (0=Mon, 1=Tue, ..., 6=Sun)
+  const pattern = [
+    document.getElementById('weeklyPatternMon').value,
+    document.getElementById('weeklyPatternTue').value,
+    document.getElementById('weeklyPatternWed').value,
+    document.getElementById('weeklyPatternThu').value,
+    document.getElementById('weeklyPatternFri').value,
+    document.getElementById('weeklyPatternSat').value,
+    document.getElementById('weeklyPatternSun').value
+  ];
+
+  const startDate = new Date(selectedArray[0]);
+  const endDate = new Date(selectedArray[selectedArray.length - 1]);
+
+  let currentDate = new Date(startDate);
+  while(currentDate <= endDate) {
+    const dateISO = currentDate.toISOString().slice(0, 10);
+    const dayOfWeek = currentDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+
+    // Convert UTC day to pattern index (0=Mon, 6=Sun)
+    let patternIndex = dayOfWeek - 1; // Mon=0, Sun=6
+    if(patternIndex === -1) patternIndex = 6; // Sun is index 6
+
+    const shiftType = pattern[patternIndex];
+    if(shiftType) {
+      placementWorkflow.selectedDays[dateISO] = shiftType;
+    } else {
+      delete placementWorkflow.selectedDays[dateISO];
+    }
+
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+  }
+
   renderDayPicker();
   updateDayPickerStats();
 }
