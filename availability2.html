@@ -2328,8 +2328,12 @@ function renderTimesheetCard(ts) {
           <input type="number" class="ts-agency-fee" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="width:100px; padding:6px 8px;" />
         </div>
         <div style="flex:1;">
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Margin/Day</div>
-          <div style="font-weight:600; padding:6px 8px;">$${marginPerDay.toFixed(2)}</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Est. Total Margin/Week</div>
+          <div class="ts-est-total-margin" style="font-weight:600; padding:6px 8px; color:#2196F3;">$${totalEstimatedMargin}</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Act. Total Margin/Week</div>
+          <div class="ts-act-total-margin" style="font-weight:600; padding:6px 8px; color:#4CAF50;">$${totalActualMargin}</div>
         </div>
       </div>
     </div>
@@ -2480,7 +2484,52 @@ function renderTimesheetCard(ts) {
   </div>`;
 }
 
+function updateTimesheetMargins(card) {
+  const tsId = card.dataset.tsId;
+  const ts = timesheets.find(t => t.id === tsId);
+  if (!ts) return;
+
+  // Get current input values and update ts object
+  ts.actualDays = parseInt(card.querySelector('.ts-actual-days')?.value) || null;
+  ts.actualNights = parseInt(card.querySelector('.ts-actual-nights')?.value) || null;
+  ts.actualExtra1 = parseInt(card.querySelector('.ts-actual-extra1')?.value) || null;
+  ts.actualExtra2 = parseInt(card.querySelector('.ts-actual-extra2')?.value) || null;
+
+  // Re-render just this card
+  const newCard = renderTimesheetCard(ts);
+  card.replaceWith(new DOMParser().parseFromString(newCard, 'text/html').body.firstChild);
+
+  // Re-attach listeners to the new card
+  const newCardElement = document.querySelector(`[data-ts-id="${tsId}"]`);
+  if (newCardElement) {
+    const inputs = newCardElement.querySelectorAll(
+      '.ts-actual-days, .ts-actual-nights, .ts-actual-extra1, .ts-actual-extra2, ' +
+      '.ts-day-rate, .ts-night-rate, .ts-extra1-rate, .ts-extra2-rate, ' +
+      '.ts-agency-fee'
+    );
+    inputs.forEach(input => {
+      input.addEventListener('input', () => {
+        updateTimesheetMargins(newCardElement);
+      });
+    });
+  }
+}
+
 function addTimesheetListeners() {
+  // Live margin updates on input change
+  document.querySelectorAll('.timesheetCard').forEach(card => {
+    const inputs = card.querySelectorAll(
+      '.ts-actual-days, .ts-actual-nights, .ts-actual-extra1, .ts-actual-extra2, ' +
+      '.ts-day-rate, .ts-night-rate, .ts-extra1-rate, .ts-extra2-rate, ' +
+      '.ts-agency-fee'
+    );
+    inputs.forEach(input => {
+      input.addEventListener('input', () => {
+        updateTimesheetMargins(card);
+      });
+    });
+  });
+
   // Save button handlers
   document.querySelectorAll('.ts-save-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
