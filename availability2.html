@@ -1034,6 +1034,29 @@ function saveEvents(events){
   if(isOnline && firebase_user) syncToFirebase();
 }
 
+function sanitizeEventsForFirebase(eventsArray) {
+  const removeUndefined = (obj) => {
+    if (obj === null || obj === undefined) return null;
+    if (typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) {
+      return obj.map(item => removeUndefined(item)).filter(item => item !== null);
+    }
+    const cleaned = {};
+    for (const key in obj) {
+      const val = obj[key];
+      if (val === undefined) continue;
+      if (typeof val === 'object' && val !== null) {
+        cleaned[key] = removeUndefined(val);
+      } else {
+        cleaned[key] = val;
+      }
+    }
+    return cleaned;
+  };
+
+  return eventsArray.map(event => removeUndefined(event));
+}
+
 function esc(s){
   return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
     .replaceAll('"',"&quot;").replaceAll("'","&#39;");
@@ -1158,7 +1181,7 @@ const STATUS = [
 const STATUS_COLOR = Object.fromEntries(STATUS.map(s=>[s.key, s.color]));
 
 let doctors = loadDoctors();
-let events  = loadEvents();
+let events  = sanitizeEventsForFirebase(loadEvents()); // Sanitize loaded events to remove any undefined properties
 let placements = []; // Will be loaded from Firebase
 
 // -----------------------
@@ -5745,29 +5768,6 @@ function proceedToPlacementDetails() {
   }
 }
 
-function sanitizeEventsForFirebase(eventsArray) {
-  const removeUndefined = (obj) => {
-    if (obj === null || obj === undefined) return null;
-    if (typeof obj !== 'object') return obj;
-    if (Array.isArray(obj)) {
-      return obj.map(item => removeUndefined(item)).filter(item => item !== null);
-    }
-    const cleaned = {};
-    for (const key in obj) {
-      const val = obj[key];
-      if (val === undefined) continue;
-      if (typeof val === 'object' && val !== null) {
-        cleaned[key] = removeUndefined(val);
-      } else {
-        cleaned[key] = val;
-      }
-    }
-    return cleaned;
-  };
-
-  return eventsArray.map(event => removeUndefined(event));
-}
-
 function backToDaySelection() {
   document.getElementById('placementDetailsBackdrop').style.display = 'none';
   document.getElementById('dayPickerBackdrop').style.display = 'flex';
@@ -6456,7 +6456,7 @@ async function syncFromFirebase() {
     const cloudEvents = snapshot[1].val() || [];
 
     doctors = cloudDoctors;
-    events = cloudEvents;
+    events = sanitizeEventsForFirebase(cloudEvents); // Remove any undefined properties from loaded events
     placements = []; // Clear old placements - they're now in events
 
     saveDoctors(doctors);
