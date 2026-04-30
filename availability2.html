@@ -2319,6 +2319,11 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
     const e = arg.event.extendedProps || {};
     const title = arg.event.title || e.status || "Status";
 
+    // Add visual segments to placement bars for day-by-day shift type indication
+    if(e.is_placement && e.day_shifts && arg.el) {
+      addPlacementSegments(arg.el, e.day_shifts, e.start_date, e.end_date);
+    }
+
     const lines = [];
     if(e.doctor_name && showAllDoctors) lines.push(`Doctor: ${e.doctor_name}`);
     if(e.status) lines.push(`Status: ${e.status}`);
@@ -3151,6 +3156,87 @@ function importJSONBackup(file){
   };
   reader.readAsText(file);
 }
+
+function addPlacementSegments(eventEl, dayShifts, startDate, endDate) {
+  // Create a container for visual segments on the placement bar
+  if(!eventEl) return;
+
+  const container = eventEl.querySelector('.fc-event-main');
+  if(!container) return;
+
+  // Parse dates
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  // Calculate total days
+  let totalDays = 0;
+  let currentDate = new Date(start);
+  while(currentDate < end) {
+    totalDays++;
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+  }
+
+  if(totalDays <= 0) return;
+
+  // Create segments container
+  const segmentsContainer = document.createElement('div');
+  segmentsContainer.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    overflow: hidden;
+  `;
+
+  // Add segments for each day
+  currentDate = new Date(start);
+  let dayIndex = 0;
+
+  while(currentDate < end && dayIndex < totalDays) {
+    const dateISO = currentDate.toISOString().slice(0, 10);
+    const shiftType = dayShifts[dateISO];
+
+    const width = (1 / totalDays) * 100;
+    let emoji = '';
+
+    if(shiftType === 'day') {
+      emoji = '☀️';
+    } else if(shiftType === 'night') {
+      emoji = '🌙';
+    } else {
+      emoji = '⊘';
+    }
+
+    // Create segment div with emoji
+    const segment = document.createElement('div');
+    segment.style.cssText = `
+      flex: 1;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      border-right: 1px solid rgba(255,255,255,0.2);
+      position: relative;
+    `;
+    segment.textContent = emoji;
+    segment.title = `${dateISO}: ${shiftType || 'RDO'}`;
+
+    segmentsContainer.appendChild(segment);
+
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+    dayIndex++;
+  }
+
+  // Add segments to container
+  container.style.position = 'relative';
+  container.appendChild(segmentsContainer);
+}
+
 function renderCalendar(){
   const d = getSelectedDoctor();
   const docById = new Map(doctors.map(x=>[String(x.ahpra_id), x]));
@@ -3185,9 +3271,9 @@ function renderCalendar(){
 
   // Render events
   for(const e of shown){
-    // Special handling for placement events: expand to daily view
+    // Special handling for placement events: one bar with color segments
     if(e.type === 'placement' && e.placement_data) {
-      expandPlacementToDailyEvents(e, docById);
+      renderPlacementAsSegmentedBar(e, docById);
     } else {
       // Regular event rendering
       const displayLocation = (e.site_id && sitesCache[e.site_id])
@@ -3216,6 +3302,36 @@ function renderCalendar(){
     }
   }
 
+}
+
+function renderPlacementAsSegmentedBar(placement, docById) {
+  const pd = placement.placement_data;
+  const dayShifts = pd.day_shifts || {};
+  const displayLocation = placement.location || pd.site_name || "";
+  const doctorName = showAllDoctors ? ((docById.get(String(placement.ahpra_id))?.name || String(placement.ahpra_id)) + ": ") : "";
+
+  // Create one event for the full placement range
+  calendar.addEvent({
+    id: placement.id,
+    title: `${doctorName}${displayLocation}`,
+    start: placement.start,
+    end: placement.end,
+    backgroundColor: '#1976D2',
+    borderColor: '#1565C0',
+    textColor: "#fff",
+    classNames: 'placement-bar',
+    extendedProps: {
+      status: placement.status,
+      notes: placement.notes,
+      location: displayLocation,
+      doctor_name: (docById.get(String(placement.ahpra_id))?.name || String(placement.ahpra_id)),
+      is_placement: true,
+      day_shifts: dayShifts,
+      start_date: placement.start,
+      end_date: placement.end,
+      parent_placement_id: placement.id
+    }
+  });
 }
 
 function expandPlacementToDailyEvents(placement, docById) {
