@@ -5597,38 +5597,65 @@ function proceedToPlacementDetails() {
       <div><strong>Agency Fee:</strong> ${placementWorkflow.agencyFeePercent}%</div>
     `;
 
-    document.getElementById('placementSummary').innerHTML = summary;
-    document.getElementById('totalDayShifts').textContent = dayShiftCount;
-    document.getElementById('totalNightShifts').textContent = nightShiftCount;
-    document.getElementById('dayRateMarginPerUnit').textContent = dayMarginPerUnit.toFixed(2);
-    document.getElementById('nightRateMarginPerUnit').textContent = nightMarginPerUnit.toFixed(2);
+    const summaryEl = document.getElementById('placementSummary');
+    if(summaryEl) summaryEl.innerHTML = summary;
+
+    const totalDayShiftsEl = document.getElementById('totalDayShifts');
+    if(totalDayShiftsEl) totalDayShiftsEl.textContent = dayShiftCount;
+
+    const totalNightShiftsEl = document.getElementById('totalNightShifts');
+    if(totalNightShiftsEl) totalNightShiftsEl.textContent = nightShiftCount;
+
+    const dayMarginEl = document.getElementById('dayRateMarginPerUnit');
+    if(dayMarginEl) dayMarginEl.textContent = dayMarginPerUnit.toFixed(2);
+
+    const nightMarginEl = document.getElementById('nightRateMarginPerUnit');
+    if(nightMarginEl) nightMarginEl.textContent = nightMarginPerUnit.toFixed(2);
 
     // Handle extra rate margins display
     if(extra1ShiftCount > 0) {
-      document.getElementById('extra1MarginDisplay').style.display = 'block';
-      document.getElementById('extra1RateMarginPerUnit').textContent = extra1MarginPerUnit.toFixed(2);
-      document.getElementById('extra1ShiftsDisplay').style.display = 'block';
-      document.getElementById('totalExtra1Shifts').textContent = extra1ShiftCount;
+      const extra1MarginDisplayEl = document.getElementById('extra1MarginDisplay');
+      if(extra1MarginDisplayEl) extra1MarginDisplayEl.style.display = 'block';
+      const extra1RateMarginEl = document.getElementById('extra1RateMarginPerUnit');
+      if(extra1RateMarginEl) extra1RateMarginEl.textContent = extra1MarginPerUnit.toFixed(2);
+      const extra1ShiftsDisplayEl = document.getElementById('extra1ShiftsDisplay');
+      if(extra1ShiftsDisplayEl) extra1ShiftsDisplayEl.style.display = 'block';
+      const totalExtra1ShiftsEl = document.getElementById('totalExtra1Shifts');
+      if(totalExtra1ShiftsEl) totalExtra1ShiftsEl.textContent = extra1ShiftCount;
     } else {
-      document.getElementById('extra1MarginDisplay').style.display = 'none';
-      document.getElementById('extra1ShiftsDisplay').style.display = 'none';
+      const extra1MarginDisplayEl = document.getElementById('extra1MarginDisplay');
+      if(extra1MarginDisplayEl) extra1MarginDisplayEl.style.display = 'none';
+      const extra1ShiftsDisplayEl = document.getElementById('extra1ShiftsDisplay');
+      if(extra1ShiftsDisplayEl) extra1ShiftsDisplayEl.style.display = 'none';
     }
 
     if(extra2ShiftCount > 0) {
-      document.getElementById('extra2MarginDisplay').style.display = 'block';
-      document.getElementById('extra2RateMarginPerUnit').textContent = extra2MarginPerUnit.toFixed(2);
-      document.getElementById('extra2ShiftsDisplay').style.display = 'block';
-      document.getElementById('totalExtra2Shifts').textContent = extra2ShiftCount;
+      const extra2MarginDisplayEl = document.getElementById('extra2MarginDisplay');
+      if(extra2MarginDisplayEl) extra2MarginDisplayEl.style.display = 'block';
+      const extra2RateMarginEl = document.getElementById('extra2RateMarginPerUnit');
+      if(extra2RateMarginEl) extra2RateMarginEl.textContent = extra2MarginPerUnit.toFixed(2);
+      const extra2ShiftsDisplayEl = document.getElementById('extra2ShiftsDisplay');
+      if(extra2ShiftsDisplayEl) extra2ShiftsDisplayEl.style.display = 'block';
+      const totalExtra2ShiftsEl = document.getElementById('totalExtra2Shifts');
+      if(totalExtra2ShiftsEl) totalExtra2ShiftsEl.textContent = extra2ShiftCount;
     } else {
-      document.getElementById('extra2MarginDisplay').style.display = 'none';
-      document.getElementById('extra2ShiftsDisplay').style.display = 'none';
+      const extra2MarginDisplayEl = document.getElementById('extra2MarginDisplay');
+      if(extra2MarginDisplayEl) extra2MarginDisplayEl.style.display = 'none';
+      const extra2ShiftsDisplayEl = document.getElementById('extra2ShiftsDisplay');
+      if(extra2ShiftsDisplayEl) extra2ShiftsDisplayEl.style.display = 'none';
     }
 
-    document.getElementById('overtimeMarginDisplay').style.display = 'none';
-    document.getElementById('totalPlacementMargin').textContent = totalMargin.toFixed(2);
+    const overtimeMarginDisplayEl = document.getElementById('overtimeMarginDisplay');
+    if(overtimeMarginDisplayEl) overtimeMarginDisplayEl.style.display = 'none';
 
-    document.getElementById('dayPickerBackdrop').style.display = 'none';
-    document.getElementById('placementDetailsBackdrop').style.display = 'flex';
+    const totalPlacementMarginEl = document.getElementById('totalPlacementMargin');
+    if(totalPlacementMarginEl) totalPlacementMarginEl.textContent = totalMargin.toFixed(2);
+
+    const dayPickerBackdropEl = document.getElementById('dayPickerBackdrop');
+    if(dayPickerBackdropEl) dayPickerBackdropEl.style.display = 'none';
+
+    const placementDetailsBackdropEl = document.getElementById('placementDetailsBackdrop');
+    if(placementDetailsBackdropEl) placementDetailsBackdropEl.style.display = 'flex';
   } catch(err) {
     console.error('Error in proceedToPlacementDetails:', err);
     alert('Error proceeding to details: ' + err.message);
