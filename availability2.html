@@ -1166,9 +1166,9 @@ const Utils = {
   log(message, data = null, isError = false) {
     if (window.DEBUG_MODE === false) return; // Skip in production
     if (isError) {
-      Utils.log(message, data, true);
+      console.error(message, data);
     } else {
-      Utils.log(message, data);
+      console.log(message, data);
     }
   },
 
@@ -6826,17 +6826,17 @@ async function handleGoogleSignIn() {
     isOnline = true;
 
     updateAuthUI();
-    DOM.statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email} - syncing...`;
+    if (DOM.statusChip) DOM.statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email} - syncing...`;
 
     // Load sites after sign-in
     await loadSitesFromFirebase();
 
     await syncFromFirebase();
 
-    DOM.statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email}`;
+    if (DOM.statusChip) DOM.statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email}`;
   } catch(err) {
     Utils.log("Sign in failed:", err, true);
-    DOM.statusChip.textContent = "Sign in failed: " + (err.message || String(err));
+    if (DOM.statusChip) DOM.statusChip.textContent = "Sign in failed: " + (err.message || String(err));
     updateAuthUI();
   }
 }
@@ -6847,10 +6847,10 @@ async function handleGoogleSignOut() {
     firebase_user = null;
     isOnline = false;
     updateAuthUI();
-    DOM.statusChip.textContent = "Signed out - click 'Sign in with Google' to sign in with a different account";
+    if (DOM.statusChip) DOM.statusChip.textContent = "Signed out - click 'Sign in with Google' to sign in with a different account";
   } catch(err) {
     Utils.log("Sign out failed:", err, true);
-    DOM.statusChip.textContent = "Sign out failed: " + (err.message || String(err));
+    if (DOM.statusChip) DOM.statusChip.textContent = "Sign out failed: " + (err.message || String(err));
   }
 }
 
@@ -6880,7 +6880,7 @@ function updateAuthUI() {
   renderDoctorList();
   renderHeader();
   renderCalendar();
-  DOM.statusChip.textContent = doctors.length ? `Loaded ${doctors.length} doctor(s) from local storage` : "No data loaded";
+  if (DOM.statusChip) DOM.statusChip.textContent = doctors.length ? `Loaded ${doctors.length} doctor(s) from local storage` : "No data loaded";
   updateUndoButton();
   updateAuthUI();
 
