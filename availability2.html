@@ -2386,12 +2386,12 @@ function renderTimesheetCard(ts) {
           </div>
           <div>
             <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
-            <div style="padding:4px; font-weight:600; ${dayForecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
+            <div style="padding:4px; font-weight:600; ${dayForecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}" data-forecast="day">
               ${dayForecast >= 0 ? '+' : ''}$${dayForecast}
             </div>
           </div>
         </div>
-        <div style="font-size:11px; color:var(--muted);">Est. Margin: <strong>$${estimatedDayMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualDayMargin.toFixed(2)}</strong></div>
+        <div style="font-size:11px; color:var(--muted);" data-margin="day-est">Est. Margin: <strong>$${estimatedDayMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualDayMargin.toFixed(2)}</strong></div>
       </div>
 
       <!-- Night Shifts -->
@@ -2412,12 +2412,12 @@ function renderTimesheetCard(ts) {
           </div>
           <div>
             <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
-            <div style="padding:4px; font-weight:600; ${nightForecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
+            <div style="padding:4px; font-weight:600; ${nightForecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}" data-forecast="night">
               ${nightForecast >= 0 ? '+' : ''}$${nightForecast}
             </div>
           </div>
         </div>
-        <div style="font-size:11px; color:var(--muted);">Est. Margin: <strong>$${estimatedNightMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualNightMargin.toFixed(2)}</strong></div>
+        <div style="font-size:11px; color:var(--muted);" data-margin="night-est">Est. Margin: <strong>$${estimatedNightMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualNightMargin.toFixed(2)}</strong></div>
       </div>
       ` : ''}
 
@@ -2439,12 +2439,12 @@ function renderTimesheetCard(ts) {
           </div>
           <div>
             <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
-            <div style="padding:4px; font-weight:600; ${extra1Forecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
+            <div style="padding:4px; font-weight:600; ${extra1Forecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}" data-forecast="extra1">
               ${extra1Forecast >= 0 ? '+' : ''}$${extra1Forecast}
             </div>
           </div>
         </div>
-        <div style="font-size:11px; color:var(--muted);">Est. Margin: <strong>$${estimatedExtra1Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra1Margin.toFixed(2)}</strong></div>
+        <div style="font-size:11px; color:var(--muted);" data-margin="extra1-est">Est. Margin: <strong>$${estimatedExtra1Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra1Margin.toFixed(2)}</strong></div>
       </div>
       ` : ''}
 
@@ -2466,12 +2466,12 @@ function renderTimesheetCard(ts) {
           </div>
           <div>
             <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
-            <div style="padding:4px; font-weight:600; ${extra2Forecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
+            <div style="padding:4px; font-weight:600; ${extra2Forecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}" data-forecast="extra2">
               ${extra2Forecast >= 0 ? '+' : ''}$${extra2Forecast}
             </div>
           </div>
         </div>
-        <div style="font-size:11px; color:var(--muted);">Est. Margin: <strong>$${estimatedExtra2Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra2Margin.toFixed(2)}</strong></div>
+        <div style="font-size:11px; color:var(--muted);" data-margin="extra2-est">Est. Margin: <strong>$${estimatedExtra2Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra2Margin.toFixed(2)}</strong></div>
       </div>
       ` : ''}
     </div>
@@ -2520,29 +2520,101 @@ function updateTimesheetMargins(card) {
   const ts = timesheets.find(t => t.id === tsId);
   if (!ts) return;
 
-  // Get current input values and update ts object
+  // Get placement data for rates
+  const placement = events.find(e => e.id === ts.placementId);
+  const placementData = placement?.placement_data || {};
+  const savedData = placement?.timesheet_data?.[ts.weekStart] || {};
+
+  // Get current input values
   ts.actualDays = parseInt(card.querySelector('.ts-actual-days')?.value) || null;
   ts.actualNights = parseInt(card.querySelector('.ts-actual-nights')?.value) || null;
   ts.actualExtra1 = parseInt(card.querySelector('.ts-actual-extra1')?.value) || null;
   ts.actualExtra2 = parseInt(card.querySelector('.ts-actual-extra2')?.value) || null;
 
-  // Re-render just this card
-  const newCard = renderTimesheetCard(ts);
-  card.replaceWith(new DOMParser().parseFromString(newCard, 'text/html').body.firstChild);
+  // Get rates from inputs
+  const dayRate = parseFloat(card.querySelector('.ts-day-rate')?.value) || 0;
+  const nightRate = parseFloat(card.querySelector('.ts-night-rate')?.value) || 0;
+  const extraRate1 = parseFloat(card.querySelector('.ts-extra1-rate')?.value) || 0;
+  const extraRate2 = parseFloat(card.querySelector('.ts-extra2-rate')?.value) || 0;
+  const agencyFeePercent = parseFloat(card.querySelector('.ts-agency-fee')?.value) || 0;
 
-  // Re-attach listeners to the new card
-  const newCardElement = document.querySelector(`[data-ts-id="${tsId}"]`);
-  if (newCardElement) {
-    const inputs = newCardElement.querySelectorAll(
-      '.ts-actual-days, .ts-actual-nights, .ts-actual-extra1, .ts-actual-extra2, ' +
-      '.ts-day-rate, .ts-night-rate, .ts-extra1-rate, .ts-extra2-rate, ' +
-      '.ts-agency-fee'
-    );
-    inputs.forEach(input => {
-      input.addEventListener('input', () => {
-        updateTimesheetMargins(newCardElement);
-      });
-    });
+  // Calculate margins per shift type
+  const marginPerDay = (dayRate * agencyFeePercent) / 100;
+  const marginPerNight = (nightRate * agencyFeePercent) / 100;
+  const marginPerExtra1 = (extraRate1 * agencyFeePercent) / 100;
+  const marginPerExtra2 = (extraRate2 * agencyFeePercent) / 100;
+
+  // Estimated margins
+  const estimatedDayMargin = (ts.estimatedDays * marginPerDay);
+  const estimatedNightMargin = (ts.estimatedNights * marginPerNight);
+  const estimatedExtra1Margin = (ts.estimatedExtra1 * marginPerExtra1);
+  const estimatedExtra2Margin = (ts.estimatedExtra2 * marginPerExtra2);
+  const totalEstimatedMargin = (estimatedDayMargin + estimatedNightMargin + estimatedExtra1Margin + estimatedExtra2Margin).toFixed(2);
+
+  // Actual margins
+  const actualDayMargin = ((ts.actualDays || 0) * marginPerDay);
+  const actualNightMargin = ((ts.actualNights || 0) * marginPerNight);
+  const actualExtra1Margin = ((ts.actualExtra1 || 0) * marginPerExtra1);
+  const actualExtra2Margin = ((ts.actualExtra2 || 0) * marginPerExtra2);
+  const totalActualMargin = (actualDayMargin + actualNightMargin + actualExtra1Margin + actualExtra2Margin).toFixed(2);
+
+  // Forecast differences
+  const dayForecast = (actualDayMargin - estimatedDayMargin).toFixed(2);
+  const nightForecast = (actualNightMargin - estimatedNightMargin).toFixed(2);
+  const extra1Forecast = (actualExtra1Margin - estimatedExtra1Margin).toFixed(2);
+  const extra2Forecast = (actualExtra2Margin - estimatedExtra2Margin).toFixed(2);
+
+  // Update total margins without re-rendering the card
+  const estMarginEl = card.querySelector('.ts-est-total-margin');
+  if (estMarginEl) estMarginEl.textContent = `$${totalEstimatedMargin}`;
+
+  const actMarginEl = card.querySelector('.ts-act-total-margin');
+  if (actMarginEl) actMarginEl.textContent = `$${totalActualMargin}`;
+
+  // Update day shift margin and forecast
+  const dayMarginEl = card.querySelector('[data-margin="day-est"]');
+  if (dayMarginEl) dayMarginEl.innerHTML = `Est. Margin: <strong>$${estimatedDayMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualDayMargin.toFixed(2)}</strong>`;
+
+  const dayForecastEl = card.querySelector('[data-forecast="day"]');
+  if (dayForecastEl) {
+    dayForecastEl.textContent = `${dayForecast >= 0 ? '+' : ''}$${dayForecast}`;
+    dayForecastEl.style.color = dayForecast >= 0 ? '#4CAF50' : '#f44336';
+  }
+
+  // Update night shift margin and forecast if present
+  if (ts.estimatedNights > 0 || ts.actualNights) {
+    const nightMarginEl = card.querySelector('[data-margin="night-est"]');
+    if (nightMarginEl) nightMarginEl.innerHTML = `Est. Margin: <strong>$${estimatedNightMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualNightMargin.toFixed(2)}</strong>`;
+
+    const nightForecastEl = card.querySelector('[data-forecast="night"]');
+    if (nightForecastEl) {
+      nightForecastEl.textContent = `${nightForecast >= 0 ? '+' : ''}$${nightForecast}`;
+      nightForecastEl.style.color = nightForecast >= 0 ? '#4CAF50' : '#f44336';
+    }
+  }
+
+  // Update extra1 margin and forecast if present
+  if (ts.estimatedExtra1 > 0 || ts.actualExtra1) {
+    const extra1MarginEl = card.querySelector('[data-margin="extra1-est"]');
+    if (extra1MarginEl) extra1MarginEl.innerHTML = `Est. Margin: <strong>$${estimatedExtra1Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra1Margin.toFixed(2)}</strong>`;
+
+    const extra1ForecastEl = card.querySelector('[data-forecast="extra1"]');
+    if (extra1ForecastEl) {
+      extra1ForecastEl.textContent = `${extra1Forecast >= 0 ? '+' : ''}$${extra1Forecast}`;
+      extra1ForecastEl.style.color = extra1Forecast >= 0 ? '#4CAF50' : '#f44336';
+    }
+  }
+
+  // Update extra2 margin and forecast if present
+  if (ts.estimatedExtra2 > 0 || ts.actualExtra2) {
+    const extra2MarginEl = card.querySelector('[data-margin="extra2-est"]');
+    if (extra2MarginEl) extra2MarginEl.innerHTML = `Est. Margin: <strong>$${estimatedExtra2Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra2Margin.toFixed(2)}</strong>`;
+
+    const extra2ForecastEl = card.querySelector('[data-forecast="extra2"]');
+    if (extra2ForecastEl) {
+      extra2ForecastEl.textContent = `${extra2Forecast >= 0 ? '+' : ''}$${extra2Forecast}`;
+      extra2ForecastEl.style.color = extra2Forecast >= 0 ? '#4CAF50' : '#f44336';
+    }
   }
 }
 
