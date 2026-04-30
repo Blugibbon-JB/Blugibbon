@@ -1062,110 +1062,6 @@ async function initializeFirebase() {
 const STORAGE_KEY_DOCTORS = "blugibbon_roster_doctors_v1";
 const STORAGE_KEY_EVENTS  = "blugibbon_roster_events_v1";
 
-/* ===== OPTIMIZATION LAYER ===== */
-
-// DOM Cache: Store frequently accessed elements to avoid repeated queries
-const DOM = {
-  // Modals
-  rateSelectionBackdrop: null,
-  dayPickerBackdrop: null,
-  makePlacementBackdrop: null,
-  placementDetailsBackdrop: null,
-
-  // Form inputs
-  placementDoctor: null,
-  placementSite: null,
-  placementDoctorSearch: null,
-  placementSiteSearch: null,
-  dateRangeStart: null,
-  dateRangeEnd: null,
-
-  // Display elements
-  statusChip: null,
-  currentMonthLabel: null,
-  dayPickerGrid: null,
-
-  // Initialize all cached elements
-  init() {
-    this.rateSelectionBackdrop = document.getElementById('rateSelectionBackdrop');
-    this.dayPickerBackdrop = document.getElementById('dayPickerBackdrop');
-    this.makePlacementBackdrop = document.getElementById('makePlacementBackdrop');
-    this.placementDetailsBackdrop = document.getElementById('placementDetailsBackdrop');
-    this.placementDoctor = document.getElementById('placementDoctor');
-    this.placementSite = document.getElementById('placementSite');
-    this.placementDoctorSearch = document.getElementById('placementDoctorSearch');
-    this.placementSiteSearch = document.getElementById('placementSiteSearch');
-    this.dateRangeStart = document.getElementById('dateRangeStart');
-    this.dateRangeEnd = document.getElementById('dateRangeEnd');
-    this.statusChip = document.getElementById('statusChip');
-    this.currentMonthLabel = document.getElementById('currentMonthLabel');
-    this.dayPickerGrid = document.getElementById('dayPickerGrid');
-  }
-};
-
-// Utility functions for common operations
-const Utils = {
-  // Show loading spinner
-  showLoading(element, show = true) {
-    if (!element) return;
-    if (show) {
-      element.style.opacity = '0.6';
-      element.style.pointerEvents = 'none';
-      element.classList.add('loading');
-    } else {
-      element.style.opacity = '1';
-      element.style.pointerEvents = 'auto';
-      element.classList.remove('loading');
-    }
-  },
-
-  // Debounce function for performance
-  debounce(func, wait) {
-    let timeout;
-    return function(...args) {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-  },
-
-  // Date formatting utility
-  formatDateAU(dateString) {
-    if (!dateString) return '';
-    const date = new Date(dateString + 'T00:00:00Z');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const year = date.getUTCFullYear();
-    return `${day}/${month}/${year}`;
-  },
-
-  // Safe console logging
-  log(message, data = null, isError = false) {
-    if (window.DEBUG_MODE === false) return; // Skip in production
-    if (isError) {
-      console.error(message, data);
-    } else {
-      console.log(message, data);
-    }
-  },
-
-  // Batch Firebase operations
-  firebaseQueue: [],
-  firebaseTimeout: null,
-  queueFirebaseOperation(operation) {
-    this.firebaseQueue.push(operation);
-    clearTimeout(this.firebaseTimeout);
-    this.firebaseTimeout = setTimeout(() => this.procesFirebaseQueue(), 500);
-  },
-  procesFirebaseQueue() {
-    if (this.firebaseQueue.length === 0) return;
-    const operations = this.firebaseQueue.splice(0);
-    Promise.all(operations).catch(err => Utils.log('Firebase batch error:', err, true));
-  }
-};
-
-// Initialize DOM cache when page loads
-window.addEventListener('DOMContentLoaded', () => DOM.init());
-
 let isOnline = false;
 let syncInProgress = false;
 
@@ -2225,7 +2121,7 @@ function pushUndo(label){
       } catch(e) {
         console.error("Could not clear undo stack:", e);
       }
-      DOM.statusChip.textContent = "⚠ Storage full - undo history cleared";
+      statusChip.textContent = "⚠ Storage full - undo history cleared";
     } else {
       console.error("Error pushing undo:", err);
       throw err;
@@ -2246,18 +2142,18 @@ function applyState(snap){
 
 function clearSelectedRange(){
   if(!selectedDoctorId){
-    DOM.statusChip.textContent = "Select a doctor first";
+    statusChip.textContent = "Select a doctor first";
     return;
   }
   if(!lastSelection || !lastSelection.start || !lastSelection.end){
-    DOM.statusChip.textContent = "Select a date range on the calendar first";
+    statusChip.textContent = "Select a date range on the calendar first";
     return;
   }
 
   const selStart = normalizeToUTCDate(lastSelection.start);
   const selEndEx = normalizeToUTCDate(lastSelection.end); // exclusive
   if(selEndEx.getTime() <= selStart.getTime()){
-    DOM.statusChip.textContent = "Invalid selected range";
+    statusChip.textContent = "Invalid selected range";
     return;
   }
 
@@ -2312,26 +2208,26 @@ function clearSelectedRange(){
   try{
     const s = formatDateAU(selStart);
     const eInc = formatDateAU(addDaysUTC(selEndEx, -1));
-    DOM.statusChip.textContent = `Cleared: ${s} → ${eInc}`;
+    statusChip.textContent = `Cleared: ${s} → ${eInc}`;
   } catch(e){
-    DOM.statusChip.textContent = "Cleared selected range";
+    statusChip.textContent = "Cleared selected range";
   }
 }
 
 function deleteSelectedEvents(){
   if(!selectedDoctorId){
-    DOM.statusChip.textContent = "Select a doctor first";
+    statusChip.textContent = "Select a doctor first";
     return;
   }
   if(!lastSelection || !lastSelection.start || !lastSelection.end){
-    DOM.statusChip.textContent = "Select a date range on the calendar first";
+    statusChip.textContent = "Select a date range on the calendar first";
     return;
   }
 
   const selStart = normalizeToUTCDate(lastSelection.start);
   const selEndEx = normalizeToUTCDate(lastSelection.end); // exclusive
   if(selEndEx.getTime() <= selStart.getTime()){
-    DOM.statusChip.textContent = "Invalid selected range";
+    statusChip.textContent = "Invalid selected range";
     return;
   }
 
@@ -2353,7 +2249,7 @@ function deleteSelectedEvents(){
   const deleteCount = eventsToDelete.length;
 
   if(deleteCount === 0){
-    DOM.statusChip.textContent = "No events to delete in the selected range";
+    statusChip.textContent = "No events to delete in the selected range";
     return;
   }
 
@@ -2374,7 +2270,7 @@ function deleteSelectedEvents(){
       })
       .catch(err => {
         console.error("Firebase sync error after delete:", err);
-        DOM.statusChip.textContent = "Warning: Could not sync deletion to Firebase";
+        statusChip.textContent = "Warning: Could not sync deletion to Firebase";
         renderDoctorList();
         renderCalendar();
         calendar.unselect();
@@ -2392,9 +2288,9 @@ function deleteSelectedEvents(){
   try{
     const s = formatDateAU(selStart);
     const eInc = formatDateAU(addDaysUTC(selEndEx, -1));
-    DOM.statusChip.textContent = `✓ Deleted ${deleteCount} event(s): ${s} → ${eInc}`;
+    statusChip.textContent = `✓ Deleted ${deleteCount} event(s): ${s} → ${eInc}`;
   } catch(e){
-    DOM.statusChip.textContent = `✓ Deleted ${deleteCount} event(s)`;
+    statusChip.textContent = `✓ Deleted ${deleteCount} event(s)`;
   }
 }
 
@@ -2403,7 +2299,7 @@ function undo(){
   localStorage.setItem(UNDO_KEY, JSON.stringify(undoStack));
   if(!item) return;
   applyState(item.state);
-  DOM.statusChip.textContent = "Undid: " + (item.label || "Change");
+  statusChip.textContent = "Undid: " + (item.label || "Change");
 }
 function updateUndoButton(){
   const btn = document.getElementById("undoBtn");
@@ -2461,8 +2357,7 @@ let showAllDoctors = false;
 let upcomingOnly = false;
 let upcomingDays = 30;
 
-// Use cached DOM reference - initialized in DOM.init()
-// Access via DOM.statusChip instead
+const statusChip = document.getElementById("statusChip");
 const uploadBtn = document.getElementById("uploadBtn");
 const csvFile = document.getElementById("csvFile");
 const replaceToggle = document.getElementById("replaceToggle");
@@ -2522,14 +2417,14 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
     // store last selected range (end is exclusive)
     lastSelection = { start: normalizeToUTCDate(info.start), end: normalizeToUTCDate(info.end) };
     if(!selectedDoctorId){
-      DOM.statusChip.textContent = "Select a doctor first";
+      statusChip.textContent = "Select a doctor first";
       calendar.unselect();
       return;
     }
     try {
       const s = formatDateAU(lastSelection.start);
       const eInc = formatDateAU(addDaysUTC(lastSelection.end, -1));
-      DOM.statusChip.textContent = `Selected: ${s} → ${eInc}`;
+      statusChip.textContent = `Selected: ${s} → ${eInc}`;
       updateActionButtons();
 
       // Auto-open event editor if range is blank (no existing events)
@@ -2563,7 +2458,7 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
       if(typeof renderSelectionPill === "function") renderSelectionPill();
       if(typeof renderSelectedPill === "function") renderSelectedPill();
       updateActionButtons();
-      DOM.statusChip.textContent = `Start date selected: ${formatDateAU(d0)}`;
+      statusChip.textContent = `Start date selected: ${formatDateAU(d0)}`;
     }
 ,
   eventClick: function(info){
@@ -2998,11 +2893,11 @@ function diffDaysISO(aISO, bISO){
 function copyAvailability(){
   const d = getSelectedDoctor();
   if(!d || !selectedDoctorId){
-    DOM.statusChip.textContent = "Select a doctor first.";
+    statusChip.textContent = "Select a doctor first.";
     return;
   }
   if(!lastSelection || !lastSelection.start || !lastSelection.end){
-    DOM.statusChip.textContent = "Select a date range first.";
+    statusChip.textContent = "Select a date range first.";
     return;
   }
 
@@ -3015,7 +2910,7 @@ function copyAvailability(){
     .filter(e => e.start < sourceEndISO && e.end > sourceStartISO);
 
   if(!sel.length){
-    DOM.statusChip.textContent = "No blocks in selected range for this doctor.";
+    statusChip.textContent = "No blocks in selected range for this doctor.";
     return;
   }
 
@@ -3035,16 +2930,16 @@ function copyAvailability(){
   const payloadForClipboard = { type:"bg_availability_v1", sourceStartISO, items };
   try{
     navigator.clipboard.writeText(JSON.stringify(payloadForClipboard, null, 2));
-    DOM.statusChip.textContent = `Copied ${items.length} block(s) (${diffDaysISO(sourceEndISO, sourceStartISO)} day window)`;
+    statusChip.textContent = `Copied ${items.length} block(s) (${diffDaysISO(sourceEndISO, sourceStartISO)} day window)`;
   }catch{
-    DOM.statusChip.textContent = `Copied ${items.length} block(s) (saved in tool)`;
+    statusChip.textContent = `Copied ${items.length} block(s) (saved in tool)`;
   }
 }
 
 async function pasteAvailability(){
   const d = getSelectedDoctor();
   if(!d || !selectedDoctorId){
-    DOM.statusChip.textContent = "Select a doctor first.";
+    statusChip.textContent = "Select a doctor first.";
     return;
   }
   let targetStartISO;
@@ -3057,9 +2952,9 @@ async function pasteAvailability(){
       if(typeof renderSelectionPill === "function") renderSelectionPill();
       if(typeof renderSelectedPill === "function") renderSelectedPill();
       targetStartISO = d0.toISOString().slice(0,10);
-      DOM.statusChip.textContent = `No start date selected — using ${formatDateAU(d0)}.`;
+      statusChip.textContent = `No start date selected — using ${formatDateAU(d0)}.`;
     }catch(e){
-      DOM.statusChip.textContent = "Select the START date (click a day) then paste.";
+      statusChip.textContent = "Select the START date (click a day) then paste.";
       return;
     }
   } else {
@@ -3078,7 +2973,7 @@ async function pasteAvailability(){
     }catch(e){}
   }
   if(!buf || !buf.items || !buf.items.length){
-    DOM.statusChip.textContent = "Nothing to paste. Copy availability first.";
+    statusChip.textContent = "Nothing to paste. Copy availability first.";
     return;
   }
 
@@ -3108,7 +3003,7 @@ async function pasteAvailability(){
   saveEvents(events);
   renderDoctorList();
   renderCalendar();
-  DOM.statusChip.textContent = `Pasted ${created} block(s) starting ${targetStartISO}`;
+  statusChip.textContent = `Pasted ${created} block(s) starting ${targetStartISO}`;
 }
 
 
@@ -3169,7 +3064,7 @@ function setUnavailableMonth(doctorId){
   saveEvents(events);
   renderDoctorList();
   renderCalendar();
-  DOM.statusChip.textContent = `Set Unavailable: ${monthName}`;
+  statusChip.textContent = `Set Unavailable: ${monthName}`;
 }
 
 function clearMonth(doctorId){
@@ -3179,7 +3074,7 @@ function clearMonth(doctorId){
   saveEvents(events);
   renderDoctorList();
   renderCalendar();
-  DOM.statusChip.textContent = `Cleared: ${monthName}`;
+  statusChip.textContent = `Cleared: ${monthName}`;
 }
 
 function clearAllAvailability(doctorId){
@@ -3243,11 +3138,11 @@ function clearAllAvailability(doctorId){
         renderCalendar();
         if(viewMode==="heatmap") renderHeatmap();
         if(viewMode==="strips") renderStrips();
-        DOM.statusChip.textContent = removed ? "Availability cleared (bookings kept)" : "No availability blocks to clear (bookings kept)";
+        statusChip.textContent = removed ? "Availability cleared (bookings kept)" : "No availability blocks to clear (bookings kept)";
       })
       .catch(err => {
         console.error("Firebase sync error after clear availability:", err);
-        DOM.statusChip.textContent = "Warning: Could not sync cleared availability to Firebase";
+        statusChip.textContent = "Warning: Could not sync cleared availability to Firebase";
         renderDoctorList();
         renderHeader();
         renderCalendar();
@@ -3258,7 +3153,7 @@ function clearAllAvailability(doctorId){
     renderCalendar();
     if(viewMode==="heatmap") renderHeatmap();
     if(viewMode==="strips") renderStrips();
-    DOM.statusChip.textContent = removed ? "Availability cleared (bookings kept)" : "No availability blocks to clear (bookings kept)";
+    statusChip.textContent = removed ? "Availability cleared (bookings kept)" : "No availability blocks to clear (bookings kept)";
   }
 }
 
@@ -3276,7 +3171,7 @@ function copyNext14Days(doctorId){
     .filter(e => e.start < endISO && e.end > startISO);
 
   if(!sel.length){
-    DOM.statusChip.textContent = "No blocks in next 14 days for this doctor.";
+    statusChip.textContent = "No blocks in next 14 days for this doctor.";
     return;
   }
 
@@ -3293,9 +3188,9 @@ function copyNext14Days(doctorId){
 
   try{
     navigator.clipboard.writeText(JSON.stringify({type:"bg_availability_v1", sourceStartISO:startISO, items}, null, 2));
-    DOM.statusChip.textContent = `Copied ${items.length} block(s) (next 14 days)`;
+    statusChip.textContent = `Copied ${items.length} block(s) (next 14 days)`;
   }catch{
-    DOM.statusChip.textContent = `Copied ${items.length} block(s) (next 14 days)`;
+    statusChip.textContent = `Copied ${items.length} block(s) (next 14 days)`;
   }
 }
 
@@ -3322,7 +3217,7 @@ function duplicateLastMonth(doctorId){
     .filter(e=> String(e.end) > prevStartISO && String(e.start) < prevEndISO);
 
   if(!src.length){
-    DOM.statusChip.textContent = "Nothing to duplicate from last month for this doctor.";
+    statusChip.textContent = "Nothing to duplicate from last month for this doctor.";
     return;
   }
 
@@ -3363,7 +3258,7 @@ function duplicateLastMonth(doctorId){
   renderCalendar();
 
   const monthName = new Date(Date.UTC(y,m,1)).toLocaleString("en-AU",{month:"long", year:"numeric", timeZone:"UTC"});
-  DOM.statusChip.textContent = `Duplicated ${created} block(s) into ${monthName}`;
+  statusChip.textContent = `Duplicated ${created} block(s) into ${monthName}`;
 }
 
 function handleDoctorRowAction(doctorId, action){
@@ -3390,7 +3285,7 @@ function exportJSONBackup(){
   a.download = `blugibbon_availability_backup_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
-  DOM.statusChip.textContent = "JSON backup downloaded";
+  statusChip.textContent = "JSON backup downloaded";
 }
 
 function importJSONBackup(file){
@@ -3438,7 +3333,7 @@ function importJSONBackup(file){
       renderDoctorList();
       renderCalendar();
       updateActionButtons();
-      DOM.statusChip.textContent = `JSON backup restored: ${doctors.length} doctor(s), ${events.length} event(s)`;
+      statusChip.textContent = `JSON backup restored: ${doctors.length} doctor(s), ${events.length} event(s)`;
     }catch(err){
       console.error("JSON import error:", err);
       alert(`Invalid JSON file: ${err.message || 'Unknown error'}`);
@@ -3770,12 +3665,12 @@ function openEventEditor(payload){
       /* save handled below */
       const sStart = parseDateAU(document.getElementById("evStart").value);
       const sEndInc = parseDateAU(document.getElementById("evEnd").value);
-      if(!sStart || !sEndInc){ DOM.statusChip.textContent = "⚠ Invalid date(s). Use dd/mm/yyyy format (e.g., 25/12/2024)."; return; }
+      if(!sStart || !sEndInc){ statusChip.textContent = "⚠ Invalid date(s). Use dd/mm/yyyy format (e.g., 25/12/2024)."; return; }
       const sEndEx = addDaysUTC(sEndInc, 1);
-      if(sEndEx.getTime() <= sStart.getTime()){ DOM.statusChip.textContent = "⚠ End date must be after start date."; return; }
+      if(sEndEx.getTime() <= sStart.getTime()){ statusChip.textContent = "⚠ End date must be after start date."; return; }
 
       const __onDays = Math.round((normalizeToUTCDate(sEndEx).getTime() - normalizeToUTCDate(sStart).getTime()) / (24*3600*1000));
-      if(__onDays <= 0){ DOM.statusChip.textContent = "⚠ Select at least 1 day."; return; }
+      if(__onDays <= 0){ statusChip.textContent = "⚠ Select at least 1 day."; return; }
 
       const status = document.getElementById("evStatus").value;
       const title = (document.getElementById("evTitle").value||"").trim();
@@ -3847,13 +3742,13 @@ function openEventEditor(payload){
       renderCalendar();
 
       if(recMode !== "none" && blocksToCreate > 1){
-        DOM.statusChip.textContent = `✓ Saved ${blocksToCreate} recurring block(s)`;
+        statusChip.textContent = `✓ Saved ${blocksToCreate} recurring block(s)`;
       } else {
-        DOM.statusChip.textContent = "✓ Saved";
+        statusChip.textContent = "✓ Saved";
       }
     } catch(err) {
       console.error("Error saving availability:", err);
-      DOM.statusChip.textContent = "❌ Error saving: " + (err.message || "Unknown error");
+      statusChip.textContent = "❌ Error saving: " + (err.message || "Unknown error");
     }
   });
 
@@ -3871,14 +3766,14 @@ function openEventEditor(payload){
           console.log("Deletion synced to Firebase successfully");
         } catch(err) {
           console.error("Firebase sync error after delete:", err);
-          DOM.statusChip.textContent = "Warning: Could not sync deletion to Firebase";
+          statusChip.textContent = "Warning: Could not sync deletion to Firebase";
         }
       }
 
       closeModal();
       renderDoctorList();
       renderCalendar();
-      DOM.statusChip.textContent = "Deleted";
+      statusChip.textContent = "Deleted";
     });
 
     const placementBtn = document.getElementById("placementBtn");
@@ -3887,7 +3782,7 @@ function openEventEditor(payload){
         try {
           const siteId = (document.getElementById("evSite").value||"").trim();
           if(!siteId){
-            DOM.statusChip.textContent = "⚠ You must select a site to create a ClickUp order";
+            statusChip.textContent = "⚠ You must select a site to create a ClickUp order";
             document.getElementById("siteWarning").style.display = "block";
             return;
           }
@@ -3979,9 +3874,9 @@ function openEventEditor(payload){
 
           console.log("DEBUG: Final clickupUrl =", clickupUrl);
           if(clickupUrl){
-            DOM.statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline;">Order created in ClickUp</a>`;
+            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline;">Order created in ClickUp</a>`;
           } else {
-            DOM.statusChip.textContent = "✓ Order created in ClickUp";
+            statusChip.textContent = "✓ Order created in ClickUp";
           }
 
           // Save event and refresh calendar before closing modal
@@ -3992,7 +3887,7 @@ function openEventEditor(payload){
           setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
         } catch(err){
           console.error("Error creating order:", err);
-          DOM.statusChip.textContent = "❌ Error creating order: " + (err.message || "Unknown error");
+          statusChip.textContent = "❌ Error creating order: " + (err.message || "Unknown error");
         }
       });
     }
@@ -4155,9 +4050,9 @@ function openEventEditor(payload){
           }
 
           if(clickupUrl){
-            DOM.statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline;">CV Sent task created in ClickUp</a>`;
+            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline;">CV Sent task created in ClickUp</a>`;
           } else {
-            DOM.statusChip.textContent = "✓ CV Sent task created in ClickUp";
+            statusChip.textContent = "✓ CV Sent task created in ClickUp";
           }
 
           // Save event and refresh calendar before closing modal
@@ -4168,7 +4063,7 @@ function openEventEditor(payload){
           setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
         } catch(err){
           console.error("Error creating CV Sent task:", err);
-          DOM.statusChip.textContent = "❌ Error creating CV Sent task: " + (err.message || "Unknown error");
+          statusChip.textContent = "❌ Error creating CV Sent task: " + (err.message || "Unknown error");
         }
       });
     }
@@ -4298,7 +4193,7 @@ function openDoctorEditor(existing){
           const idx = doctors.findIndex(d=>String(d.ahpra_id)===String(existing.ahpra_id));
           if(idx>=0){ doctors[idx] = { ...doctors[idx], name, clickup_url, prefs, where, specialty, pgy, level, tags }; }
         } else {
-          if(doctors.some(d=>String(d.ahpra_id)===String(ahpra))){ DOM.statusChip.textContent = "That AHPRA ID already exists."; return; }
+          if(doctors.some(d=>String(d.ahpra_id)===String(ahpra))){ statusChip.textContent = "That AHPRA ID already exists."; return; }
           doctors.push({ ahpra_id: ahpra, name, clickup_url, prefs, where, specialty, pgy, level, tags });
         }
 
@@ -4306,7 +4201,7 @@ function openDoctorEditor(existing){
         closeModal();
         renderDoctorList();
         renderHeader();
-        DOM.statusChip.textContent = "Doctor saved";
+        statusChip.textContent = "Doctor saved";
       } else if(action === "deleteDoc" && isEdit){
         pushUndo("Delete doctor");
         const id = String(existing.ahpra_id);
@@ -4328,11 +4223,11 @@ function openDoctorEditor(existing){
               renderDoctorList();
               renderHeader();
               renderCalendar();
-              DOM.statusChip.textContent = "Doctor deleted";
+              statusChip.textContent = "Doctor deleted";
             })
             .catch(err => {
               console.error("Firebase sync error after delete:", err);
-              DOM.statusChip.textContent = "Warning: Could not sync doctor deletion to Firebase";
+              statusChip.textContent = "Warning: Could not sync doctor deletion to Firebase";
               if(String(selectedDoctorId)===id) selectedDoctorId = null;
               closeModal();
               renderDoctorList();
@@ -4345,12 +4240,12 @@ function openDoctorEditor(existing){
           renderDoctorList();
           renderHeader();
           renderCalendar();
-          DOM.statusChip.textContent = "Doctor deleted";
+          statusChip.textContent = "Doctor deleted";
         }
       }
     } catch(err) {
       console.error("Error in doctor modal action:", err);
-      DOM.statusChip.textContent = "Error: " + (err.message || "Unknown error");
+      statusChip.textContent = "Error: " + (err.message || "Unknown error");
     }
   };
 
@@ -4596,7 +4491,7 @@ if(toggleAllBtn){
     renderHeader();
     renderDoctorList();
     renderCalendar();
-    DOM.statusChip.textContent = showAllDoctors ? "All doctors view enabled" : "All doctors view disabled";
+    statusChip.textContent = showAllDoctors ? "All doctors view enabled" : "All doctors view disabled";
     updateActionButtons();
   });
 }
@@ -4609,7 +4504,7 @@ if(upcomingDaysInput){
       renderHeader();
       renderDoctorList();
       renderCalendar();
-      DOM.statusChip.textContent = `Upcoming availability: next ${upcomingDays} day(s)`;
+      statusChip.textContent = `Upcoming availability: next ${upcomingDays} day(s)`;
     }
   });
 }
@@ -4624,10 +4519,10 @@ if(upcomingAvailBtn){
       showAllDoctors = true;
       if(toggleAllBtn) toggleAllBtn.classList.add("primary");
       upcomingAvailBtn.classList.add("primary");
-      DOM.statusChip.textContent = `Upcoming availability: next ${upcomingDays} day(s)`;
+      statusChip.textContent = `Upcoming availability: next ${upcomingDays} day(s)`;
     } else {
       upcomingAvailBtn.classList.remove("primary");
-      DOM.statusChip.textContent = showAllDoctors ? "All doctors view enabled" : "All doctors view disabled";
+      statusChip.textContent = showAllDoctors ? "All doctors view enabled" : "All doctors view disabled";
     }
     renderHeader();
     renderDoctorList();
@@ -4675,9 +4570,9 @@ csvFile.addEventListener("change", async (ev)=>{
     renderHeader();
     renderCalendar();
 
-    DOM.statusChip.textContent = `Loaded ${parsed.doctors.length} doctor(s) and ${parsed.events.length} block(s)`;
+    statusChip.textContent = `Loaded ${parsed.doctors.length} doctor(s) and ${parsed.events.length} block(s)`;
   } catch(e){
-    DOM.statusChip.textContent = "Import error: " + e.message;
+    statusChip.textContent = "Import error: " + e.message;
   }
   csvFile.value = "";
 });
@@ -4687,18 +4582,18 @@ const editDoctorBtn = document.getElementById("editDoctorBtn");
 if(editDoctorBtn){
   editDoctorBtn.addEventListener("click", ()=>{
     const d = getSelectedDoctor();
-    if(!d){ DOM.statusChip.textContent = "Select a doctor first"; return; }
+    if(!d){ statusChip.textContent = "Select a doctor first"; return; }
     openDoctorEditor(d);
   });
 }
 
 removeDoctorBtn.addEventListener("click", ()=>{
   const d = getSelectedDoctor();
-  if(!d){ DOM.statusChip.textContent = "Select a doctor first"; return; }
+  if(!d){ statusChip.textContent = "Select a doctor first"; return; }
 
   // Safety: avoid removing while in All Doctors view to reduce confusion
   if(showAllDoctors){
-    DOM.statusChip.textContent = "Turn off All doctors view to remove a doctor";
+    statusChip.textContent = "Turn off All doctors view to remove a doctor";
     return;
   }
 
@@ -4723,7 +4618,7 @@ removeDoctorBtn.addEventListener("click", ()=>{
   if(viewMode === "strips") renderStrips();
   try{ updateActionButtons(); } catch(e){}
 
-  DOM.statusChip.textContent = `Doctor removed: ${name}`;
+  statusChip.textContent = `Doctor removed: ${name}`;
 });
 exportBtn.addEventListener("click", exportCSV);
 undoBtn.addEventListener("click", undo);
@@ -4742,7 +4637,7 @@ if(uploadClickUpBtn && clickupCsvFile){
     try{
       const imported = parseClickUpDoctorsCSV(text);
       if(!imported.length){
-        DOM.statusChip.textContent = "No valid doctors found in ClickUp CSV";
+        statusChip.textContent = "No valid doctors found in ClickUp CSV";
         return;
       }
 
@@ -4784,9 +4679,9 @@ if(uploadClickUpBtn && clickupCsvFile){
       updateFilterDropdowns();
       renderDoctorList();
       renderHeader();
-      DOM.statusChip.textContent = `Imported ${imported.length} doctor(s) from ClickUp CSV`;
+      statusChip.textContent = `Imported ${imported.length} doctor(s) from ClickUp CSV`;
     } catch(e){
-      DOM.statusChip.textContent = "ClickUp import error: " + e.message;
+      statusChip.textContent = "ClickUp import error: " + e.message;
     }
     clickupCsvFile.value = "";
   });
@@ -5040,7 +4935,7 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
       // All unmapped columns added to event notes
       const rows = parseTimesheetsCSV(text);
       if(!rows.length){
-        DOM.statusChip.textContent = "No valid timesheet rows found";
+        statusChip.textContent = "No valid timesheet rows found";
         return;
       }
 
@@ -5154,11 +5049,11 @@ if(uploadTimesheetsBtn && timesheetsCsvFile){
         if(errors.length > 5) msg += `\n... and ${errors.length - 5} more`;
       }
 
-      DOM.statusChip.textContent = msg;
+      statusChip.textContent = msg;
 
     }catch(err){
       console.error(err);
-      DOM.statusChip.textContent = "Timesheets import failed: " + (err && err.message ? err.message : String(err));
+      statusChip.textContent = "Timesheets import failed: " + (err && err.message ? err.message : String(err));
     } finally {
       timesheetsCsvFile.value = "";
     }
@@ -5281,7 +5176,7 @@ if(uploadPlacementsBtn && placementsCsvFile){
     try{
       const rows = parsePlacementsCSV(text);
       if(!rows.length){
-        DOM.statusChip.textContent = "No valid placement rows found";
+        statusChip.textContent = "No valid placement rows found";
         return;
       }
 
@@ -5402,11 +5297,11 @@ if(uploadPlacementsBtn && placementsCsvFile){
         if(errors.length > 5) msg += `\n... and ${errors.length - 5} more`;
       }
 
-      DOM.statusChip.textContent = msg;
+      statusChip.textContent = msg;
 
     }catch(err){
       console.error(err);
-      DOM.statusChip.textContent = "Placements import failed: " + (err && err.message ? err.message : String(err));
+      statusChip.textContent = "Placements import failed: " + (err && err.message ? err.message : String(err));
     } finally {
       placementsCsvFile.value = "";
     }
@@ -6105,24 +6000,24 @@ function savePlacementAsDraft() {
     if(firebase_user && firebase_db) {
       const sanitized = sanitizeEventsForFirebase(events);
       firebase_db.ref(`users/${firebase_user.uid}/events`).set(sanitized).then(() => {
-        DOM.statusChip.textContent = `✓ Placement saved as draft (not sent to ClickUp yet)`;
+        statusChip.textContent = `✓ Placement saved as draft (not sent to ClickUp yet)`;
         closeMakePlacementFlow();
         renderCalendar();
       }).catch(err => {
         const errMsg = `Firebase sync error: ${err.message || 'Unknown error'}`;
-        DOM.statusChip.textContent = `✗ ${errMsg}`;
+        statusChip.textContent = `✗ ${errMsg}`;
         alert(`Error saving placement:\n${err.message}\n\nCheck browser console for details.`);
         console.error("Firebase sync error:", err);
         console.error("Full events array:", JSON.stringify(events, null, 2));
         console.error("Sanitized array would be:", JSON.stringify(sanitized, null, 2));
       });
     } else {
-      DOM.statusChip.textContent = `✓ Placement saved as draft (not sent to ClickUp yet)`;
+      statusChip.textContent = `✓ Placement saved as draft (not sent to ClickUp yet)`;
       closeMakePlacementFlow();
       renderCalendar();
     }
   } catch(err) {
-    DOM.statusChip.textContent = `✗ Error creating placement: ${err.message}`;
+    statusChip.textContent = `✗ Error creating placement: ${err.message}`;
     console.error("Placement creation error:", err);
   }
 }
@@ -6167,24 +6062,24 @@ function savePlacementAndSendToClickUp() {
         let msgType = 'created';
         if(placementWorkflow.editingEventId) msgType = 'updated';
         else if(placementWorkflow.editingAvailabilityEventId) msgType = 'created from availability';
-        DOM.statusChip.textContent = `✓ Placement ${msgType}! Ready to send to ClickUp (webhook pending)`;
+        statusChip.textContent = `✓ Placement ${msgType}! Ready to send to ClickUp (webhook pending)`;
         closeMakePlacementFlow();
         renderCalendar();
       }).catch(err => {
         const errMsg = `Firebase sync error: ${err.message || 'Unknown error'}`;
-        DOM.statusChip.textContent = `✗ ${errMsg}`;
+        statusChip.textContent = `✗ ${errMsg}`;
         alert(`Error saving placement:\n${err.message}\n\nCheck browser console for details.`);
         console.error("Firebase sync error:", err);
         console.error("Full events array:", JSON.stringify(events, null, 2));
         console.error("Sanitized array would be:", JSON.stringify(sanitized, null, 2));
       });
     } else {
-      DOM.statusChip.textContent = `✓ Placement created!`;
+      statusChip.textContent = `✓ Placement created!`;
       closeMakePlacementFlow();
       renderCalendar();
     }
   } catch(err) {
-    DOM.statusChip.textContent = `✗ Error creating placement: ${err.message}`;
+    statusChip.textContent = `✗ Error creating placement: ${err.message}`;
     console.error("Placement creation error:", err);
   }
 }
@@ -6453,7 +6348,7 @@ if(uploadSitesBtn && sitesCsvFile){
       const newSites = parseSitesCSV(text);
 
       if(!Object.keys(newSites).length){
-        DOM.statusChip.textContent = "No valid sites found in CSV";
+        statusChip.textContent = "No valid sites found in CSV";
         return;
       }
 
@@ -6462,15 +6357,15 @@ if(uploadSitesBtn && sitesCsvFile){
 
       if(firebase_db && isOnline && firebase_user){
         await saveSitesToFirebase();
-        DOM.statusChip.textContent = `✓ Imported ${Object.keys(newSites).length} sites to Firebase`;
+        statusChip.textContent = `✓ Imported ${Object.keys(newSites).length} sites to Firebase`;
       } else {
-        DOM.statusChip.textContent = `✓ Imported ${Object.keys(newSites).length} sites (local only - sign in to sync)`;
+        statusChip.textContent = `✓ Imported ${Object.keys(newSites).length} sites (local only - sign in to sync)`;
       }
 
       console.log("Sites imported:", newSites);
     } catch(err){
       console.error("Error importing sites:", err);
-      DOM.statusChip.textContent = "❌ Error importing sites: " + (err.message || "Unknown error");
+      statusChip.textContent = "❌ Error importing sites: " + (err.message || "Unknown error");
     } finally {
       sitesCsvFile.value = "";
     }
@@ -6530,7 +6425,7 @@ function renderSitesList(searchTerm = ""){
         localStorage.setItem("sitesCache", JSON.stringify(sitesCache));
         saveSitesToFirebase();
         renderSitesList();
-        DOM.statusChip.textContent = "✓ Site deleted";
+        statusChip.textContent = "✓ Site deleted";
       }
     }));
   }
@@ -6566,7 +6461,7 @@ document.getElementById("sitesSearch").addEventListener("input", (e)=>{
 document.getElementById("addSiteBtn").addEventListener("click", async ()=>{
   // Check authentication
   if(!firebase_user){
-    DOM.statusChip.textContent = "⚠ Sign in required to add or edit sites";
+    statusChip.textContent = "⚠ Sign in required to add or edit sites";
     return;
   }
 
@@ -6575,7 +6470,7 @@ document.getElementById("addSiteBtn").addEventListener("click", async ()=>{
   const editingId = document.getElementById("newSiteId").dataset.editingId;
 
   if(!name || !id){
-    DOM.statusChip.textContent = "⚠ Site name and ID are required";
+    statusChip.textContent = "⚠ Site name and ID are required";
     return;
   }
 
@@ -6591,7 +6486,7 @@ document.getElementById("addSiteBtn").addEventListener("click", async ()=>{
     await saveSitesToFirebase();
   }
 
-  DOM.statusChip.textContent = editingId ? "✓ Site updated" : "✓ Site added";
+  statusChip.textContent = editingId ? "✓ Site updated" : "✓ Site added";
   document.getElementById("newSiteName").value = "";
   document.getElementById("newSiteId").value = "";
   document.getElementById("newSiteId").dataset.editingId = "";
@@ -6687,11 +6582,11 @@ async function createClickUpCVSent(cvData){
 
 createBtn.addEventListener("click", ()=>{
   if(!selectedDoctorId){
-    DOM.statusChip.textContent = "Select a doctor first";
+    statusChip.textContent = "Select a doctor first";
     return;
   }
   if(!lastSelection || !lastSelection.start || !lastSelection.end){
-    DOM.statusChip.textContent = "Select a date range on the calendar first";
+    statusChip.textContent = "Select a date range on the calendar first";
     return;
   }
   openEventEditor({
@@ -6710,8 +6605,7 @@ document.getElementById("doctorHeader").addEventListener("dblclick", ()=>{
 });
 
 /* ===== FIREBASE SYNC FUNCTIONS ===== */
-// Debounced sync to prevent rapid repeated calls
-const debouncedSyncToFirebase = Utils.debounce(async () => {
+async function syncToFirebase() {
   if(!firebase_user || !firebase_db || syncInProgress) return;
   syncInProgress = true;
   updateSyncIndicator("syncing");
@@ -6725,23 +6619,18 @@ const debouncedSyncToFirebase = Utils.debounce(async () => {
     const sanitizedEvents = sanitizeEventsForFirebase(events);
     await Promise.all([
       doctorsRef.set(doctors),
-      eventsRef.set(sanitizedEvents), // Use sanitized version
+      eventsRef.set(events),
       placementsRef.remove() // Remove old placements collection - now using events
     ]);
 
     updateSyncIndicator("synced");
     setTimeout(() => updateSyncIndicator("synced"), 3000);
   } catch(err) {
-    Utils.log("Sync error:", err, true);
+    console.error("Sync error:", err);
     updateSyncIndicator("error");
   } finally {
     syncInProgress = false;
   }
-}, 1000); // Debounce for 1 second
-
-// Wrapper function for backwards compatibility
-async function syncToFirebase() {
-  debouncedSyncToFirebase();
 }
 
 async function syncFromFirebase() {
@@ -6785,7 +6674,7 @@ function updateSyncIndicator(status) {
 
 async function handleGoogleSignIn() {
   try {
-    DOM.statusChip.textContent = "Initializing Firebase...";
+    statusChip.textContent = "Initializing Firebase...";
     await initializeFirebase();
 
     if(!firebase_auth) {
@@ -6798,17 +6687,17 @@ async function handleGoogleSignIn() {
     isOnline = true;
 
     updateAuthUI();
-    DOM.statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email} - syncing...`;
+    statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email} - syncing...`;
 
     // Load sites after sign-in
     await loadSitesFromFirebase();
 
     await syncFromFirebase();
 
-    DOM.statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email}`;
+    statusChip.textContent = `Signed in as ${firebase_user.displayName || firebase_user.email}`;
   } catch(err) {
     console.error("Sign in failed:", err);
-    DOM.statusChip.textContent = "Sign in failed: " + (err.message || String(err));
+    statusChip.textContent = "Sign in failed: " + (err.message || String(err));
     updateAuthUI();
   }
 }
@@ -6819,10 +6708,10 @@ async function handleGoogleSignOut() {
     firebase_user = null;
     isOnline = false;
     updateAuthUI();
-    DOM.statusChip.textContent = "Signed out - click 'Sign in with Google' to sign in with a different account";
+    statusChip.textContent = "Signed out - click 'Sign in with Google' to sign in with a different account";
   } catch(err) {
     console.error("Sign out failed:", err);
-    DOM.statusChip.textContent = "Sign out failed: " + (err.message || String(err));
+    statusChip.textContent = "Sign out failed: " + (err.message || String(err));
   }
 }
 
@@ -6852,7 +6741,7 @@ function updateAuthUI() {
   renderDoctorList();
   renderHeader();
   renderCalendar();
-  DOM.statusChip.textContent = doctors.length ? `Loaded ${doctors.length} doctor(s) from local storage` : "No data loaded";
+  statusChip.textContent = doctors.length ? `Loaded ${doctors.length} doctor(s) from local storage` : "No data loaded";
   updateUndoButton();
   updateAuthUI();
 
