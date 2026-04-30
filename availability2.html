@@ -2478,7 +2478,11 @@ function renderTimesheetCard(ts) {
     <!-- Actions -->
     <div class="timesheetActions">
       <button class="ts-save-btn" data-ts-id="${ts.id}">Save</button>
-      <button class="ts-process-btn" data-ts-id="${ts.id}" ${ts.status === 'processed' ? 'disabled' : ''}>✓ Mark Processed</button>
+      ${ts.status === 'processed' ? `
+        <button class="ts-unprocess-btn" data-ts-id="${ts.id}">⟲ Un-Process</button>
+      ` : `
+        <button class="ts-process-btn" data-ts-id="${ts.id}">✓ Mark Processed</button>
+      `}
       <button class="ts-send-btn" data-ts-id="${ts.id}" ${ts.sentToClickUp ? 'disabled' : ''}>Send to ClickUp</button>
     </div>
   </div>`;
@@ -2595,6 +2599,30 @@ function addTimesheetListeners() {
         }
 
         alert('Timesheet marked as processed!');
+        renderTimesheets(); // Re-render
+      }
+    });
+  });
+
+  // Un-process handlers (revert from processed to pending)
+  document.querySelectorAll('.ts-unprocess-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const tsId = e.target.dataset.tsId;
+      const ts = timesheets.find(t => t.id === tsId);
+
+      if (ts) {
+        ts.status = 'pending';
+
+        // Persist status to the placement event
+        const placement = events.find(e => e.id === ts.placementId);
+        if (placement) {
+          if (!placement.timesheet_data) placement.timesheet_data = {};
+          placement.timesheet_data[ts.weekStart] = placement.timesheet_data[ts.weekStart] || {};
+          placement.timesheet_data[ts.weekStart].status = 'pending';
+          saveEvents(events);
+        }
+
+        alert('Timesheet reverted to pending!');
         renderTimesheets(); // Re-render
       }
     });
