@@ -3335,28 +3335,28 @@ function expandPlacementToDailyEvents(placement, docById) {
     let backgroundColor, borderColor, emoji, dayLabel, rate;
 
     if(shiftType === 'day') {
-      backgroundColor = '#4CAF50'; // Green
-      borderColor = '#2E7D32';
+      backgroundColor = '#1976D2'; // Blue
+      borderColor = '#1565C0';
       emoji = '☀️';
-      rate = placement.standard_rate;
+      rate = placement.standard_rate || 0;
       dayLabel = `${emoji} $${rate}`;
     } else if(shiftType === 'night') {
       backgroundColor = '#1976D2'; // Blue
       borderColor = '#1565C0';
       emoji = '🌙';
-      rate = placement.night_rate;
+      rate = placement.night_rate || 0;
       dayLabel = `${emoji} $${rate}`;
     } else if(shiftType === 'extra1') {
-      backgroundColor = '#FF9800'; // Orange
-      borderColor = '#E65100';
+      backgroundColor = '#1976D2'; // Blue
+      borderColor = '#1565C0';
       emoji = '➕';
-      rate = placement.extra_rate_1;
+      rate = placement.extra_rate_1 || 0;
       dayLabel = `${emoji} $${rate}`;
     } else if(shiftType === 'extra2') {
-      backgroundColor = '#FFB300'; // Gold
-      borderColor = '#FF8F00';
-      emoji = '⭐';
-      rate = placement.extra_rate_2;
+      backgroundColor = '#1976D2'; // Blue
+      borderColor = '#1565C0';
+      emoji = '➕➕';
+      rate = placement.extra_rate_2 || 0;
       dayLabel = `${emoji} $${rate}`;
     } else {
       // RDO - unselected day within placement range
@@ -5457,23 +5457,19 @@ function renderDayPicker() {
     `;
 
     if(isSelected) {
-      let bgColor, emoji;
+      let emoji;
       if(shiftType === 'night') {
-        bgColor = '#1976D2';
         emoji = '🌙';
       } else if(shiftType === 'extra1') {
-        bgColor = '#FF9800';
         emoji = '➕';
       } else if(shiftType === 'extra2') {
-        bgColor = '#FFB300';
-        emoji = '⭐';
+        emoji = '➕➕';
       } else {
-        bgColor = '#4CAF50';
         emoji = '☀️';
       }
-      dayBtn.style.background = bgColor;
+      dayBtn.style.background = '#1976D2';
       dayBtn.style.color = 'white';
-      dayBtn.style.borderColor = bgColor;
+      dayBtn.style.borderColor = '#1565C0';
       dayBtn.innerHTML = `${day}<div style="font-size:8px; line-height:1;">${emoji}</div>`;
     } else {
       dayBtn.textContent = day;
@@ -5637,11 +5633,18 @@ function proceedToPlacementDetails() {
   const extra1ShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'extra1').length;
   const extra2ShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'extra2').length;
 
+  // Ensure all rates are numbers (not undefined)
+  const standardRate = placementWorkflow.standardRate || 0;
+  const nightRate = placementWorkflow.nightRate || 0;
+  const extraRate1 = placementWorkflow.extraRate1 || 0;
+  const extraRate2 = placementWorkflow.extraRate2 || 0;
+  const agencyFeePercent = placementWorkflow.agencyFeePercent || 0;
+
   // Calculate rate margins from agency fee
-  const dayMarginPerUnit = (placementWorkflow.standardRate * placementWorkflow.agencyFeePercent) / 100;
-  const nightMarginPerUnit = (placementWorkflow.nightRate * placementWorkflow.agencyFeePercent) / 100;
-  const extra1MarginPerUnit = (placementWorkflow.extraRate1 * placementWorkflow.agencyFeePercent) / 100;
-  const extra2MarginPerUnit = (placementWorkflow.extraRate2 * placementWorkflow.agencyFeePercent) / 100;
+  const dayMarginPerUnit = (standardRate * agencyFeePercent) / 100;
+  const nightMarginPerUnit = (nightRate * agencyFeePercent) / 100;
+  const extra1MarginPerUnit = (extraRate1 * agencyFeePercent) / 100;
+  const extra2MarginPerUnit = (extraRate2 * agencyFeePercent) / 100;
 
   // Calculate total margin
   let totalMargin = 0;
