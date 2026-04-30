@@ -3689,45 +3689,63 @@ function openEventEditor(payload){
     const createPlacementBtn = document.getElementById("createPlacementBtn");
     if(createPlacementBtn) {
       createPlacementBtn.addEventListener("click", () => {
-        // Check if site is selected
-        const siteId = (document.getElementById("evSite").value||"").trim();
-        if(!siteId) {
-          alert("Please select a site before creating a placement");
-          return;
+        try {
+          // Check if site is selected
+          const siteId = (document.getElementById("evSite").value||"").trim();
+          if(!siteId) {
+            alert("Please select a site before creating a placement");
+            return;
+          }
+
+          // Get the availability event data
+          const startVal = document.getElementById("evStart").value;
+          const endVal = document.getElementById("evEnd").value;
+          const sStart = parseDateAU(startVal);
+          const sEndInc = parseDateAU(endVal);
+
+          if(!sStart || !sEndInc) {
+            alert("Invalid date format. Please use dd/mm/yyyy format.");
+            return;
+          }
+
+          const sEndEx = addDaysUTC(sEndInc, 1);
+
+          // Initialize placement workflow with availability data
+          placementWorkflow.selectedDoctor = d; // doctor from outer scope
+          placementWorkflow.selectedSite = sitesCache[siteId];
+
+          if(!placementWorkflow.selectedSite) {
+            alert("Selected site not found. Please try again.");
+            return;
+          }
+
+          // Initialize selectedDays from the availability date range
+          placementWorkflow.selectedDays = {};
+          let currentDate = new Date(sStart);
+          while(currentDate < sEndEx) {
+            const dateISO = currentDate.toISOString().slice(0, 10);
+            placementWorkflow.selectedDays[dateISO] = 'day'; // Default to day shifts
+            currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+          }
+
+          placementWorkflow.currentMonth = sStart.toISOString().substring(0, 7);
+          placementWorkflow.editingAvailabilityEventId = payload.id; // Track original availability event to delete later
+          placementWorkflow.unitType = 'daily';
+          placementWorkflow.standardRate = 0;
+          placementWorkflow.nightRate = 0;
+          placementWorkflow.extraRate1 = 0;
+          placementWorkflow.extraRate2 = 0;
+          placementWorkflow.hoursPerShift = 8;
+          placementWorkflow.agencyFeePercent = 0;
+          placementWorkflow.defaultShiftType = 'day';
+
+          // Close the event editor and open placement wizard at rate selection step
+          closeModal();
+          document.getElementById('rateSelectionBackdrop').style.display = 'flex';
+        } catch(err) {
+          console.error("Error creating placement:", err);
+          alert("Error creating placement: " + (err.message || "Unknown error"));
         }
-
-        // Get the availability event data
-        const sStart = parseDateAU(document.getElementById("evStart").value);
-        const sEndInc = parseDateAU(document.getElementById("evEnd").value);
-        const sEndEx = addDaysUTC(sEndInc, 1);
-
-        // Initialize placement workflow with availability data
-        placementWorkflow.selectedDoctor = d; // doctor from outer scope
-        placementWorkflow.selectedSite = sitesCache[siteId];
-
-        // Initialize selectedDays from the availability date range
-        placementWorkflow.selectedDays = {};
-        let currentDate = new Date(sStart);
-        while(currentDate < sEndEx) {
-          const dateISO = currentDate.toISOString().slice(0, 10);
-          placementWorkflow.selectedDays[dateISO] = 'day'; // Default to day shifts
-          currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-        }
-
-        placementWorkflow.currentMonth = sStart.toISOString().substring(0, 7);
-        placementWorkflow.editingAvailabilityEventId = payload.id; // Track original availability event to delete later
-        placementWorkflow.unitType = 'daily';
-        placementWorkflow.standardRate = 0;
-        placementWorkflow.nightRate = 0;
-        placementWorkflow.extraRate1 = 0;
-        placementWorkflow.extraRate2 = 0;
-        placementWorkflow.hoursPerShift = 8;
-        placementWorkflow.agencyFeePercent = 0;
-        placementWorkflow.defaultShiftType = 'day';
-
-        // Close the event editor and open placement wizard at rate selection step
-        closeModal();
-        document.getElementById('rateSelectionBackdrop').style.display = 'flex';
       });
     }
 
