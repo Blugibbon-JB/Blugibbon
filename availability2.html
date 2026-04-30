@@ -1184,6 +1184,24 @@ let doctors = loadDoctors();
 let events  = sanitizeEventsForFirebase(loadEvents()); // Sanitize loaded events to remove any undefined properties
 let placements = []; // Will be loaded from Firebase
 
+// Initialize placement workflow object for creating new placements
+let placementWorkflow = {
+  selectedDoctor: null,
+  selectedSite: null,
+  unitType: 'hourly',
+  standardRate: 0,
+  nightRate: 0,
+  extraRate1: 0,
+  extraRate2: 0,
+  hoursPerShift: 8,
+  agencyFeePercent: 0,
+  selectedDays: {},
+  currentMonth: new Date().getUTCFullYear() + '-' + String(new Date().getUTCMonth() + 1).padStart(2, '0'),
+  defaultShiftType: 'day',
+  editingEventId: null,
+  editingAvailabilityEventId: null
+};
+
 // -----------------------
 // View modes + overlays
 // -----------------------
@@ -3832,6 +3850,13 @@ function openEventEditor(payload){
         e.preventDefault();
         e.stopPropagation();
         try {
+          // Ensure placementWorkflow is initialized
+          if(!placementWorkflow) {
+            console.error("placementWorkflow not initialized");
+            alert("Error: Placement workflow not initialized. Please refresh the page.");
+            return;
+          }
+
           // Check if site is selected
           const siteId = (document.getElementById("evSite").value||"").trim();
           if(!siteId) {
@@ -3886,6 +3911,7 @@ function openEventEditor(payload){
           document.getElementById('rateSelectionBackdrop').style.display = 'flex';
         } catch(err) {
           console.error("Error creating placement:", err);
+          console.error("Stack trace:", err.stack);
           alert("Error creating placement: " + (err.message || "Unknown error"));
         }
       });
@@ -5233,21 +5259,6 @@ if(uploadPlacementsBtn && placementsCsvFile){
 }
 
 // ===== MAKE PLACEMENT - CREATE NEW PLACEMENTS UI =====
-
-let placementWorkflow = {
-  selectedDoctor: null,
-  selectedSite: null,
-  unitType: 'hourly',
-  standardRate: 0,
-  nightRate: 0,
-  extraRate1: 0,
-  extraRate2: 0,
-  hoursPerShift: 8,
-  agencyFeePercent: 0,
-  selectedDays: {},
-  currentMonth: new Date().getUTCFullYear() + '-' + String(new Date().getUTCMonth() + 1).padStart(2, '0'),
-  defaultShiftType: 'day'
-};
 
 const makePlacementBtn = document.getElementById('makePlacementBtn');
 if(makePlacementBtn) {
