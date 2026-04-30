@@ -2293,6 +2293,17 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
 ,
   eventClick: function(info){
     const evId = info.event.id;
+    const parentPlacementId = info.event.extendedProps?.parent_placement_id;
+
+    // Handle daily events expanded from placements
+    if(parentPlacementId) {
+      const rec = events.find(e => e.id === parentPlacementId);
+      if(rec && rec.type === 'placement') {
+        openPlacementEditor(rec);
+      }
+      return;
+    }
+
     const rec = events.find(e => e.id === evId);
     if(!rec) return;
     // Route to placement editor if this is a placement event, otherwise use regular editor
@@ -3172,34 +3183,99 @@ function renderCalendar(){
 
   calendar.removeAllEvents();
 
-  // Render regular events
+  // Render events
   for(const e of shown){
-    // Get display location: prefer site name if site_id selected, otherwise use location text
-    const displayLocation = (e.site_id && sitesCache[e.site_id])
-      ? sitesCache[e.site_id].name
-      : (e.location || "");
+    // Special handling for placement events: expand to daily view
+    if(e.type === 'placement' && e.placement_data) {
+      expandPlacementToDailyEvents(e, docById);
+    } else {
+      // Regular event rendering
+      const displayLocation = (e.site_id && sitesCache[e.site_id])
+        ? sitesCache[e.site_id].name
+        : (e.location || "");
 
-    calendar.addEvent({
-      id: e.id,
-      title: (showAllDoctors
-        ? (()=>{
-            const dd = docById.get(String(e.ahpra_id)) || {};
-            const nm = (dd.name || dd.ahpra_id || "Doctor");
-            const base = (e.title ? (displayLocation ? `${e.title} - ${displayLocation}` : e.title) : (displayLocation ? `${e.status} - ${displayLocation}` : (e.status || "Status")));
-            return `${nm}: ${base}`;
-          })()
-        : (e.title ? (displayLocation ? `${e.title} - ${displayLocation}` : e.title) : (displayLocation ? `${e.status} - ${displayLocation}` : (e.status || "Status")))
-      ),
-      start: e.start,
-      end: e.end,
-      classNames: (showAllDoctors && highlightQuery && highlightIds && highlightIds.size ? [(highlightIds.has(String(e.ahpra_id))) ? "bg-hl-match" : "bg-hl-dim"] : []),
-      backgroundColor: STATUS_COLOR[e.status] || "#111",
-      borderColor: STATUS_COLOR[e.status] || "#111",
-      textColor: "#fff",
-      extendedProps: { status: e.status, notes: e.notes, location: displayLocation, doctor_name: (docById.get(String(e.ahpra_id))?.name || String(e.ahpra_id)) }
-    });
+      calendar.addEvent({
+        id: e.id,
+        title: (showAllDoctors
+          ? (()=>{
+              const dd = docById.get(String(e.ahpra_id)) || {};
+              const nm = (dd.name || dd.ahpra_id || "Doctor");
+              const base = (e.title ? (displayLocation ? `${e.title} - ${displayLocation}` : e.title) : (displayLocation ? `${e.status} - ${displayLocation}` : (e.status || "Status")));
+              return `${nm}: ${base}`;
+            })()
+          : (e.title ? (displayLocation ? `${e.title} - ${displayLocation}` : e.title) : (displayLocation ? `${e.status} - ${displayLocation}` : (e.status || "Status")))
+        ),
+        start: e.start,
+        end: e.end,
+        classNames: (showAllDoctors && highlightQuery && highlightIds && highlightIds.size ? [(highlightIds.has(String(e.ahpra_id))) ? "bg-hl-match" : "bg-hl-dim"] : []),
+        backgroundColor: STATUS_COLOR[e.status] || "#111",
+        borderColor: STATUS_COLOR[e.status] || "#111",
+        textColor: "#fff",
+        extendedProps: { status: e.status, notes: e.notes, location: displayLocation, doctor_name: (docById.get(String(e.ahpra_id))?.name || String(e.ahpra_id)) }
+      });
+    }
   }
 
+}
+
+function expandPlacementToDailyEvents(placement, docById) {
+  const pd = placement.placement_data;
+  const dayShifts = pd.day_shifts || {};
+  const startDate = new Date(placement.start);
+  const endDate = new Date(placement.end);
+
+  // Iterate through each day in the range
+  let currentDate = new Date(startDate);
+  while(currentDate < endDate) {
+    const dateISO = currentDate.toISOString().slice(0, 10);
+    const shiftType = dayShifts[dateISO];
+
+    const displayLocation = placement.location || pd.site_name || "";
+    const doctorName = showAllDoctors ? ((docById.get(String(placement.ahpra_id))?.name || String(placement.ahpra_id)) + ": ") : "";
+
+    let backgroundColor, borderColor, emoji, dayLabel;
+
+    if(shiftType === 'day') {
+      backgroundColor = '#4CAF50'; // Green
+      borderColor = '#2E7D32';
+      emoji = '☀️';
+      dayLabel = `${emoji} Day`;
+    } else if(shiftType === 'night') {
+      backgroundColor = '#1976D2'; // Blue
+      borderColor = '#1565C0';
+      emoji = '🌙';
+      dayLabel = `${emoji} Night`;
+    } else {
+      // RDO - unselected day within placement range
+      backgroundColor = '#CCCCCC'; // Light grey
+      borderColor = '#999999';
+      emoji = '⊘';
+      dayLabel = 'RDO';
+    }
+
+    const nextDate = new Date(currentDate);
+    nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+
+    calendar.addEvent({
+      id: `${placement.id}-${dateISO}`,
+      title: `${doctorName}${dayLabel} - ${displayLocation}`,
+      start: dateISO,
+      end: nextDate.toISOString().slice(0, 10),
+      backgroundColor: backgroundColor,
+      borderColor: borderColor,
+      textColor: "#fff",
+      extendedProps: {
+        status: placement.status,
+        notes: placement.notes,
+        location: displayLocation,
+        doctor_name: (docById.get(String(placement.ahpra_id))?.name || String(placement.ahpra_id)),
+        shift_type: shiftType,
+        parent_placement_id: placement.id
+      }
+    });
+
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+  }
 }
 
 function openEventEditor(payload){
