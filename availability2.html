@@ -1435,6 +1435,13 @@ function generateTimesheets() {
         estimatedExtra2 *= hoursPerShift;
       }
 
+      // Skip timesheets with no estimated units (placement doesn't cover this week)
+      if (estimatedDays === 0 && estimatedNights === 0 && estimatedExtra1 === 0 && estimatedExtra2 === 0) {
+        currentDate = new Date(weekEnd);
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1); // Move to next day
+        continue;
+      }
+
       // Check if there's persisted timesheet data for this week
       const savedData = placementEvent?.timesheet_data?.[weekStartISO] || {};
 
