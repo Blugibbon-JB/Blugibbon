@@ -1425,6 +1425,16 @@ function generateTimesheets() {
         loopDate.setUTCDate(loopDate.getUTCDate() + 1);
       }
 
+      // Convert to hours if placement is hourly
+      const unitType = placementData.unit_type || 'daily';
+      const hoursPerShift = placementData.hours_per_shift || 8;
+      if (unitType === 'hourly') {
+        estimatedDays *= hoursPerShift;
+        estimatedNights *= hoursPerShift;
+        estimatedExtra1 *= hoursPerShift;
+        estimatedExtra2 *= hoursPerShift;
+      }
+
       // Check if there's persisted timesheet data for this week
       const savedData = placementEvent?.timesheet_data?.[weekStartISO] || {};
 
@@ -1435,6 +1445,8 @@ function generateTimesheets() {
         site: placement.site,
         weekStart: weekStartISO,
         weekEnd: weekEnd.toISOString().split('T')[0],
+        unitType: unitType,
+        hoursPerShift: hoursPerShift,
         estimatedDays: estimatedDays,
         estimatedNights: estimatedNights,
         estimatedExtra1: estimatedExtra1,
@@ -2266,6 +2278,14 @@ function renderTimesheetCard(ts) {
   const placementData = placement?.placement_data || {};
   const savedData = placement?.timesheet_data?.[ts.weekStart] || {};
 
+  // Unit type labels
+  const unitType = ts.unitType || 'daily';
+  const unitLabel = unitType === 'hourly' ? 'hrs' : 'days';
+  const dayLabel = unitType === 'hourly' ? 'Days (hrs)' : 'Days';
+  const nightLabel = unitType === 'hourly' ? 'Nights (hrs)' : 'Nights';
+  const extra1Label = unitType === 'hourly' ? 'Extra 1 (hrs)' : 'Extra 1';
+  const extra2Label = unitType === 'hourly' ? 'Extra 2 (hrs)' : 'Extra 2';
+
   // Extract rates from placement or use saved overrides
   const dayRate = savedData.dayRate ?? placementData.standard_rate ?? 0;
   const nightRate = savedData.nightRate ?? placementData.night_rate ?? 0;
@@ -2346,11 +2366,11 @@ function renderTimesheetCard(ts) {
       <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
           <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. Days</div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${dayLabel}</div>
             <div style="padding:4px; font-weight:600;">${ts.estimatedDays}</div>
           </div>
           <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual Days</label>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${dayLabel}</label>
             <input type="number" class="ts-actual-days" min="0" value="${actualDays ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
           </div>
           <div>
@@ -2372,11 +2392,11 @@ function renderTimesheetCard(ts) {
       <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
           <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. Nights</div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${nightLabel}</div>
             <div style="padding:4px; font-weight:600;">${ts.estimatedNights}</div>
           </div>
           <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual Nights</label>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${nightLabel}</label>
             <input type="number" class="ts-actual-nights" min="0" value="${actualNights ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
           </div>
           <div>
@@ -2399,11 +2419,11 @@ function renderTimesheetCard(ts) {
       <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
           <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. Extra 1</div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${extra1Label}</div>
             <div style="padding:4px; font-weight:600;">${ts.estimatedExtra1}</div>
           </div>
           <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual Extra 1</label>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${extra1Label}</label>
             <input type="number" class="ts-actual-extra1" min="0" value="${actualExtra1 ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
           </div>
           <div>
@@ -2426,11 +2446,11 @@ function renderTimesheetCard(ts) {
       <div style="padding:10px; background:#f9f9f9; border-radius:6px;">
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
           <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. Extra 2</div>
+            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${extra2Label}</div>
             <div style="padding:4px; font-weight:600;">${ts.estimatedExtra2}</div>
           </div>
           <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual Extra 2</label>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${extra2Label}</label>
             <input type="number" class="ts-actual-extra2" min="0" value="${actualExtra2 ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
           </div>
           <div>
