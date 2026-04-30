@@ -5745,6 +5745,18 @@ function proceedToPlacementDetails() {
   }
 }
 
+function sanitizeEventsForFirebase(eventsArray) {
+  return eventsArray.map(event => {
+    const sanitized = {};
+    for (const key in event) {
+      if (event[key] !== undefined) {
+        sanitized[key] = event[key];
+      }
+    }
+    return sanitized;
+  });
+}
+
 function backToDaySelection() {
   document.getElementById('placementDetailsBackdrop').style.display = 'none';
   document.getElementById('dayPickerBackdrop').style.display = 'flex';
@@ -5785,7 +5797,8 @@ function savePlacementAsDraft() {
 
     // Sync to Firebase
     if(firebase_user && firebase_db) {
-      firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).then(() => {
+      const sanitized = sanitizeEventsForFirebase(events);
+      firebase_db.ref(`users/${firebase_user.uid}/events`).set(sanitized).then(() => {
         statusChip.textContent = `✓ Placement saved as draft (not sent to ClickUp yet)`;
         closeMakePlacementFlow();
         renderCalendar();
@@ -5841,7 +5854,8 @@ function savePlacementAndSendToClickUp() {
 
     // Sync to Firebase
     if(firebase_user && firebase_db) {
-      firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).then(() => {
+      const sanitized = sanitizeEventsForFirebase(events);
+      firebase_db.ref(`users/${firebase_user.uid}/events`).set(sanitized).then(() => {
         let msgType = 'created';
         if(placementWorkflow.editingEventId) msgType = 'updated';
         else if(placementWorkflow.editingAvailabilityEventId) msgType = 'created from availability';
@@ -6397,6 +6411,7 @@ async function syncToFirebase() {
     const eventsRef = firebase_db.ref(`users/${uid}/events`);
     const placementsRef = firebase_db.ref(`users/${uid}/placements`);
 
+    const sanitizedEvents = sanitizeEventsForFirebase(events);
     await Promise.all([
       doctorsRef.set(doctors),
       eventsRef.set(events),
