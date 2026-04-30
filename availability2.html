@@ -3453,10 +3453,13 @@ function openEventEditor(payload){
     applyRecUI();
   }
 
+  const showCreatePlacement = mode === "edit" && payload.type !== 'placement';
+  console.log("Mode:", mode, "Payload type:", payload.type, "Show create placement:", showCreatePlacement);
+
   modalFooter.innerHTML = `
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
       ${mode === "edit" ? `<button class="danger" id="deleteBtn">Delete</button>` : `<span class="hint"> </span>`}
-      ${mode === "edit" && payload.type !== 'placement' ? `<button id="createPlacementBtn" style="background:#FF9800; color:#fff; border-color:#FF9800;">Create Placement</button>` : ``}
+      ${showCreatePlacement ? `<button id="createPlacementBtn" style="background:#FF9800; color:#fff; border-color:#FF9800;">Create Placement</button>` : ``}
       ${mode === "edit" ? `<button id="placementBtn" style="background:#4CAF50; color:#fff; border-color:#4CAF50;">Make ClickUp Order</button>` : ``}
       ${mode === "edit" ? `<button id="cvSentBtn" style="background:#2196F3; color:#fff; border-color:#2196F3;">Record as CV Sent in ClickUp</button>` : ``}
     </div>
@@ -3688,7 +3691,9 @@ function openEventEditor(payload){
 
     const createPlacementBtn = document.getElementById("createPlacementBtn");
     if(createPlacementBtn) {
+      console.log("Create Placement button found and attaching listener");
       createPlacementBtn.addEventListener("click", () => {
+        console.log("Create Placement button clicked");
         try {
           // Check if site is selected
           const siteId = (document.getElementById("evSite").value||"").trim();
