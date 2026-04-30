@@ -2288,10 +2288,10 @@ function renderTimesheetCard(ts) {
   // Unit type labels
   const unitType = ts.unitType || 'daily';
   const unitLabel = unitType === 'hourly' ? 'hrs' : 'days';
-  const dayLabel = unitType === 'hourly' ? 'Days (hrs)' : 'Days';
-  const nightLabel = unitType === 'hourly' ? 'Nights (hrs)' : 'Nights';
-  const extra1Label = unitType === 'hourly' ? 'Extra 1 (hrs)' : 'Extra 1';
-  const extra2Label = unitType === 'hourly' ? 'Extra 2 (hrs)' : 'Extra 2';
+  const dayLabel = unitType === 'hourly' ? 'Day Hours' : 'Days';
+  const nightLabel = unitType === 'hourly' ? 'Night Hours' : 'Nights';
+  const extra1Label = unitType === 'hourly' ? 'Extra 1 Hours' : 'Extra 1';
+  const extra2Label = unitType === 'hourly' ? 'Extra 2 Hours' : 'Extra 2';
 
   // Extract rates from placement or use saved overrides
   const dayRate = savedData.dayRate ?? placementData.standard_rate ?? 0;
