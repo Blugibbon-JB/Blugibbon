@@ -317,6 +317,110 @@
     border-bottom:1px solid rgba(0,0,0,0.06);
     min-width: 720px;
   }
+
+  /* Timesheet Styles */
+  #timesheetsContainer{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    overflow:auto;
+    padding:12px;
+  }
+  .timesheetSection{
+    margin-bottom:20px;
+  }
+  .timesheetDoctor{
+    font-weight:700;
+    font-size:15px;
+    margin-bottom:8px;
+    padding:8px;
+    background:#f5f5f5;
+    border-radius:8px;
+  }
+  .timesheetCard{
+    border:1px solid #e0e0e0;
+    border-radius:10px;
+    padding:12px;
+    margin-bottom:8px;
+    background:#fff;
+  }
+  .timesheetCard:hover{
+    background:#fafafa;
+  }
+  .timesheetInfo{
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap:12px;
+    margin-bottom:10px;
+    font-size:12px;
+  }
+  .timesheetInfo .item{
+    padding:4px 0;
+  }
+  .timesheetInfo .label{
+    color:var(--muted);
+    font-weight:600;
+  }
+  .timesheetInfo .value{
+    font-weight:600;
+  }
+  .timesheetInput{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    margin:8px 0;
+  }
+  .timesheetInput label{
+    font-size:12px;
+    color:var(--muted);
+    font-weight:600;
+    min-width:100px;
+  }
+  .timesheetInput input{
+    width:80px;
+    padding:6px 8px;
+  }
+  .timesheetInput textarea{
+    width:100%;
+    padding:8px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    font-family:var(--font);
+    font-size:12px;
+    min-height:60px;
+    resize:vertical;
+  }
+  .timesheetInput.full{
+    flex-direction:column;
+  }
+  .timesheetActions{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+  }
+  .timesheetActions button{
+    padding:6px 12px;
+    font-size:12px;
+  }
+  .tsStatus{
+    display:inline-block;
+    padding:4px 8px;
+    border-radius:4px;
+    font-size:11px;
+    font-weight:600;
+  }
+  .tsStatus.pending{
+    background:#fff3cd;
+    color:#856404;
+  }
+  .tsStatus.processed{
+    background:#d4edda;
+    color:#155724;
+  }
+  .tsStatus.overdue{
+    background:#f8d7da;
+    color:#721c24;
+  }
   .stripHeaderRow{
     position:sticky;
     top:0;
@@ -435,6 +539,7 @@
       <button id="viewCalendarBtn" class="btn primary" type="button">Calendar</button>
       <button id="viewHeatmapBtn" class="btn" type="button">Heatmap</button>
       <button id="viewStripsBtn" class="btn" type="button">Strips</button>
+      <button id="viewTimesheetsBtn" class="btn" type="button">Timesheets</button>
     </div>
   </div>
 
@@ -631,6 +736,20 @@
     </div>
     <div class="muted" id="stripsMeta"></div>
     <div id="stripsTable" class="stripsTable"></div>
+  </div>
+
+  <div id="timesheetsWrap" style="display:none;">
+    <div class="viewHeader">
+      <div style="font-weight:700;">Timesheets</div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <select id="timesheetView" title="Timesheet view">
+          <option value="by-week">By Week</option>
+          <option value="by-doctor">By Doctor</option>
+        </select>
+        <input id="timesheetWeekPicker" type="date" title="Pick week" />
+      </div>
+    </div>
+    <div id="timesheetsContainer"></div>
   </div>
 </div>
 
@@ -1233,6 +1352,53 @@ const STATUS_COLOR = Object.fromEntries(STATUS.map(s=>[s.key, s.color]));
 let doctors = loadDoctors();
 let events  = sanitizeEventsForFirebase(loadEvents()); // Sanitize loaded events to remove any undefined properties
 let placements = []; // Will be loaded from Firebase
+let timesheets = []; // Computed from placements, split by week
+
+// Helper: Generate timesheets from placements
+function generateTimesheets() {
+  timesheets = [];
+  for (const placement of placements) {
+    const startDate = new Date(placement.dateStart + 'T00:00:00Z');
+    const endDate = new Date(placement.dateEnd + 'T00:00:00Z');
+
+    // Split placement into weekly chunks (Mon-Sun)
+    let currentDate = new Date(startDate);
+
+    while (currentDate <= endDate) {
+      // Find Sunday (end of week)
+      const dayOfWeek = currentDate.getUTCDay();
+      const daysUntilSunday = (7 - dayOfWeek) % 7 || 7;
+      const sundayDate = new Date(currentDate);
+      sundayDate.setUTCDate(sundayDate.getUTCDate() + daysUntilSunday);
+
+      const weekEnd = new Date(Math.min(sundayDate.getTime(), endDate.getTime()));
+      const weekStart = new Date(currentDate);
+
+      // Calculate estimated days/shifts for this week
+      const weekDays = Math.ceil((weekEnd - weekStart) / (1000 * 60 * 60 * 24)) + 1;
+
+      const timesheet = {
+        id: `ts_${placement.id}_${weekStart.toISOString().split('T')[0]}`,
+        placementId: placement.id,
+        doctor: placement.doctor,
+        site: placement.site,
+        weekStart: weekStart.toISOString().split('T')[0],
+        weekEnd: weekEnd.toISOString().split('T')[0],
+        estimatedDays: weekDays,
+        actualDays: null,
+        actualNights: null,
+        actualRDO: null,
+        notes: '',
+        status: 'pending', // pending|processed
+        sentToClickUp: false
+      };
+
+      timesheets.push(timesheet);
+      currentDate = new Date(weekEnd);
+      currentDate.setUTCDate(currentDate.getUTCDate() + 1); // Move to next day
+    }
+  }
+}
 
 // Initialize placement workflow object for creating new placements
 let placementWorkflow = {
@@ -1255,9 +1421,10 @@ let placementWorkflow = {
 // -----------------------
 // View modes + overlays
 // -----------------------
-let viewMode = localStorage.getItem("bg_view_mode") || "calendar"; // calendar|heatmap|strips
+let viewMode = localStorage.getItem("bg_view_mode") || "calendar"; // calendar|heatmap|strips|timesheets
 let heatmapMode = localStorage.getItem("bg_heatmap_mode") || "weeks";
 let stripsMode  = localStorage.getItem("bg_strips_mode")  || "months";
+let timesheetViewMode = localStorage.getItem("bg_timesheet_view") || "by-week"; // by-week|by-doctor
 let showBookingsOverlay = (localStorage.getItem("bg_show_bookings") ?? "true") === "true";
 let showAvailabilityOverlay = (localStorage.getItem("bg_show_availability") ?? "true") === "true";
 let finderOpen = (localStorage.getItem("bg_finder_open") ?? "false") === "true";
@@ -1912,15 +2079,238 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
   });
 }
 
+// ===== TIMESHEET RENDERING =====
+function renderTimesheets() {
+  const container = document.getElementById('timesheetsContainer');
+  if (!container) return;
+
+  generateTimesheets(); // Ensure timesheets are up to date
+
+  if (timesheetViewMode === 'by-week') {
+    renderTimesheetsByWeek(container);
+  } else {
+    renderTimesheetsByDoctor(container);
+  }
+}
+
+function renderTimesheetsByWeek(container) {
+  // Get all unique weeks from timesheets
+  const weeks = {};
+  for (const ts of timesheets) {
+    if (!weeks[ts.weekEnd]) {
+      weeks[ts.weekEnd] = [];
+    }
+    weeks[ts.weekEnd].push(ts);
+  }
+
+  let html = '';
+  const sortedWeeks = Object.keys(weeks).sort().reverse(); // Most recent first
+
+  for (const weekEnd of sortedWeeks) {
+    const weekTimesheets = weeks[weekEnd];
+    const sundayDate = new Date(weekEnd + 'T00:00:00Z');
+    const weekStartDate = new Date(sundayDate);
+    weekStartDate.setUTCDate(weekStartDate.getUTCDate() - 6);
+
+    const weekLabel = `${weekStartDate.toLocaleDateString('en-AU')} - ${sundayDate.toLocaleDateString('en-AU')}`;
+
+    html += `<div class="timesheetSection">
+      <div style="font-weight:700; font-size:15px; margin-bottom:12px; padding:8px; background:#f5f5f5; border-radius:8px;">
+        Week Ending: ${weekLabel}
+      </div>`;
+
+    let pendingCount = 0, processedCount = 0;
+
+    for (const ts of weekTimesheets) {
+      if (ts.status === 'pending') pendingCount++;
+      if (ts.status === 'processed') processedCount++;
+      html += renderTimesheetCard(ts);
+    }
+
+    html += `<div style="color:var(--muted); font-size:12px; margin-top:8px;">
+      ${pendingCount} pending · ${processedCount} processed
+    </div></div>`;
+  }
+
+  if (html === '') {
+    html = '<div style="padding:20px; text-align:center; color:var(--muted);">No timesheets found. Create placements to generate timesheets.</div>';
+  }
+
+  container.innerHTML = html;
+  addTimesheetListeners();
+}
+
+function renderTimesheetsByDoctor(container) {
+  const doctors = {};
+  for (const ts of timesheets) {
+    if (!doctors[ts.doctor]) {
+      doctors[ts.doctor] = [];
+    }
+    doctors[ts.doctor].push(ts);
+  }
+
+  let html = '';
+  const sortedDoctors = Object.keys(doctors).sort();
+
+  for (const doctor of sortedDoctors) {
+    const doctorTimesheets = doctors[doctor];
+    html += `<div class="timesheetSection">
+      <div class="timesheetDoctor">${doctor}</div>`;
+
+    for (const ts of doctorTimesheets.sort((a, b) => new Date(b.weekEnd) - new Date(a.weekEnd))) {
+      html += renderTimesheetCard(ts);
+    }
+
+    html += '</div>';
+  }
+
+  if (html === '') {
+    html = '<div style="padding:20px; text-align:center; color:var(--muted);">No timesheets found. Create placements to generate timesheets.</div>';
+  }
+
+  container.innerHTML = html;
+  addTimesheetListeners();
+}
+
+function renderTimesheetCard(ts) {
+  const weekEnd = new Date(ts.weekEnd + 'T00:00:00Z');
+  const weekStart = new Date(ts.weekStart + 'T00:00:00Z');
+
+  const statusClass = ts.status === 'processed' ? 'processed' : (ts.status === 'overdue' ? 'overdue' : 'pending');
+  const statusLabel = ts.status === 'processed' ? 'Processed' : (ts.status === 'overdue' ? 'Overdue' : 'Pending');
+
+  return `<div class="timesheetCard" data-ts-id="${ts.id}">
+    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
+      <div>
+        <div style="font-weight:600;">${ts.doctor} | ${ts.site}</div>
+        <div style="font-size:12px; color:var(--muted);">
+          ${weekStart.toLocaleDateString('en-AU')} - ${weekEnd.toLocaleDateString('en-AU')}
+        </div>
+      </div>
+      <span class="tsStatus ${statusClass}">${statusLabel}</span>
+    </div>
+
+    <div class="timesheetInfo">
+      <div class="item">
+        <div class="label">Est Days</div>
+        <div class="value">${ts.estimatedDays} days</div>
+      </div>
+      <div class="item">
+        <div class="label">Actual Days</div>
+        <div class="value">${ts.actualDays !== null ? ts.actualDays : '-'}</div>
+      </div>
+      <div class="item">
+        <div class="label">Nights</div>
+        <div class="value">${ts.actualNights !== null ? ts.actualNights : '-'}</div>
+      </div>
+    </div>
+
+    <div class="timesheetInput">
+      <label>Actual Days:</label>
+      <input type="number" class="ts-actual-days" min="0" value="${ts.actualDays ?? ''}" placeholder="Days worked" />
+    </div>
+
+    <div class="timesheetInput">
+      <label>Nights:</label>
+      <input type="number" class="ts-actual-nights" min="0" value="${ts.actualNights ?? ''}" placeholder="Nights worked" />
+    </div>
+
+    <div class="timesheetInput">
+      <label>RDO/Days Off:</label>
+      <input type="number" class="ts-actual-rdo" min="0" value="${ts.actualRDO ?? ''}" placeholder="Days off" />
+    </div>
+
+    <div class="timesheetInput full">
+      <label>Notes:</label>
+      <textarea class="ts-notes" placeholder="e.g., 1 day sick leave...">${ts.notes || ''}</textarea>
+    </div>
+
+    <div class="timesheetActions">
+      <button class="ts-save-btn" data-ts-id="${ts.id}">Save</button>
+      <button class="ts-process-btn" data-ts-id="${ts.id}" ${ts.status === 'processed' ? 'disabled' : ''}>✓ Mark Processed</button>
+      <button class="ts-send-btn" data-ts-id="${ts.id}" ${ts.sentToClickUp ? 'disabled' : ''}>Send to ClickUp</button>
+    </div>
+  </div>`;
+}
+
+function addTimesheetListeners() {
+  // Save button handlers
+  document.querySelectorAll('.ts-save-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const tsId = e.target.dataset.tsId;
+      const card = document.querySelector(`[data-ts-id="${tsId}"]`);
+      const ts = timesheets.find(t => t.id === tsId);
+
+      if (ts) {
+        ts.actualDays = parseInt(card.querySelector('.ts-actual-days').value) || null;
+        ts.actualNights = parseInt(card.querySelector('.ts-actual-nights').value) || null;
+        ts.actualRDO = parseInt(card.querySelector('.ts-actual-rdo').value) || null;
+        ts.notes = card.querySelector('.ts-notes').value;
+
+        alert('Timesheet saved!');
+        renderTimesheets(); // Re-render
+      }
+    });
+  });
+
+  // Mark processed handlers
+  document.querySelectorAll('.ts-process-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const tsId = e.target.dataset.tsId;
+      const ts = timesheets.find(t => t.id === tsId);
+
+      if (ts) {
+        ts.status = 'processed';
+        alert('Timesheet marked as processed!');
+        renderTimesheets(); // Re-render
+      }
+    });
+  });
+
+  // Send to ClickUp handlers
+  document.querySelectorAll('.ts-send-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const tsId = e.target.dataset.tsId;
+      const ts = timesheets.find(t => t.id === tsId);
+
+      if (ts) {
+        sendTimesheetToClickUp(ts);
+      }
+    });
+  });
+}
+
+function sendTimesheetToClickUp(ts) {
+  // TODO: Send to Make.com webhook
+  const payload = {
+    doctor: ts.doctor,
+    site: ts.site,
+    weekStart: ts.weekStart,
+    weekEnd: ts.weekEnd,
+    actualDays: ts.actualDays,
+    actualNights: ts.actualNights,
+    actualRDO: ts.actualRDO,
+    notes: ts.notes,
+    status: ts.status
+  };
+
+  console.log('Sending to ClickUp:', payload);
+  ts.sentToClickUp = true;
+  alert('Timesheet sent to ClickUp!');
+  renderTimesheets();
+}
+
 function updateViewButtons(){
   const calBtn = document.getElementById("viewCalendarBtn");
   const hmBtn = document.getElementById("viewHeatmapBtn");
   const stBtn = document.getElementById("viewStripsBtn");
-  if(calBtn && hmBtn && stBtn){
-    [calBtn, hmBtn, stBtn].forEach(b=>b.classList.remove("primary"));
+  const tsBtn = document.getElementById("viewTimesheetsBtn");
+  if(calBtn && hmBtn && stBtn && tsBtn){
+    [calBtn, hmBtn, stBtn, tsBtn].forEach(b=>b.classList.remove("primary"));
     if(viewMode==="calendar") calBtn.classList.add("primary");
     if(viewMode==="heatmap") hmBtn.classList.add("primary");
     if(viewMode==="strips") stBtn.classList.add("primary");
+    if(viewMode==="timesheets") tsBtn.classList.add("primary");
   }
 
   const bBtn = document.getElementById("toggleBookingsBtn");
@@ -1942,12 +2332,14 @@ function updateViews(){
   const calWrap = document.getElementById("calendarWrap");
   const hmWrap = document.getElementById("heatmapWrap");
   const stWrap = document.getElementById("stripsWrap");
+  const tsWrap = document.getElementById("timesheetsWrap");
   const finder = document.getElementById("finderPanel");
 
   if(finder) finder.style.display = finderOpen ? "block" : "none";
   if(calWrap) calWrap.style.display = (viewMode==="calendar") ? "block" : "none";
   if(hmWrap) hmWrap.style.display = (viewMode==="heatmap") ? "block" : "none";
   if(stWrap) stWrap.style.display = (viewMode==="strips") ? "block" : "none";
+  if(tsWrap) tsWrap.style.display = (viewMode==="timesheets") ? "block" : "none";
 
   updateViewButtons();
   persistViewPrefs();
@@ -1955,6 +2347,7 @@ function updateViews(){
   if(viewMode==="calendar") renderCalendar();
   else if(viewMode==="heatmap") renderHeatmap();
   else if(viewMode==="strips") renderStrips();
+  else if(viewMode==="timesheets") renderTimesheets();
 }
 
 document.addEventListener("DOMContentLoaded", async ()=>{
@@ -1964,6 +2357,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   const calBtn = document.getElementById("viewCalendarBtn");
   const hmBtn = document.getElementById("viewHeatmapBtn");
   const stBtn = document.getElementById("viewStripsBtn");
+  const tsBtn = document.getElementById("viewTimesheetsBtn");
   const bBtn  = document.getElementById("toggleBookingsBtn");
   const aBtn  = document.getElementById("toggleAvailabilityBtn");
   const fBtn  = document.getElementById("toggleFinderBtn");
@@ -1971,6 +2365,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   if(calBtn) calBtn.addEventListener("click", ()=>{ viewMode="calendar"; updateViews(); });
   if(hmBtn)  hmBtn.addEventListener("click", ()=>{ viewMode="heatmap"; updateViews(); });
   if(stBtn)  stBtn.addEventListener("click", ()=>{ viewMode="strips"; updateViews(); });
+  if(tsBtn)  tsBtn.addEventListener("click", ()=>{ viewMode="timesheets"; generateTimesheets(); updateViews(); });
 
   if(bBtn) bBtn.addEventListener("click", ()=>{ showBookingsOverlay=!showBookingsOverlay; updateViews(); });
   if(aBtn) aBtn.addEventListener("click", ()=>{ showAvailabilityOverlay=!showAvailabilityOverlay; updateViews(); });
@@ -2645,6 +3040,16 @@ if(stMode){
     stripsMode = stMode.value || "months";
     localStorage.setItem("bg_strips_mode", stripsMode);
     if(viewMode==="strips") renderStrips();
+  });
+}
+
+const tsViewSelect = document.getElementById("timesheetView");
+if(tsViewSelect){
+  tsViewSelect.value = timesheetViewMode;
+  tsViewSelect.addEventListener("change", ()=>{
+    timesheetViewMode = tsViewSelect.value || "by-week";
+    localStorage.setItem("bg_timesheet_view", timesheetViewMode);
+    if(viewMode==="timesheets") renderTimesheets();
   });
 }
 
