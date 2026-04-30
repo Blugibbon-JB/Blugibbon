@@ -912,23 +912,29 @@
         <div style="font-size: 12px; margin-bottom: 12px;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div>
-              <strong>Day Rate Margin/Unit:</strong><br>
+              <strong>☀️ Day Rate Margin/Unit:</strong><br>
               $<span id="dayRateMarginPerUnit">0</span>
             </div>
             <div>
-              <strong>Night Rate Margin/Unit:</strong><br>
+              <strong>🌙 Night Rate Margin/Unit:</strong><br>
               $<span id="nightRateMarginPerUnit">0</span>
             </div>
-            <div id="overtimeMarginDisplay" style="display:none;">
-              <strong>Overtime Margin/Unit:</strong><br>
-              $<span id="overtimeMarginPerUnit">0</span>
+            <div id="extra1MarginDisplay" style="display:none;">
+              <strong>➕ Extra Rate 1 Margin/Unit:</strong><br>
+              $<span id="extra1RateMarginPerUnit">0</span>
+            </div>
+            <div id="extra2MarginDisplay" style="display:none;">
+              <strong>⭐ Extra Rate 2 Margin/Unit:</strong><br>
+              $<span id="extra2RateMarginPerUnit">0</span>
             </div>
           </div>
         </div>
 
         <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1);">
-          <div>Total Day Shifts: <strong id="totalDayShifts">0</strong></div>
-          <div>Total Night Shifts: <strong id="totalNightShifts">0</strong></div>
+          <div>☀️ Total Day Shifts: <strong id="totalDayShifts">0</strong></div>
+          <div>🌙 Total Night Shifts: <strong id="totalNightShifts">0</strong></div>
+          <div id="extra1ShiftsDisplay" style="display:none;">➕ Total Extra Rate 1 Shifts: <strong id="totalExtra1Shifts">0</strong></div>
+          <div id="extra2ShiftsDisplay" style="display:none;">⭐ Total Extra Rate 2 Shifts: <strong id="totalExtra2Shifts">0</strong></div>
           <div id="totalUnitsDisplay" style="display:none; margin-top: 6px;">Total Units: <strong id="totalUnitsAmount">0</strong></div>
         </div>
 
@@ -5675,6 +5681,28 @@ function proceedToPlacementDetails() {
   document.getElementById('totalNightShifts').textContent = nightShiftCount;
   document.getElementById('dayRateMarginPerUnit').textContent = dayMarginPerUnit.toFixed(2);
   document.getElementById('nightRateMarginPerUnit').textContent = nightMarginPerUnit.toFixed(2);
+
+  // Handle extra rate margins display
+  if(extra1ShiftCount > 0) {
+    document.getElementById('extra1MarginDisplay').style.display = 'block';
+    document.getElementById('extra1RateMarginPerUnit').textContent = extra1MarginPerUnit.toFixed(2);
+    document.getElementById('extra1ShiftsDisplay').style.display = 'block';
+    document.getElementById('totalExtra1Shifts').textContent = extra1ShiftCount;
+  } else {
+    document.getElementById('extra1MarginDisplay').style.display = 'none';
+    document.getElementById('extra1ShiftsDisplay').style.display = 'none';
+  }
+
+  if(extra2ShiftCount > 0) {
+    document.getElementById('extra2MarginDisplay').style.display = 'block';
+    document.getElementById('extra2RateMarginPerUnit').textContent = extra2MarginPerUnit.toFixed(2);
+    document.getElementById('extra2ShiftsDisplay').style.display = 'block';
+    document.getElementById('totalExtra2Shifts').textContent = extra2ShiftCount;
+  } else {
+    document.getElementById('extra2MarginDisplay').style.display = 'none';
+    document.getElementById('extra2ShiftsDisplay').style.display = 'none';
+  }
+
   document.getElementById('overtimeMarginDisplay').style.display = 'none';
   document.getElementById('totalPlacementMargin').textContent = totalMargin.toFixed(2);
 
