@@ -788,24 +788,24 @@
     </div>
 
     <div class="modalBody" style="grid-template-columns: 1fr; max-height: 60vh; overflow-y: auto;">
+      <!-- Date Range Selector (MOVED TO TOP) -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; padding: 12px; background: #e8f5e9; border-radius: 8px; border: 1px solid #81c784;">
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: #333;">📅 Start Date</label>
+          <input type="date" id="dateRangeStart" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;" />
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: #333;">📅 End Date</label>
+          <input type="date" id="dateRangeEnd" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;" />
+        </div>
+        <button onclick="applyDateRange()" style="grid-column: 1/-1; padding: 8px; background: #81c784; color: #fff; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 12px;">Apply Date Range</button>
+      </div>
+
       <!-- Month Navigation -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #e7e7e7;">
         <button onclick="previousMonth()" style="padding: 4px 8px; font-size: 12px;">← Previous</button>
         <div id="currentMonthLabel" style="font-weight: bold; font-size: 14px;"></div>
         <button onclick="nextMonth()" style="padding: 4px 8px; font-size: 12px;">Next →</button>
-      </div>
-
-      <!-- Date Range Selector -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; padding: 12px; background: #e8f5e9; border-radius: 8px; border: 1px solid #81c784;">
-        <div>
-          <label style="font-size: 11px; font-weight: 600; color: #333;">Start Date (dd/mm/yyyy)</label>
-          <input type="text" id="dateRangeStart" placeholder="e.g., 01/04/2026" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;" />
-        </div>
-        <div>
-          <label style="font-size: 11px; font-weight: 600; color: #333;">End Date (dd/mm/yyyy)</label>
-          <input type="text" id="dateRangeEnd" placeholder="e.g., 30/04/2026" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;" />
-        </div>
-        <button onclick="applyDateRange()" style="grid-column: 1/-1; padding: 8px; background: #81c784; color: #fff; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 12px;">Apply Date Range</button>
       </div>
 
       <!-- Calendar Grid -->
@@ -5503,12 +5503,11 @@ function renderDayPicker() {
   // Pre-populate date range inputs if dates are already selected (from availability event)
   const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
   if(selectedArray.length > 0) {
-    const startDate = new Date(selectedArray[0]);
-    const endDate = new Date(selectedArray[selectedArray.length - 1]);
-    const startFormatted = formatDateAU(startDate.toISOString().slice(0, 10));
-    const endFormatted = formatDateAU(endDate.toISOString().slice(0, 10));
-    document.getElementById('dateRangeStart').value = startFormatted;
-    document.getElementById('dateRangeEnd').value = endFormatted;
+    // Pre-populate date inputs with YYYY-MM-DD format (expected by HTML5 date input)
+    const startISO = selectedArray[0];
+    const endISO = selectedArray[selectedArray.length - 1];
+    document.getElementById('dateRangeStart').value = startISO;
+    document.getElementById('dateRangeEnd').value = endISO;
   }
 
   // Update month label
@@ -5664,11 +5663,12 @@ function applyDateRange() {
     return;
   }
 
-  const startDate = parseDateAU(startStr);
-  const endDate = parseDateAU(endStr);
+  // HTML5 date input returns YYYY-MM-DD format
+  const startDate = new Date(startStr + 'T00:00:00Z');
+  const endDate = new Date(endStr + 'T00:00:00Z');
 
-  if(!startDate || !endDate) {
-    alert('Invalid date format. Please use dd/mm/yyyy format.');
+  if(isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    alert('Invalid date format');
     return;
   }
 
