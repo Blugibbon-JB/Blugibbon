@@ -5668,98 +5668,117 @@ function backToDaySelection() {
 }
 
 function savePlacementAsDraft() {
-  const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
-  if(selectedArray.length === 0) {
-    alert('Please select at least one day');
-    return;
-  }
-
-  const placementEvent = createPlacementEvent('draft');
-
-  // Handle edit vs create
-  if(placementWorkflow.editingEventId) {
-    // Edit mode: replace existing placement event
-    const idx = events.findIndex(e => e.id === placementWorkflow.editingEventId);
-    if(idx >= 0) {
-      placementEvent.id = placementWorkflow.editingEventId;
-      placementEvent.created_at = events[idx].created_at; // Preserve original creation time
-      placementEvent.clickup_task_id = events[idx].clickup_task_id; // Preserve ClickUp ID if exists
-      events[idx] = placementEvent;
+  try {
+    const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
+    if(selectedArray.length === 0) {
+      alert('Please select at least one day');
+      return;
     }
-    placementWorkflow.editingEventId = null;
-  } else if(placementWorkflow.editingAvailabilityEventId) {
-    // Converting availability to placement: add new placement and delete availability
-    events.push(placementEvent);
-    events = events.filter(e => e.id !== placementWorkflow.editingAvailabilityEventId);
-    placementWorkflow.editingAvailabilityEventId = null;
-  } else {
-    // Create mode: add new event
-    events.push(placementEvent);
+
+    const placementEvent = createPlacementEvent('draft');
+
+    // Handle edit vs create
+    if(placementWorkflow.editingEventId) {
+      // Edit mode: replace existing placement event
+      const idx = events.findIndex(e => e.id === placementWorkflow.editingEventId);
+      if(idx >= 0) {
+        placementEvent.id = placementWorkflow.editingEventId;
+        placementEvent.created_at = events[idx].created_at; // Preserve original creation time
+        placementEvent.clickup_task_id = events[idx].clickup_task_id; // Preserve ClickUp ID if exists
+        events[idx] = placementEvent;
+      }
+      placementWorkflow.editingEventId = null;
+    } else if(placementWorkflow.editingAvailabilityEventId) {
+      // Converting availability to placement: add new placement and delete availability
+      events.push(placementEvent);
+      events = events.filter(e => e.id !== placementWorkflow.editingAvailabilityEventId);
+      placementWorkflow.editingAvailabilityEventId = null;
+    } else {
+      // Create mode: add new event
+      events.push(placementEvent);
+    }
+
+    saveEvents(events);
+
+    // Sync to Firebase
+    if(firebase_user && firebase_db) {
+      firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).then(() => {
+        statusChip.textContent = `✓ Placement saved as draft (not sent to ClickUp yet)`;
+        closeMakePlacementFlow();
+        renderCalendar();
+      }).catch(err => {
+        const errMsg = `Firebase sync error: ${err.message || 'Unknown error'}`;
+        statusChip.textContent = `✗ ${errMsg}`;
+        alert(errMsg);
+        console.error("Firebase sync error:", err, "Events array:", events);
+      });
+    } else {
+      statusChip.textContent = `✓ Placement saved as draft (not sent to ClickUp yet)`;
+      closeMakePlacementFlow();
+      renderCalendar();
+    }
+  } catch(err) {
+    statusChip.textContent = `✗ Error creating placement: ${err.message}`;
+    console.error("Placement creation error:", err);
   }
-
-  saveEvents(events);
-
-  // Sync to Firebase
-  if(firebase_user && firebase_db) {
-    firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).catch(err => {
-      console.error("Firebase sync error:", err);
-    });
-  }
-
-  statusChip.textContent = `✓ Placement saved as draft (not sent to ClickUp yet)`;
-  closeMakePlacementFlow();
-  renderCalendar();
 }
 
 function savePlacementAndSendToClickUp() {
-  const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
-  if(selectedArray.length === 0) {
-    alert('Please select at least one day');
-    return;
-  }
-
-  const placementEvent = createPlacementEvent('pending');
-
-  // Handle edit vs create
-  if(placementWorkflow.editingEventId) {
-    // Edit mode: replace existing placement event
-    const idx = events.findIndex(e => e.id === placementWorkflow.editingEventId);
-    if(idx >= 0) {
-      placementEvent.id = placementWorkflow.editingEventId;
-      placementEvent.created_at = events[idx].created_at; // Preserve original creation time
-      placementEvent.clickup_task_id = events[idx].clickup_task_id; // Preserve ClickUp ID if exists
-      events[idx] = placementEvent;
+  try {
+    const selectedArray = Object.keys(placementWorkflow.selectedDays).sort();
+    if(selectedArray.length === 0) {
+      alert('Please select at least one day');
+      return;
     }
-    placementWorkflow.editingEventId = null;
-  } else if(placementWorkflow.editingAvailabilityEventId) {
-    // Converting availability to placement: add new placement and delete availability
-    events.push(placementEvent);
-    events = events.filter(e => e.id !== placementWorkflow.editingAvailabilityEventId);
-    placementWorkflow.editingAvailabilityEventId = null;
-  } else {
-    // Create mode: add new event
-    events.push(placementEvent);
-  }
 
-  saveEvents(events);
+    const placementEvent = createPlacementEvent('pending');
 
-  // Sync to Firebase
-  if(firebase_user && firebase_db) {
-    firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).then(() => {
-      let msgType = 'created';
-      if(placementWorkflow.editingEventId) msgType = 'updated';
-      else if(placementWorkflow.editingAvailabilityEventId) msgType = 'created from availability';
-      statusChip.textContent = `✓ Placement ${msgType}! Ready to send to ClickUp (webhook pending)`;
+    // Handle edit vs create
+    if(placementWorkflow.editingEventId) {
+      // Edit mode: replace existing placement event
+      const idx = events.findIndex(e => e.id === placementWorkflow.editingEventId);
+      if(idx >= 0) {
+        placementEvent.id = placementWorkflow.editingEventId;
+        placementEvent.created_at = events[idx].created_at; // Preserve original creation time
+        placementEvent.clickup_task_id = events[idx].clickup_task_id; // Preserve ClickUp ID if exists
+        events[idx] = placementEvent;
+      }
+      placementWorkflow.editingEventId = null;
+    } else if(placementWorkflow.editingAvailabilityEventId) {
+      // Converting availability to placement: add new placement and delete availability
+      events.push(placementEvent);
+      events = events.filter(e => e.id !== placementWorkflow.editingAvailabilityEventId);
+      placementWorkflow.editingAvailabilityEventId = null;
+    } else {
+      // Create mode: add new event
+      events.push(placementEvent);
+    }
+
+    saveEvents(events);
+
+    // Sync to Firebase
+    if(firebase_user && firebase_db) {
+      firebase_db.ref(`users/${firebase_user.uid}/events`).set(events).then(() => {
+        let msgType = 'created';
+        if(placementWorkflow.editingEventId) msgType = 'updated';
+        else if(placementWorkflow.editingAvailabilityEventId) msgType = 'created from availability';
+        statusChip.textContent = `✓ Placement ${msgType}! Ready to send to ClickUp (webhook pending)`;
+        closeMakePlacementFlow();
+        renderCalendar();
+      }).catch(err => {
+        const errMsg = `Firebase sync error: ${err.message || 'Unknown error'}`;
+        statusChip.textContent = `✗ ${errMsg}`;
+        alert(errMsg);
+        console.error("Firebase sync error:", err, "Events array:", events);
+      });
+    } else {
+      statusChip.textContent = `✓ Placement created!`;
       closeMakePlacementFlow();
       renderCalendar();
-    }).catch(err => {
-      statusChip.textContent = `✗ Error saving placement: ${err.message}`;
-      console.error("Firebase sync error:", err);
-    });
-  } else {
-    statusChip.textContent = `✓ Placement created!`;
-    closeMakePlacementFlow();
-    renderCalendar();
+    }
+  } catch(err) {
+    statusChip.textContent = `✗ Error creating placement: ${err.message}`;
+    console.error("Placement creation error:", err);
   }
 }
 
