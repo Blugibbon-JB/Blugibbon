@@ -3453,7 +3453,8 @@ function openEventEditor(payload){
     applyRecUI();
   }
 
-  const showCreatePlacement = mode === "edit" && payload.type !== 'placement';
+  // Show Create Placement button for editing availability events (not placements)
+  const showCreatePlacement = mode === "edit" && (!payload.type || payload.type === 'availability');
   console.log("Mode:", mode, "Payload type:", payload.type, "Show create placement:", showCreatePlacement);
 
   modalFooter.innerHTML = `
