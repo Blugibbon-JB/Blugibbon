@@ -1357,7 +1357,26 @@ let timesheets = []; // Computed from placements, split by week
 // Helper: Generate timesheets from placements
 function generateTimesheets() {
   timesheets = [];
-  for (const placement of placements) {
+
+  // Collect both synced placements and draft placement events
+  const allPlacements = [...placements];
+
+  // Also include placement events from the events array (draft placements)
+  for (const evt of events) {
+    if (evt.type === 'placement' || evt.eventType === 'placement') {
+      allPlacements.push({
+        id: evt.id,
+        doctor: evt.doctor,
+        site: evt.site,
+        dateStart: evt.dateStart,
+        dateEnd: evt.dateEnd,
+        status: evt.status || 'draft',
+        rate: evt.rate
+      });
+    }
+  }
+
+  for (const placement of allPlacements) {
     const startDate = new Date(placement.dateStart + 'T00:00:00Z');
     const endDate = new Date(placement.dateEnd + 'T00:00:00Z');
 
