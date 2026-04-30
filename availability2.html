@@ -3694,8 +3694,10 @@ function openEventEditor(payload){
     const createPlacementBtn = document.getElementById("createPlacementBtn");
     if(createPlacementBtn) {
       console.log("Create Placement button found and attaching listener");
-      createPlacementBtn.addEventListener("click", () => {
+      createPlacementBtn.addEventListener("click", (e) => {
         console.log("Create Placement button clicked");
+        e.preventDefault();
+        e.stopPropagation();
         try {
           // Check if site is selected
           const siteId = (document.getElementById("evSite").value||"").trim();
