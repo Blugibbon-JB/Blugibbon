@@ -840,6 +840,41 @@
         <div>Date Range: <strong id="selectedDateRange">None</strong></div>
         <div>Day Shifts: <strong id="dayShiftCount">0</strong> | Night Shifts: <strong id="nightShiftCount">0</strong> | Extra 1: <strong id="extra1ShiftCount">0</strong> | Extra 2: <strong id="extra2ShiftCount">0</strong></div>
       </div>
+
+      <!-- Rates Display & Editor -->
+      <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-top: 12px;">
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 10px;">📊 Current Rates & Quick Edit</div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 12px;">
+          <div style="background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+            <label style="display: block; margin-bottom: 3px; color: #666;">☀️ Day Rate</label>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="font-weight: 600;">$</span>
+              <input type="number" id="quickEditDayRate" style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateQuickEditRate('day')" />
+            </div>
+          </div>
+          <div style="background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+            <label style="display: block; margin-bottom: 3px; color: #666;">🌙 Night Rate</label>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="font-weight: 600;">$</span>
+              <input type="number" id="quickEditNightRate" style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateQuickEditRate('night')" />
+            </div>
+          </div>
+          <div style="background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+            <label style="display: block; margin-bottom: 3px; color: #666;">➕ Extra Rate 1</label>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="font-weight: 600;">$</span>
+              <input type="number" id="quickEditExtra1Rate" style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateQuickEditRate('extra1')" />
+            </div>
+          </div>
+          <div style="background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+            <label style="display: block; margin-bottom: 3px; color: #666;">⭐ Extra Rate 2</label>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="font-weight: 600;">$</span>
+              <input type="number" id="quickEditExtra2Rate" style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateQuickEditRate('extra2')" />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="modalFooter">
@@ -3291,18 +3326,32 @@ function expandPlacementToDailyEvents(placement, docById) {
     const displayLocation = placement.location || pd.site_name || "";
     const doctorName = showAllDoctors ? ((docById.get(String(placement.ahpra_id))?.name || String(placement.ahpra_id)) + ": ") : "";
 
-    let backgroundColor, borderColor, emoji, dayLabel;
+    let backgroundColor, borderColor, emoji, dayLabel, rate;
 
     if(shiftType === 'day') {
-      backgroundColor = '#1976D2'; // Blue
-      borderColor = '#1565C0';
+      backgroundColor = '#4CAF50'; // Green
+      borderColor = '#2E7D32';
       emoji = '☀️';
-      dayLabel = `${emoji}`;
+      rate = placement.standard_rate;
+      dayLabel = `${emoji} $${rate}`;
     } else if(shiftType === 'night') {
       backgroundColor = '#1976D2'; // Blue
       borderColor = '#1565C0';
       emoji = '🌙';
-      dayLabel = `${emoji}`;
+      rate = placement.night_rate;
+      dayLabel = `${emoji} $${rate}`;
+    } else if(shiftType === 'extra1') {
+      backgroundColor = '#FF9800'; // Orange
+      borderColor = '#E65100';
+      emoji = '➕';
+      rate = placement.extra_rate_1;
+      dayLabel = `${emoji} $${rate}`;
+    } else if(shiftType === 'extra2') {
+      backgroundColor = '#FFB300'; // Gold
+      borderColor = '#FF8F00';
+      emoji = '⭐';
+      rate = placement.extra_rate_2;
+      dayLabel = `${emoji} $${rate}`;
     } else {
       // RDO - unselected day within placement range
       backgroundColor = '#CCCCCC'; // Light grey
@@ -5402,17 +5451,24 @@ function renderDayPicker() {
     `;
 
     if(isSelected) {
+      let bgColor, emoji;
       if(shiftType === 'night') {
-        dayBtn.style.background = '#1976D2';
-        dayBtn.style.color = 'white';
-        dayBtn.style.borderColor = '#1976D2';
-        dayBtn.innerHTML = `${day}<div style="font-size:8px; line-height:1;">🌙</div>`;
+        bgColor = '#1976D2';
+        emoji = '🌙';
+      } else if(shiftType === 'extra1') {
+        bgColor = '#FF9800';
+        emoji = '➕';
+      } else if(shiftType === 'extra2') {
+        bgColor = '#FFB300';
+        emoji = '⭐';
       } else {
-        dayBtn.style.background = '#4CAF50';
-        dayBtn.style.color = 'white';
-        dayBtn.style.borderColor = '#4CAF50';
-        dayBtn.innerHTML = `${day}<div style="font-size:8px; line-height:1;">☀️</div>`;
+        bgColor = '#4CAF50';
+        emoji = '☀️';
       }
+      dayBtn.style.background = bgColor;
+      dayBtn.style.color = 'white';
+      dayBtn.style.borderColor = bgColor;
+      dayBtn.innerHTML = `${day}<div style="font-size:8px; line-height:1;">${emoji}</div>`;
     } else {
       dayBtn.textContent = day;
     }
@@ -5427,11 +5483,14 @@ function renderDayPicker() {
       renderDayPicker();
     };
 
-    // Double-click to toggle shift type
+    // Double-click to toggle shift type through all 4 types
     dayBtn.ondblclick = (e) => {
       e.stopPropagation();
       if(dateISO in placementWorkflow.selectedDays) {
-        placementWorkflow.selectedDays[dateISO] = placementWorkflow.selectedDays[dateISO] === 'day' ? 'night' : 'day';
+        const types = ['day', 'night', 'extra1', 'extra2'];
+        const currentIndex = types.indexOf(placementWorkflow.selectedDays[dateISO]);
+        const nextIndex = (currentIndex + 1) % types.length;
+        placementWorkflow.selectedDays[dateISO] = types[nextIndex];
         updateDayPickerStats();
         renderDayPicker();
       }
@@ -5521,6 +5580,32 @@ function updateDayPickerStats() {
   } else {
     document.getElementById('selectedDateRange').textContent = 'None';
   }
+
+  // Populate rate edit boxes
+  populateQuickEditRates();
+}
+
+function populateQuickEditRates() {
+  document.getElementById('quickEditDayRate').value = placementWorkflow.standardRate || 0;
+  document.getElementById('quickEditNightRate').value = placementWorkflow.nightRate || 0;
+  document.getElementById('quickEditExtra1Rate').value = placementWorkflow.extraRate1 || 0;
+  document.getElementById('quickEditExtra2Rate').value = placementWorkflow.extraRate2 || 0;
+}
+
+function updateQuickEditRate(rateType) {
+  const value = parseFloat(document.getElementById(`quickEdit${rateType.charAt(0).toUpperCase() + rateType.slice(1)}Rate`).value) || 0;
+
+  if(rateType === 'day') {
+    placementWorkflow.standardRate = value;
+  } else if(rateType === 'night') {
+    placementWorkflow.nightRate = value;
+  } else if(rateType === 'extra1') {
+    placementWorkflow.extraRate1 = value;
+  } else if(rateType === 'extra2') {
+    placementWorkflow.extraRate2 = value;
+  }
+
+  updateDayPickerStats();
 }
 
 function proceedToPlacementDetails() {
@@ -5819,18 +5904,27 @@ async function loadPlacementsFromFirebase() {
 
 // Convert placements to calendar events
 function formatPlacementNotes(placement) {
+  const unit = placement.unit_type === 'hourly' ? 'hr' : 'day';
   const notes = [
     `Site: ${placement.site_name}`,
-    `Rate: $${placement.standard_rate}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}`,
-    placement.night_rate ? `Night Rate: $${placement.night_rate}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}` : '',
-    placement.extra_rate_1 ? `Extra Rate 1: $${placement.extra_rate_1}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}` : '',
-    placement.extra_rate_2 ? `Extra Rate 2: $${placement.extra_rate_2}/${placement.unit_type === 'hourly' ? 'hr' : 'day'}` : '',
-    `Day Shifts: ${placement.day_shift_count || 0}`,
-    `Night Shifts: ${placement.night_shift_count || 0}`,
-    `Total Units: ${placement.estimated_total_units}`,
-    `Units/Week: ${placement.units_per_week}`,
-    placement.margin_per_unit ? `Margin/Unit: $${placement.margin_per_unit}` : '',
-    placement.total_estimated_margin ? `Total Margin: $${placement.total_estimated_margin.toFixed(2)}` : '',
+    `📊 RATES:`,
+    `  ☀️ Day: $${placement.standard_rate}/${unit}`,
+    placement.night_rate ? `  🌙 Night: $${placement.night_rate}/${unit}` : '',
+    placement.extra_rate_1 ? `  ➕ Extra 1: $${placement.extra_rate_1}/${unit}` : '',
+    placement.extra_rate_2 ? `  ⭐ Extra 2: $${placement.extra_rate_2}/${unit}` : '',
+    ``,
+    `📅 SHIFTS:`,
+    `  Day: ${placement.day_shift_count || 0}  |  Night: ${placement.night_shift_count || 0}  |  Extra1: ${placement.extra1_shift_count || 0}  |  Extra2: ${placement.extra2_shift_count || 0}`,
+    `  Total Units: ${placement.estimated_total_units}`,
+    `  Units/Week: ${placement.units_per_week}`,
+    ``,
+    `💰 MARGIN:`,
+    placement.day_margin_per_unit ? `  ☀️ Day: $${placement.day_margin_per_unit.toFixed(2)}/unit` : '',
+    placement.night_margin_per_unit ? `  🌙 Night: $${placement.night_margin_per_unit.toFixed(2)}/unit` : '',
+    placement.extra1_margin_per_unit ? `  ➕ Extra 1: $${placement.extra1_margin_per_unit.toFixed(2)}/unit` : '',
+    placement.extra2_margin_per_unit ? `  ⭐ Extra 2: $${placement.extra2_margin_per_unit.toFixed(2)}/unit` : '',
+    `  TOTAL: $${placement.total_estimated_margin ? placement.total_estimated_margin.toFixed(2) : '0.00'}`,
+    ``,
     `Status: ${placement.sync_status}`
   ].filter(Boolean).join('\n');
 
