@@ -1339,43 +1339,6 @@
           </select>
         </div>
 
-        <!-- State/Territory -->
-        <div class="field full" style="margin-bottom: 12px;">
-          <label style="font-weight: 600; display: block; margin-bottom: 6px;">Which State is the Doctor Working in?</label>
-          <select id="placementState" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
-            <option value="">Select state/territory</option>
-            <option value="ACT">ACT</option>
-            <option value="NSW">NSW</option>
-            <option value="NT">NT</option>
-            <option value="QLD">QLD</option>
-            <option value="SA">SA</option>
-            <option value="TAS">TAS</option>
-            <option value="VIC">VIC</option>
-            <option value="WA">WA</option>
-          </select>
-        </div>
-
-        <!-- EVO Order Number - NSW only -->
-        <div class="field full" style="margin-bottom: 12px; display: none;" id="evoOrderDiv">
-          <label style="font-weight: 600; display: block; margin-bottom: 6px;">EVO Order Number</label>
-          <input type="text" id="placementEvoOrderNumber" placeholder="e.g., EVO-2026-001234" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;" />
-        </div>
-
-        <!-- EVO Booking Number - NSW only -->
-        <div class="field full" style="margin-bottom: 12px; display: none;" id="evoBookingDiv">
-          <label style="font-weight: 600; display: block; margin-bottom: 6px;">EVO Booking Number</label>
-          <input type="text" id="placementEvoBookingNumber" placeholder="e.g., EVO-BOOK-5678" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;" />
-        </div>
-
-        <!-- All Inclusive Charge Rate - QLD/ACT only -->
-        <div class="field full" style="margin-bottom: 12px; display: none;" id="allInclusiveRateDiv">
-          <label style="font-weight: 600; display: block; margin-bottom: 6px;">All Inclusive Charge Rate</label>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 16px; font-weight: 600;">$</span>
-            <input type="number" id="placementAllInclusiveRate" min="0" step="0.01" placeholder="0.00" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;" />
-          </div>
-        </div>
-
         <!-- BG Teammate -->
         <div class="field full" style="margin-bottom: 0;">
           <label style="font-weight: 600; display: block; margin-bottom: 6px;">BG Teammate</label>
@@ -7667,10 +7630,7 @@ Total Margin: $${totalMargin.toFixed(2)}
   const specialty = document.getElementById('placementSpecialty')?.value || '';
   const placementTypeVal = document.getElementById('placementType')?.value || '';
   const doctorPayType = document.getElementById('placementDoctorPayType')?.value || '';
-  const state = document.getElementById('placementState')?.value || '';
-  const evoOrderNumber = document.getElementById('placementEvoOrderNumber')?.value.trim() || '';
-  const evoBookingNumber = document.getElementById('placementEvoBookingNumber')?.value.trim() || '';
-  const allInclusiveRate = parseFloat(document.getElementById('placementAllInclusiveRate')?.value) || null;
+  const state = placementWorkflow.state || '';
   const bgTeammate = document.getElementById('placementBgTeammate')?.value || '';
 
   return {
@@ -7716,10 +7676,9 @@ Total Margin: $${totalMargin.toFixed(2)}
       placement_type: placementTypeVal,
       doctor_pay_type: doctorPayType,
       state: state,
-      evo_order_number: evoOrderNumber,
-      evo_booking_number: evoBookingNumber,
-      all_inclusive_rate: allInclusiveRate,
-      bg_teammate: bgTeammate
+      bg_teammate: bgTeammate,
+      is_qld_act: placementWorkflow.isQldAct || false,
+      on_costs: placementWorkflow.onCosts || null
     },
     placement_status: status,
     clickup_task_id: null,
@@ -7766,17 +7725,10 @@ function openPlacementFromTimesheet(placementId) {
   document.getElementById('placementSpecialty').value = pd.specialty || '';
   document.getElementById('placementType').value = pd.placement_type || '';
   document.getElementById('placementDoctorPayType').value = pd.doctor_pay_type || '';
-  document.getElementById('placementState').value = pd.state || '';
-  document.getElementById('placementEvoOrderNumber').value = pd.evo_order_number || '';
-  document.getElementById('placementEvoBookingNumber').value = pd.evo_booking_number || '';
-  document.getElementById('placementAllInclusiveRate').value = pd.all_inclusive_rate || '';
   document.getElementById('placementBgTeammate').value = pd.bg_teammate || '';
 
-  // Trigger state change to show/hide conditional fields
-  const stateSelect = document.getElementById('placementState');
-  if (stateSelect) {
-    stateSelect.dispatchEvent(new Event('change'));
-  }
+  // Set state in placementWorkflow (captured in Step 2)
+  placementWorkflow.state = pd.state || '';
 
   // Set current month for day picker
   const startDate = placement.start;
@@ -8203,28 +8155,6 @@ document.getElementById("doctorHeader").addEventListener("dblclick", ()=>{
   const d = getSelectedDoctor();
   if(d) openDoctorEditor(d);
 });
-
-// Handle placement state change for conditional field visibility
-const placementStateSelect = document.getElementById('placementState');
-if (placementStateSelect) {
-  placementStateSelect.addEventListener('change', () => {
-    const state = placementStateSelect.value;
-    const evoOrderDiv = document.getElementById('evoOrderDiv');
-    const evoBookingDiv = document.getElementById('evoBookingDiv');
-    const allInclusiveRateDiv = document.getElementById('allInclusiveRateDiv');
-
-    // Show EVO fields for NSW only
-    if (evoOrderDiv && evoBookingDiv) {
-      evoOrderDiv.style.display = state === 'NSW' ? 'block' : 'none';
-      evoBookingDiv.style.display = state === 'NSW' ? 'block' : 'none';
-    }
-
-    // Show All Inclusive Charge Rate for QLD or ACT only
-    if (allInclusiveRateDiv) {
-      allInclusiveRateDiv.style.display = (state === 'QLD' || state === 'ACT') ? 'block' : 'none';
-    }
-  });
-}
 
 /* ===== FIREBASE SYNC FUNCTIONS ===== */
 async function syncToFirebase() {
