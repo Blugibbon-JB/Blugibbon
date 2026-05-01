@@ -2169,13 +2169,20 @@ function renderTimesheets() {
 
   generateTimesheets(); // Ensure timesheets are up to date
 
+  // Get selected doctor's name if a specific doctor is selected
+  let selectedDoctorName = null;
+  if (selectedDoctorId && !showAllDoctors) {
+    const selectedDoctor = getSelectedDoctor();
+    if (selectedDoctor) {
+      selectedDoctorName = selectedDoctor.name;
+    }
+  }
+
   // Filter timesheets by date range, status, and selected doctor
   let filteredTimesheets = timesheets.filter(ts => {
-    // Apply doctor filter (only if a specific doctor is selected)
-    if (selectedDoctorId && selectedDoctorId !== 'all') {
-      if (String(ts.doctorId) !== String(selectedDoctorId)) {
-        return false;
-      }
+    // Apply doctor filter (only if a specific doctor is selected and not in all-doctors view)
+    if (selectedDoctorName && ts.doctor !== selectedDoctorName) {
+      return false;
     }
 
     // Apply status filter
