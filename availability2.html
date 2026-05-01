@@ -2550,8 +2550,8 @@ function renderTimesheetCard(ts) {
   // Extract rates from placement or use saved overrides
   const dayRate = savedData.dayRate ?? placementData.standard_rate ?? 0;
   const nightRate = savedData.nightRate ?? placementData.night_rate ?? 0;
-  const extraRate1 = savedData.extraRate1 ?? placementData.extra1_rate ?? 0;
-  const extraRate2 = savedData.extraRate2 ?? placementData.extra2_rate ?? 0;
+  const extraRate1 = savedData.extraRate1 ?? placementData.extra_rate_1 ?? 0;
+  const extraRate2 = savedData.extraRate2 ?? placementData.extra_rate_2 ?? 0;
   const chargeRate = savedData.chargeRate ?? placementData.charge_rate ?? 0;
   const agencyFeePercent = savedData.agencyFeePercent ?? placementData.agency_fee_percent ?? 0;
   const doctorPayType = placementData.doctor_pay_type || '';
