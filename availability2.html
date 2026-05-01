@@ -2446,6 +2446,9 @@ function renderTimesheetCard(ts) {
   const extraRate2 = savedData.extraRate2 ?? placementData.extra2_rate ?? 0;
   const chargeRate = savedData.chargeRate ?? placementData.charge_rate ?? 0;
   const agencyFeePercent = savedData.agencyFeePercent ?? placementData.agency_fee_percent ?? 0;
+  const doctorPayType = placementData.doctor_pay_type || '';
+  const allInclusiveRate = placementData.all_inclusive_rate || null;
+  const state = placementData.state || '';
 
   // Get actual values
   const actualDays = ts.actualDays ?? savedData.actualDays ?? null;
@@ -2495,16 +2498,26 @@ function renderTimesheetCard(ts) {
 
     <!-- Agency Fee Section -->
     <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px;">
-      <div style="display:flex; gap:20px; align-items:center;">
-        <div style="flex:1;">
+      <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
+        <div style="flex:1; min-width:200px;">
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Agency Fee %</div>
           <input type="number" class="ts-agency-fee" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="width:100px; padding:6px 8px;" />
         </div>
-        <div style="flex:1;">
+        <div style="flex:1; min-width:200px;">
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Doctor Pay Type</div>
+          <div style="font-weight:600; padding:6px 8px; color:#333;">${doctorPayType || 'N/A'}</div>
+        </div>
+        ${(state === 'QLD' || state === 'ACT') && allInclusiveRate ? `
+        <div style="flex:1; min-width:200px;">
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">All Inclusive Charge Rate</div>
+          <div style="font-weight:600; padding:6px 8px; color:#333;">$${allInclusiveRate}</div>
+        </div>
+        ` : ''}
+        <div style="flex:1; min-width:200px;">
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Est. Total Margin/Week</div>
           <div class="ts-est-total-margin" style="font-weight:600; padding:6px 8px; color:#2196F3;">$${totalEstimatedMargin}</div>
         </div>
-        <div style="flex:1;">
+        <div style="flex:1; min-width:200px;">
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Act. Total Margin/Week</div>
           <div class="ts-act-total-margin" style="font-weight:600; padding:6px 8px; color:#4CAF50;">$${totalActualMargin}</div>
         </div>
