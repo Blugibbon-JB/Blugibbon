@@ -2169,8 +2169,15 @@ function renderTimesheets() {
 
   generateTimesheets(); // Ensure timesheets are up to date
 
-  // Filter timesheets by date range and status
+  // Filter timesheets by date range, status, and selected doctor
   let filteredTimesheets = timesheets.filter(ts => {
+    // Apply doctor filter (only if a specific doctor is selected)
+    if (selectedDoctorId && selectedDoctorId !== 'all') {
+      if (String(ts.doctorId) !== String(selectedDoctorId)) {
+        return false;
+      }
+    }
+
     // Apply status filter
     if (timesheetStatusFilter !== 'all' && ts.status !== timesheetStatusFilter) {
       return false;
@@ -3794,6 +3801,10 @@ function renderDoctorList(){
       renderHeader();
       renderDoctorList();
       renderCalendar();
+      // Also filter timesheets if on timesheet view
+      if(viewMode === 'timesheets') {
+        renderTimesheets();
+      }
       updateActionButtons();
     });
 
@@ -5430,6 +5441,10 @@ if(toggleAllBtn){
     renderHeader();
     renderDoctorList();
     renderCalendar();
+    // Also update timesheets if on timesheet view
+    if(viewMode === 'timesheets') {
+      renderTimesheets();
+    }
     statusChip.textContent = showAllDoctors ? "All doctors view enabled" : "All doctors view disabled";
     updateActionButtons();
   });
