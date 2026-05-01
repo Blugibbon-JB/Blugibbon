@@ -118,17 +118,20 @@
       align-items:center; justify-content:center; z-index:9999;
     }
     .modal{
-      width:min(720px, 92vw);
+      width:min(1100px, 95vw);
       background:#fff; border-radius:18px; box-shadow: var(--shadow);
       border:1px solid var(--border);
       overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      max-height:90vh;
     }
     .modalHeader{
       padding:14px 16px; border-bottom:1px solid var(--border);
       display:flex; justify-content:space-between; align-items:center; gap:12px;
     }
     .modalHeader .h{ font-weight:900; font-size:16px; }
-    .modalBody{ padding:14px 16px; display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .modalBody{ padding:14px 16px; display:grid; grid-template-columns: 1fr 1fr; gap:10px; overflow-y:auto; flex:1; min-height:0; }
     .modalBody .full{ grid-column: 1 / -1; }
     .field label{ display:block; font-size:12px; color:var(--muted); margin-bottom:4px; font-weight:800; }
     .field input, .field select, .field textarea{ width:100%; box-sizing:border-box; }
