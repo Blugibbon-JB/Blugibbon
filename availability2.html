@@ -1924,7 +1924,7 @@ function eventCoversDay(e, dayISO){
 function classifyDay(ahpraId, dayISO){
   const evs = events.filter(ev => String(ev.ahpra_id) === String(ahpraId) && eventCoversDay(ev, dayISO));
   if(evs.length===0) return "blank";
-  if(evs.some(ev => String(ev.status) === BOOKED_STATUS)) return "booked";
+  if(evs.some(ev => String(ev.status) === BOOKED_STATUS || String(ev.status) === "Booking" || String(ev.status) === "Booking (Draft)")) return "booked";
   if(evs.some(ev => String(ev.status) === "Available")) return "available";
   if(evs.some(ev => String(ev.status) === "Tentative")) return "tentative";
   return "other";
