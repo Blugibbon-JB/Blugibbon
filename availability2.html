@@ -2651,7 +2651,7 @@ function renderTimesheetCard(ts) {
         </div>
         <div style="background:#fff; padding:10px; border-radius:6px; border:1px solid #81c784;">
           <div style="color:#666; font-size:11px; margin-bottom:4px;">Doctor Pay Inc Super:</div>
-          <div style="font-weight:600; color:#2196F3;">$\${(placementData.standard_rate || 0) / (1 + ((placementData.on_costs || 3.25) / 100) + ((placementData.agency_fee_percent || 0) / 100))}</div>
+          <div style="font-weight:600; color:#2196F3;">$${((placementData.standard_rate || 0) / (1 + ((placementData.on_costs || 3.25) / 100) + ((placementData.agency_fee_percent || 0) / 100))).toFixed(2)}</div>
         </div>
       </div>
     </div>
