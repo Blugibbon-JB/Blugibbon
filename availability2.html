@@ -3034,7 +3034,7 @@ function addTimesheetListeners() {
   document.querySelectorAll('.timesheetCard').forEach(card => {
     card.addEventListener('click', (e) => {
       // Don't open placement if clicking on input fields or buttons
-      if (e.target.closest('.ts-save-btn, .ts-process-btn, .ts-unprocess-btn, .ts-send-btn, input, textarea, button')) {
+      if (e.target.closest('.ts-save-btn, .ts-process-btn, .ts-unprocess-btn, .ts-send-btn, input, textarea, button, select')) {
         return;
       }
 
