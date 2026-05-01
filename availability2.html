@@ -2604,8 +2604,8 @@ function renderTimesheetCard(ts) {
       <span class="tsStatus ${statusClass}">${statusLabel}</span>
     </div>
 
-    <!-- Agency Fee Section -->
-    <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px;">
+    <!-- Agency Fee & Doctor Pay Type Section (for non-QLD/ACT or QLD/ACT with top-level display) -->
+    <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px; ${(state === 'QLD' || state === 'ACT') ? 'display:none;' : ''}">
       <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
         <div style="flex:1; min-width:200px;">
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Agency Fee %</div>
@@ -2650,6 +2650,14 @@ function renderTimesheetCard(ts) {
           <div style="color:#666; font-size:11px; margin-bottom:4px; font-weight:600;">On-Costs (%):</div>
           <div style="display:flex; align-items:center; gap:4px;">
             <input type="number" class="ts-on-costs" min="0" step="0.01" value="${placementData.on_costs || 3.25}" style="width:100%; padding:6px 4px; border:1px solid #ccc; border-radius:4px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateQldActPricing(this)" />
+            <span style="font-weight:600;">%</span>
+          </div>
+        </div>
+        <!-- Agency Fee % - Editable (for QLD/ACT) -->
+        <div style="background:#fff; padding:10px; border-radius:6px; border:1px solid #81c784;">
+          <div style="color:#666; font-size:11px; margin-bottom:4px; font-weight:600;">Agency Fee (%):</div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <input type="number" class="ts-agency-fee-qld" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="width:100%; padding:6px 4px; border:1px solid #ccc; border-radius:4px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateQldActPricing(this)" />
             <span style="font-weight:600;">%</span>
           </div>
         </div>
@@ -2962,10 +2970,11 @@ function updateQldActPricing(element) {
   // Get all the input values
   const chargeRateInput = card.querySelector('.ts-qld-charge-rate');
   const onCostsInput = card.querySelector('.ts-on-costs');
-  const agencyFeePercent = document.querySelector('.ts-agency-fee')?.value || 0;
+  const agencyFeeQldInput = card.querySelector('.ts-agency-fee-qld');
 
   const chargeRate = parseFloat(chargeRateInput?.value) || 0;
   const onCosts = parseFloat(onCostsInput?.value) || 3.25;
+  const agencyFeePercent = parseFloat(agencyFeeQldInput?.value) || 0;
 
   // Calculate Doctor Pay Inc Super and Agency Fee $
   const divisor = 1 + (onCosts / 100) + (agencyFeePercent / 100);
@@ -2987,6 +2996,8 @@ function updateQldActPricing(element) {
 
     placement.timesheet_data[weekStart].qldActChargeRate = chargeRate;
     placement.timesheet_data[weekStart].onCosts = onCosts;
+    placement.timesheet_data[weekStart].agencyFeePercent = agencyFeePercent;
+    placement.placement_data.agency_fee_percent = agencyFeePercent;
 
     saveEvents(events);
 
@@ -3039,26 +3050,17 @@ function addTimesheetListeners() {
     const inputs = card.querySelectorAll(
       '.ts-actual-days, .ts-actual-nights, .ts-actual-extra1, .ts-actual-extra2, ' +
       '.ts-day-rate, .ts-night-rate, .ts-extra1-rate, .ts-extra2-rate, ' +
-      '.ts-agency-fee, .ts-qld-charge-rate, .ts-on-costs'
+      '.ts-agency-fee, .ts-qld-charge-rate, .ts-on-costs, .ts-agency-fee-qld'
     );
     inputs.forEach(input => {
       input.addEventListener('input', () => {
         updateTimesheetMargins(card);
         // Also update QLD/ACT pricing if it's a QLD/ACT field
-        if (input.classList.contains('ts-qld-charge-rate') || input.classList.contains('ts-on-costs')) {
+        if (input.classList.contains('ts-qld-charge-rate') || input.classList.contains('ts-on-costs') || input.classList.contains('ts-agency-fee-qld')) {
           updateQldActPricing(input);
         }
       });
     });
-
-    // Agency fee change should also update QLD/ACT pricing if present
-    const agencyFeeInput = card.querySelector('.ts-agency-fee');
-    if (agencyFeeInput && card.querySelector('.ts-qld-charge-rate')) {
-      agencyFeeInput.addEventListener('change', () => {
-        const chargeRateInput = card.querySelector('.ts-qld-charge-rate');
-        updateQldActPricing(chargeRateInput);
-      });
-    }
   });
 
   // Save button handlers
