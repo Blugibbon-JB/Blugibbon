@@ -871,34 +871,109 @@
         </select>
       </div>
 
+      <div class="field full">
+        <label>State/Territory</label>
+        <select id="placementState" required onchange="handleStateChange()">
+          <option value="">Select State</option>
+          <option value="NSW">New South Wales (NSW)</option>
+          <option value="QLD">Queensland (QLD)</option>
+          <option value="VIC">Victoria (VIC)</option>
+          <option value="SA">South Australia (SA)</option>
+          <option value="WA">Western Australia (WA)</option>
+          <option value="TAS">Tasmania (TAS)</option>
+          <option value="ACT">Australian Capital Territory (ACT)</option>
+          <option value="NT">Northern Territory (NT)</option>
+        </select>
+      </div>
+
       <div class="field" id="hoursPerShiftField" style="display:none;">
         <label>Hours Per Shift</label>
         <input type="number" id="hoursPerShift" placeholder="8" value="8" min="1" />
       </div>
 
-      <div class="field">
-        <label>Standard Rate</label>
-        <input type="number" id="standardRate" placeholder="100" required />
+      <!-- Standard Rates Section (Non-QLD/ACT) -->
+      <div id="standardRatesSection">
+        <div class="field">
+          <label>Standard Rate</label>
+          <input type="number" id="standardRate" placeholder="100" required />
+        </div>
+
+        <div class="field">
+          <label>Night Rate</label>
+          <input type="number" id="nightRate" placeholder="150" />
+        </div>
+
+        <div class="field">
+          <label>Extra Rate 1</label>
+          <input type="number" id="extraRate1" placeholder="200" />
+        </div>
+
+        <div class="field">
+          <label>Extra Rate 2</label>
+          <input type="number" id="extraRate2" placeholder="220" />
+        </div>
+
+        <div class="field" id="agencyFeeField">
+          <label>Agency Fee (%)</label>
+          <input type="number" id="agencyFeePercent" placeholder="15" value="0" min="0" max="100" step="0.1" />
+        </div>
       </div>
 
-      <div class="field">
-        <label>Night Rate</label>
-        <input type="number" id="nightRate" placeholder="150" />
-      </div>
+      <!-- QLD/ACT Pricing Section -->
+      <div id="qldActPricingSection" style="display:none; background:#e8f5e9; padding:12px; border-radius:8px; border:1px solid #81c784;">
+        <div class="field full">
+          <label style="font-weight:600;">Day Charge Rate ($)</label>
+          <input type="number" id="qldActDayChargeRate" placeholder="200" min="0" step="0.01" oninput="updateQldActCalculations()" />
+        </div>
 
-      <div class="field">
-        <label>Extra Rate 1</label>
-        <input type="number" id="extraRate1" placeholder="200" />
-      </div>
+        <div class="field full">
+          <label style="font-weight:600;">Night Charge Rate ($)</label>
+          <input type="number" id="qldActNightChargeRate" placeholder="250" min="0" step="0.01" oninput="updateQldActCalculations()" />
+        </div>
 
-      <div class="field">
-        <label>Extra Rate 2</label>
-        <input type="number" id="extraRate2" placeholder="220" />
-      </div>
+        <div class="field full">
+          <label style="font-weight:600;">Extra Rate 1 Charge Rate ($)</label>
+          <input type="number" id="qldActExtra1ChargeRate" placeholder="0" min="0" step="0.01" oninput="updateQldActCalculations()" />
+        </div>
 
-      <div class="field" id="agencyFeeField">
-        <label>Agency Fee (%)</label>
-        <input type="number" id="agencyFeePercent" placeholder="15" value="0" min="0" max="100" step="0.1" />
+        <div class="field full">
+          <label style="font-weight:600;">Extra Rate 2 Charge Rate ($)</label>
+          <input type="number" id="qldActExtra2ChargeRate" placeholder="0" min="0" step="0.01" oninput="updateQldActCalculations()" />
+        </div>
+
+        <div class="field full">
+          <label style="font-weight:600;">Agency Fee (%)</label>
+          <input type="number" id="qldActAgencyFeePercent" placeholder="15" min="0" max="100" step="0.1" oninput="updateQldActCalculations()" />
+        </div>
+
+        <div class="field full">
+          <label style="font-weight:600;">On-Costs (%)</label>
+          <input type="number" id="qldActOnCosts" placeholder="3.25" min="0" step="0.01" value="3.25" oninput="updateQldActCalculations()" />
+          <div style="font-size:11px; color:#666; margin-top:4px;">Default: 3.25% (workers comp, super, etc.)</div>
+        </div>
+
+        <!-- Calculated Fields Display -->
+        <div style="background:#fff; padding:12px; border-radius:6px; margin-top:12px; border:1px solid #c8e6c9;">
+          <div style="font-weight:600; margin-bottom:10px; font-size:13px;">Calculated Pay (Day/Hour):</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div style="font-size:12px;">
+              <div style="color:#666; font-size:11px; margin-bottom:2px;">Doctor Pay Inc Super:</div>
+              <div style="font-weight:600; color:#2196F3;">$<span id="qldActDoctorPayDisplay">0.00</span></div>
+            </div>
+            <div style="font-size:12px;">
+              <div style="color:#666; font-size:11px; margin-bottom:2px;">On-Costs Amount:</div>
+              <div style="font-weight:600; color:#FF9800;">$<span id="qldActOnCostsAmtDisplay">0.00</span></div>
+            </div>
+            <div style="font-size:12px;">
+              <div style="color:#666; font-size:11px; margin-bottom:2px;">Agency Fee Amount:</div>
+              <div style="font-weight:600; color:#F44336;">$<span id="qldActAgencyFeeAmtDisplay">0.00</span></div>
+            </div>
+            <div style="font-size:12px;">
+              <div style="color:#666; font-size:11px; margin-bottom:2px;">Margin (Agency):</div>
+              <div style="font-weight:600; color:#4CAF50;">$<span id="qldActMarginDisplay">0.00</span></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1085,8 +1160,42 @@
         "></div>
       </div>
 
-      <!-- Auto-calculated margin fields -->
-      <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; margin-top: 16px;">
+      <!-- QLD/ACT Pricing Breakdown -->
+      <div id="qldActPricingBreakdown" style="background: #c8e6c9; padding: 12px; border-radius: 8px; margin-top: 16px; border: 2px solid #81c784; display:none;">
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 12px;">QLD/ACT Pricing Breakdown (per day/hour)</div>
+
+        <div style="font-size: 12px; line-height: 1.8;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div style="background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #81c784;">
+              <div style="color: #666; font-size: 11px; margin-bottom: 4px;">Total Charge Rate:</div>
+              <div style="font-weight: 600; font-size: 14px;">$<span id="qldActConfirmChargeRate">0.00</span></div>
+            </div>
+            <div style="background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #81c784;">
+              <div style="color: #666; font-size: 11px; margin-bottom: 4px;">On-Costs (%):</div>
+              <div style="font-weight: 600; font-size: 14px;"><span id="qldActConfirmOnCostsPercent">3.25</span>%</div>
+            </div>
+            <div style="background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #81c784;">
+              <div style="color: #666; font-size: 11px; margin-bottom: 4px;">On-Costs ($):</div>
+              <div style="font-weight: 600; font-size: 14px;">$<span id="qldActConfirmOnCostsAmt">0.00</span></div>
+            </div>
+            <div style="background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #81c784;">
+              <div style="color: #666; font-size: 11px; margin-bottom: 4px;">Agency Fee (%):</div>
+              <div style="font-weight: 600; font-size: 14px;"><span id="qldActConfirmAgencyFeePercent">0</span>%</div>
+            </div>
+            <div style="background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #81c784;">
+              <div style="color: #666; font-size: 11px; margin-bottom: 4px;">Agency Fee ($):</div>
+              <div style="font-weight: 600; font-size: 14px; color: #F44336;">$<span id="qldActConfirmAgencyFeeAmt">0.00</span></div>
+            </div>
+            <div style="background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #81c784;">
+              <div style="color: #666; font-size: 11px; margin-bottom: 4px;">Doctor Pay Inc Super:</div>
+              <div style="font-weight: 600; font-size: 14px; color: #2196F3;">$<span id="qldActConfirmDoctorPay">0.00</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Auto-calculated margin fields (Standard Rates) -->
+      <div id="standardPricingBreakdown" style="background: #e8f5e9; padding: 12px; border-radius: 8px; margin-top: 16px;">
         <div style="font-size: 12px; font-weight: 600; margin-bottom: 12px;">Calculated Margins</div>
 
         <div style="font-size: 12px; margin-bottom: 12px;">
@@ -6530,6 +6639,51 @@ function toggleHoursPerShift() {
   field.style.display = unitType === 'hourly' ? 'block' : 'none';
 }
 
+function handleStateChange() {
+  const state = document.getElementById('placementState').value;
+  const isQldAct = state === 'QLD' || state === 'ACT';
+  document.getElementById('standardRatesSection').style.display = isQldAct ? 'none' : 'block';
+  document.getElementById('qldActPricingSection').style.display = isQldAct ? 'block' : 'none';
+  if (isQldAct) {
+    updateQldActCalculations();
+  }
+}
+
+function updateQldActCalculations() {
+  const dayChargeRate = parseFloat(document.getElementById('qldActDayChargeRate').value) || 0;
+  const nightChargeRate = parseFloat(document.getElementById('qldActNightChargeRate').value) || 0;
+  const extra1ChargeRate = parseFloat(document.getElementById('qldActExtra1ChargeRate').value) || 0;
+  const extra2ChargeRate = parseFloat(document.getElementById('qldActExtra2ChargeRate').value) || 0;
+  const agencyFeePercent = parseFloat(document.getElementById('qldActAgencyFeePercent').value) || 0;
+  const onCostsPercent = parseFloat(document.getElementById('qldActOnCosts').value) || 3.25;
+
+  const calculatePayAndMargin = (chargeRate) => {
+    const divisor = 1 + (onCostsPercent / 100) + (agencyFeePercent / 100);
+    const doctorPayIncSuper = chargeRate / divisor;
+    const onCostsAmt = doctorPayIncSuper * (onCostsPercent / 100);
+    const agencyFeeAmt = doctorPayIncSuper * (agencyFeePercent / 100);
+    const margin = agencyFeeAmt;
+    return { doctorPayIncSuper: doctorPayIncSuper.toFixed(2), onCostsAmt: onCostsAmt.toFixed(2), agencyFeeAmt: agencyFeeAmt.toFixed(2), margin: margin.toFixed(2) };
+  };
+
+  const dayCalc = calculatePayAndMargin(dayChargeRate);
+  const nightCalc = calculatePayAndMargin(nightChargeRate);
+  const extra1Calc = calculatePayAndMargin(extra1ChargeRate);
+  const extra2Calc = calculatePayAndMargin(extra2ChargeRate);
+
+  document.getElementById('qldActDoctorPayDisplay').textContent = dayCalc.doctorPayIncSuper;
+  document.getElementById('qldActOnCostsAmtDisplay').textContent = dayCalc.onCostsAmt;
+  document.getElementById('qldActAgencyFeeAmtDisplay').textContent = dayCalc.agencyFeeAmt;
+  document.getElementById('qldActMarginDisplay').textContent = dayCalc.margin;
+
+  placementWorkflow.qldActDayChargeRate = dayChargeRate;
+  placementWorkflow.qldActNightChargeRate = nightChargeRate;
+  placementWorkflow.qldActExtra1ChargeRate = extra1ChargeRate;
+  placementWorkflow.qldActExtra2ChargeRate = extra2ChargeRate;
+  placementWorkflow.qldActAgencyFeePercent = agencyFeePercent;
+  placementWorkflow.qldActOnCosts = onCostsPercent;
+}
+
 function updateDefaultShiftType(type) {
   placementWorkflow.defaultShiftType = type;
 }
@@ -6570,16 +6724,41 @@ function backToDocSiteSelection() {
 
 function proceedToDaySelection() {
   placementWorkflow.unitType = document.getElementById('unitType').value;
-  placementWorkflow.standardRate = parseFloat(document.getElementById('standardRate').value) || 0;
-  placementWorkflow.nightRate = parseFloat(document.getElementById('nightRate').value) || 0;
-  placementWorkflow.extraRate1 = parseFloat(document.getElementById('extraRate1').value) || 0;
-  placementWorkflow.extraRate2 = parseFloat(document.getElementById('extraRate2').value) || 0;
+  placementWorkflow.state = document.getElementById('placementState').value;
   placementWorkflow.hoursPerShift = parseFloat(document.getElementById('hoursPerShift').value) || 8;
-  placementWorkflow.agencyFeePercent = parseFloat(document.getElementById('agencyFeePercent').value) || 0;
 
-  if(!placementWorkflow.standardRate) {
-    alert('Please enter a standard rate');
+  const isQldAct = placementWorkflow.state === 'QLD' || placementWorkflow.state === 'ACT';
+
+  if (!placementWorkflow.state) {
+    alert('Please select a state/territory');
     return;
+  }
+
+  if (isQldAct) {
+    placementWorkflow.standardRate = parseFloat(document.getElementById('qldActDayChargeRate').value) || 0;
+    placementWorkflow.nightRate = parseFloat(document.getElementById('qldActNightChargeRate').value) || 0;
+    placementWorkflow.extraRate1 = parseFloat(document.getElementById('qldActExtra1ChargeRate').value) || 0;
+    placementWorkflow.extraRate2 = parseFloat(document.getElementById('qldActExtra2ChargeRate').value) || 0;
+    placementWorkflow.agencyFeePercent = parseFloat(document.getElementById('qldActAgencyFeePercent').value) || 0;
+    placementWorkflow.onCosts = parseFloat(document.getElementById('qldActOnCosts').value) || 3.25;
+    placementWorkflow.isQldAct = true;
+
+    if (!placementWorkflow.standardRate) {
+      alert('Please enter a day charge rate');
+      return;
+    }
+  } else {
+    placementWorkflow.standardRate = parseFloat(document.getElementById('standardRate').value) || 0;
+    placementWorkflow.nightRate = parseFloat(document.getElementById('nightRate').value) || 0;
+    placementWorkflow.extraRate1 = parseFloat(document.getElementById('extraRate1').value) || 0;
+    placementWorkflow.extraRate2 = parseFloat(document.getElementById('extraRate2').value) || 0;
+    placementWorkflow.agencyFeePercent = parseFloat(document.getElementById('agencyFeePercent').value) || 0;
+    placementWorkflow.isQldAct = false;
+
+    if (!placementWorkflow.standardRate) {
+      alert('Please enter a standard rate');
+      return;
+    }
   }
 
   // Only reset selectedDays if NOT creating from availability event
@@ -7142,6 +7321,35 @@ function proceedToPlacementDetails() {
 
     const summaryEl = document.getElementById('placementSummary');
     if(summaryEl) summaryEl.innerHTML = summary;
+
+    // Handle QLD/ACT pricing breakdown
+    const isQldAct = placementWorkflow.isQldAct;
+    const qldActPricingBreakdownEl = document.getElementById('qldActPricingBreakdown');
+    const standardPricingBreakdownEl = document.getElementById('standardPricingBreakdown');
+
+    if (isQldAct) {
+      if(qldActPricingBreakdownEl) qldActPricingBreakdownEl.style.display = 'block';
+      if(standardPricingBreakdownEl) standardPricingBreakdownEl.style.display = 'none';
+
+      const dayChargeRate = placementWorkflow.standardRate || 0;
+      const onCostsPercent = placementWorkflow.onCosts || 3.25;
+      const agencyFeePercentVal = placementWorkflow.agencyFeePercent || 0;
+
+      const divisor = 1 + (onCostsPercent / 100) + (agencyFeePercentVal / 100);
+      const doctorPayIncSuper = dayChargeRate / divisor;
+      const onCostsAmt = doctorPayIncSuper * (onCostsPercent / 100);
+      const agencyFeeAmt = doctorPayIncSuper * (agencyFeePercentVal / 100);
+
+      document.getElementById('qldActConfirmChargeRate').textContent = dayChargeRate.toFixed(2);
+      document.getElementById('qldActConfirmOnCostsPercent').textContent = onCostsPercent.toFixed(2);
+      document.getElementById('qldActConfirmOnCostsAmt').textContent = onCostsAmt.toFixed(2);
+      document.getElementById('qldActConfirmAgencyFeePercent').textContent = agencyFeePercentVal.toFixed(2);
+      document.getElementById('qldActConfirmAgencyFeeAmt').textContent = agencyFeeAmt.toFixed(2);
+      document.getElementById('qldActConfirmDoctorPay').textContent = doctorPayIncSuper.toFixed(2);
+    } else {
+      if(qldActPricingBreakdownEl) qldActPricingBreakdownEl.style.display = 'none';
+      if(standardPricingBreakdownEl) standardPricingBreakdownEl.style.display = 'block';
+    }
 
     const totalDayShiftsEl = document.getElementById('totalDayShifts');
     if(totalDayShiftsEl) totalDayShiftsEl.textContent = dayShiftCount;
