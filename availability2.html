@@ -4705,7 +4705,7 @@ function renderCalendar(){
   // Apply overlay toggles (Bookings vs Availability)
   shown = shown.filter(e=>{
     const st = String(e.status||"");
-    if(st === BOOKED_STATUS) return showBookingsOverlay;
+    if(st === BOOKED_STATUS || st === "Booking" || st === "Booking (Draft)") return showBookingsOverlay;
     return showAvailabilityOverlay;
   });
 
