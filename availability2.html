@@ -2593,14 +2593,20 @@ function renderTimesheetCard(ts) {
       <span class="tsStatus ${statusClass}">${statusLabel}</span>
     </div>
 
-    <!-- Unified Top Section - Agency Fee & Doctor Pay Type -->
+    <!-- Unified Top Section - Doctor Pay Type & Agency Fee -->
     <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px;">
       <div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
         <div style="flex:1; min-width:150px;">
           <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Doctor Pay Type</label>
-          <select class="ts-unit-type-select" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateUnitType(this)">
-            <option value="daily" ${unitType === 'daily' ? 'selected' : ''}>Daily</option>
-            <option value="hourly" ${unitType === 'hourly' ? 'selected' : ''}>Hourly</option>
+          <select class="ts-doctor-pay-type" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updatePlacementPayType(this)">
+            <option value="">Select pay type</option>
+            <option value="BG PAYG" ${doctorPayType === 'BG PAYG' ? 'selected' : ''}>BG PAYG</option>
+            <option value="BG Pty Ltd" ${doctorPayType === 'BG Pty Ltd' ? 'selected' : ''}>BG Pty Ltd</option>
+            <option value="CLIENT PAYG" ${doctorPayType === 'CLIENT PAYG' ? 'selected' : ''}>CLIENT PAYG</option>
+            <option value="Client Sole Trader" ${doctorPayType === 'Client Sole Trader' ? 'selected' : ''}>Client Sole Trader</option>
+            <option value="Client Pty Ltd" ${doctorPayType === 'Client Pty Ltd' ? 'selected' : ''}>Client Pty Ltd</option>
+            <option value="Payroll Company" ${doctorPayType === 'Payroll Company' ? 'selected' : ''}>Payroll Company</option>
+            <option value="Another agency" ${doctorPayType === 'Another agency' ? 'selected' : ''}>Another agency</option>
           </select>
         </div>
         <div style="flex:1; min-width:150px;">
