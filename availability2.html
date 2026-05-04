@@ -2746,7 +2746,43 @@ function renderTimesheetCard(ts) {
       </div>
       ` : ''}
 
-      <!-- Additional Shifts -->
+      <!-- Additional Shifts / Overtime -->
+      <div style="margin-top:16px; padding-top:12px; border-top:1px solid #e0e0e0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div style="font-weight:600; font-size:13px; color:#333;">Additional Shifts / Overtime</div>
+          <button class="add-additional-shift-btn" data-ts-id="${ts.id}" style="padding:4px 8px; font-size:11px; background:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600;">+ Add Shift</button>
+        </div>
+        <div class="additional-shifts-container" data-ts-id="${ts.id}" style="display:${(ts.additionalShifts && ts.additionalShifts.length > 0) ? 'block' : 'none'};">
+          ${(ts.additionalShifts && ts.additionalShifts.length > 0) ? ts.additionalShifts.map((shift, idx) => `
+            <div class="additional-shift-row" data-shift-index="${idx}" style="padding:8px; background:#fafafa; border-radius:6px; margin-bottom:8px; display:grid; grid-template-columns: 1fr 100px 80px 100px 80px 40px; gap:8px; align-items:center; border:1px solid #e8e8e8;">
+              <div>
+                <label style="font-size:10px; color:var(--muted); font-weight:600;">Shift Type</label>
+                <input type="text" class="shift-type-input" value="${shift.shiftType || 'Overtime'}" placeholder="e.g., Overtime" style="width:100%; padding:4px; border:1px solid #ddd; border-radius:4px; font-size:11px;" data-ts-id="${ts.id}" data-shift-index="${idx}" />
+              </div>
+              <div>
+                <label style="font-size:10px; color:var(--muted); font-weight:600;">Unit Type</label>
+                <select class="shift-unit-type" style="width:100%; padding:4px; border:1px solid #ddd; border-radius:4px; font-size:11px;" data-ts-id="${ts.id}" data-shift-index="${idx}">
+                  <option value="daily" ${shift.unitType === 'daily' ? 'selected' : ''}>Daily</option>
+                  <option value="hourly" ${shift.unitType === 'hourly' ? 'selected' : ''}>Hourly</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:10px; color:var(--muted); font-weight:600;">Units</label>
+                <input type="number" class="shift-units" min="0" step="0.5" value="${shift.actualUnits || 0}" style="width:100%; padding:4px; border:1px solid #ddd; border-radius:4px; font-size:11px;" data-ts-id="${ts.id}" data-shift-index="${idx}" />
+              </div>
+              <div>
+                <label style="font-size:10px; color:var(--muted); font-weight:600;">Rate ($)</label>
+                <input type="number" class="shift-rate" min="0" step="0.01" value="${shift.rate || 0}" style="width:100%; padding:4px; border:1px solid #ddd; border-radius:4px; font-size:11px;" placeholder="0" data-ts-id="${ts.id}" data-shift-index="${idx}" />
+              </div>
+              <div>
+                <label style="font-size:10px; color:var(--muted); font-weight:600;">Subtotal</label>
+                <div class="shift-subtotal" style="padding:4px; font-weight:600; font-size:11px;">$${((shift.actualUnits || 0) * (shift.rate || 0)).toFixed(2)}</div>
+              </div>
+              <button class="remove-additional-shift-btn" data-ts-id="${ts.id}" data-shift-index="${idx}" style="padding:4px 6px; font-size:10px; background:#f44336; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600;">✕</button>
+            </div>
+          `).join('') : '<div style="color:var(--muted); font-size:11px; padding:8px;">No additional shifts added</div>'}
+        </div>
+      </div>
     </div>
 
     <!-- Week Totals -->
@@ -2934,9 +2970,105 @@ function updateTimesheetMargins(card) {
 
   }
 
-  // Update doctor pay summary (only this one, margins already updated above)
+  // Calculate additional shifts doctor pay and margins
+  if (ts.additionalShifts && ts.additionalShifts.length > 0) {
+    for (const shift of ts.additionalShifts) {
+      const shiftRate = shift.rate || 0;
+      const shiftUnits = shift.actualUnits || 0;
+
+      if (state === 'QLD' || state === 'ACT') {
+        const divisor = 1 + (onCosts / 100) + (agencyFeePercent / 100);
+        const shiftDoctorPayPerUnit = shiftRate / divisor;
+        totalDoctorPay += shiftUnits * shiftDoctorPayPerUnit;
+      } else {
+        totalDoctorPay += shiftUnits * shiftRate;
+      }
+    }
+
+    totalEstimatedMargin = parseFloat(totalEstimatedMargin) + (ts.additionalShifts.reduce((sum, shift) => {
+      const shiftRate = shift.rate || 0;
+      const shiftUnits = shift.actualUnits || 0;
+      const shiftMarginPercent = (shiftRate * agencyFeePercent) / 100;
+      return sum + (shiftUnits * shiftMarginPercent);
+    }, 0)).toFixed(2);
+
+    totalActualMargin = parseFloat(totalActualMargin) + (ts.additionalShifts.reduce((sum, shift) => {
+      const shiftRate = shift.rate || 0;
+      const shiftUnits = shift.actualUnits || 0;
+      const shiftMarginPercent = (shiftRate * agencyFeePercent) / 100;
+      return sum + (shiftUnits * shiftMarginPercent);
+    }, 0)).toFixed(2);
+
+    // Update summary with additional shifts totals
+    const summaryEstEl = card.querySelector('[data-summary="est-total"]');
+    if (summaryEstEl) summaryEstEl.textContent = `$${totalEstimatedMargin}`;
+
+    const summaryActEl = card.querySelector('[data-summary="act-total"]');
+    if (summaryActEl) summaryActEl.textContent = `$${totalActualMargin}`;
+
+    const summaryForecastEl = card.querySelector('[data-summary="forecast-diff"]');
+    if (summaryForecastEl) {
+      const forecastDiff = (totalActualMargin - totalEstimatedMargin).toFixed(2);
+      summaryForecastEl.textContent = `${forecastDiff >= 0 ? '+' : ''}$${forecastDiff}`;
+      summaryForecastEl.style.color = forecastDiff >= 0 ? '#4CAF50' : '#f44336';
+    }
+  }
+
+  // Update doctor pay summary
   const summaryDoctorPayEl = card.querySelector('[data-summary="total-doctor-pay"]');
   if (summaryDoctorPayEl) summaryDoctorPayEl.textContent = `$${totalDoctorPay.toFixed(2)}`;
+}
+
+function addAdditionalShift(tsId) {
+  const ts = timesheets.find(t => t.id === tsId);
+  if (!ts) return;
+
+  if (!ts.additionalShifts) ts.additionalShifts = [];
+  ts.additionalShifts.push({ shiftType: 'Overtime', unitType: 'hourly', actualUnits: 0, rate: 0 });
+
+  const card = document.querySelector(`.timesheetCard[data-ts-id="${tsId}"]`);
+  if (card) {
+    renderTimesheetCard(ts);
+    addTimesheetListeners();
+  }
+}
+
+function removeAdditionalShift(tsId, shiftIndex) {
+  const ts = timesheets.find(t => t.id === tsId);
+  if (!ts || !ts.additionalShifts) return;
+
+  ts.additionalShifts.splice(shiftIndex, 1);
+
+  const card = document.querySelector(`.timesheetCard[data-ts-id="${tsId}"]`);
+  if (card) {
+    renderTimesheetCard(ts);
+    addTimesheetListeners();
+  }
+}
+
+function updateAdditionalShift(tsId, shiftIndex, field, value) {
+  const ts = timesheets.find(t => t.id === tsId);
+  if (!ts || !ts.additionalShifts || !ts.additionalShifts[shiftIndex]) return;
+
+  const shift = ts.additionalShifts[shiftIndex];
+  if (field === 'shiftType') shift.shiftType = value;
+  else if (field === 'unitType') shift.unitType = value;
+  else if (field === 'actualUnits') shift.actualUnits = parseFloat(value) || 0;
+  else if (field === 'rate') shift.rate = parseFloat(value) || 0;
+
+  const card = document.querySelector(`.timesheetCard[data-ts-id="${tsId}"]`);
+  if (card) {
+    updateTimesheetMargins(card);
+
+    const shiftRow = card.querySelector(`.additional-shift-row[data-shift-index="${shiftIndex}"]`);
+    if (shiftRow) {
+      const subtotalEl = shiftRow.querySelector('.shift-subtotal');
+      if (subtotalEl) {
+        const subtotal = (shift.actualUnits * shift.rate).toFixed(2);
+        subtotalEl.textContent = `$${subtotal}`;
+      }
+    }
+  }
 }
 
 function updateQldActPricing(element) {
@@ -2998,6 +3130,39 @@ function addTimesheetListeners() {
       if (placementId) {
         openPlacementFromTimesheet(placementId);
       }
+    });
+  });
+
+  // Additional shift controls
+  document.querySelectorAll('.add-additional-shift-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const tsId = e.target.dataset.tsId;
+      addAdditionalShift(tsId);
+    });
+  });
+
+  document.querySelectorAll('.remove-additional-shift-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const tsId = e.target.dataset.tsId;
+      const shiftIndex = parseInt(e.target.dataset.shiftIndex);
+      removeAdditionalShift(tsId, shiftIndex);
+    });
+  });
+
+  document.querySelectorAll('.shift-type-input, .shift-unit-type, .shift-units, .shift-rate').forEach(input => {
+    input.addEventListener('change', (e) => {
+      e.stopPropagation();
+      const tsId = e.target.dataset.tsId;
+      const shiftIndex = parseInt(e.target.dataset.shiftIndex);
+      let field = 'shiftType';
+
+      if (e.target.classList.contains('shift-unit-type')) field = 'unitType';
+      else if (e.target.classList.contains('shift-units')) field = 'actualUnits';
+      else if (e.target.classList.contains('shift-rate')) field = 'rate';
+
+      updateAdditionalShift(tsId, shiftIndex, field, e.target.value);
     });
   });
 
@@ -3072,6 +3237,7 @@ function addTimesheetListeners() {
             extraRate1: extraRate1,
             extraRate2: extraRate2,
             agencyFeePercent: agencyFeePercent,
+            additionalShifts: ts.additionalShifts || [],
             status: ts.status
           });
           saveEvents(events);
