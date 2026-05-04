@@ -2922,12 +2922,27 @@ function updateTimesheetMargins(card) {
   const extra1Forecast = (actualExtra1Margin - estimatedExtra1Margin).toFixed(2);
   const extra2Forecast = (actualExtra2Margin - estimatedExtra2Margin).toFixed(2);
 
-  // Update total margins without re-rendering the card
+  // Update total margins - ALL display locations
+  // Top section display elements
   const estMarginEl = card.querySelector('.ts-est-total-margin');
   if (estMarginEl) estMarginEl.textContent = `$${totalEstimatedMargin}`;
 
   const actMarginEl = card.querySelector('.ts-act-total-margin');
   if (actMarginEl) actMarginEl.textContent = `$${totalActualMargin}`;
+
+  // Bottom summary section display elements
+  const summaryEstEl = card.querySelector('[data-summary="est-total"]');
+  if (summaryEstEl) summaryEstEl.textContent = `$${totalEstimatedMargin}`;
+
+  const summaryActEl = card.querySelector('[data-summary="act-total"]');
+  if (summaryActEl) summaryActEl.textContent = `$${totalActualMargin}`;
+
+  const summaryForecastEl = card.querySelector('[data-summary="forecast-diff"]');
+  if (summaryForecastEl) {
+    const forecastDiff = (totalActualMargin - totalEstimatedMargin).toFixed(2);
+    summaryForecastEl.textContent = `${forecastDiff >= 0 ? '+' : ''}$${forecastDiff}`;
+    summaryForecastEl.style.color = forecastDiff >= 0 ? '#4CAF50' : '#f44336';
+  }
 
   // Update day shift margin and forecast
   const dayMarginEl = card.querySelector('[data-margin="day-est"]');
@@ -3015,22 +3030,9 @@ function updateTimesheetMargins(card) {
     }
   }
 
-  // Update summary section at the bottom
+  // Update doctor pay summary (only this one, margins already updated above)
   const summaryDoctorPayEl = card.querySelector('[data-summary="total-doctor-pay"]');
   if (summaryDoctorPayEl) summaryDoctorPayEl.textContent = `$${totalDoctorPay.toFixed(2)}`;
-
-  const summaryEstEl = card.querySelector('[data-summary="est-total"]');
-  if (summaryEstEl) summaryEstEl.textContent = `$${totalEstimatedMargin}`;
-
-  const summaryActEl = card.querySelector('[data-summary="act-total"]');
-  if (summaryActEl) summaryActEl.textContent = `$${totalActualMargin}`;
-
-  const summaryForecastEl = card.querySelector('[data-summary="forecast-diff"]');
-  if (summaryForecastEl) {
-    const forecastDiff = (totalActualMargin - totalEstimatedMargin).toFixed(2);
-    summaryForecastEl.textContent = `${forecastDiff >= 0 ? '+' : ''}$${forecastDiff}`;
-    summaryForecastEl.style.color = forecastDiff >= 0 ? '#4CAF50' : '#f44336';
-  }
 }
 
 function updateQldActPricing(element) {
