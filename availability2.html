@@ -2640,37 +2640,9 @@ function renderTimesheetCard(ts) {
       <span class="tsStatus ${statusClass}">${statusLabel}</span>
     </div>
 
-    <!-- Agency Fee & Doctor Pay Type Section (for non-QLD/ACT or QLD/ACT with top-level display) -->
-    <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px; ${(state === 'QLD' || state === 'ACT') ? 'display:none;' : ''}">
-      <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
-        <div style="flex:1; min-width:200px;">
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Agency Fee %</div>
-          <input type="number" class="ts-agency-fee" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="width:100px; padding:6px 8px;" />
-        </div>
-        <div style="flex:1; min-width:200px;">
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Doctor Pay Type</div>
-          <div style="font-weight:600; padding:6px 8px; color:#333;">${doctorPayType || 'N/A'}</div>
-        </div>
-        ${(state === 'QLD' || state === 'ACT') && allInclusiveRate ? `
-        <div style="flex:1; min-width:200px;">
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">All Inclusive Charge Rate</div>
-          <div style="font-weight:600; padding:6px 8px; color:#333;">$${allInclusiveRate}</div>
-        </div>
-        ` : ''}
-        <div style="flex:1; min-width:200px;">
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Est. Total Margin/Week</div>
-          <div class="ts-est-total-margin" style="font-weight:600; padding:6px 8px; color:#2196F3;">$${totalEstimatedMargin}</div>
-        </div>
-        <div style="flex:1; min-width:200px;">
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Act. Total Margin/Week</div>
-          <div class="ts-act-total-margin" style="font-weight:600; padding:6px 8px; color:#4CAF50;">$${totalActualMargin}</div>
-        </div>
-      </div>
-    </div>
-
     <!-- Doctor Pay Type & Settings -->
     <div style="background:#f5f5f5; padding:12px; border-radius:8px; margin-bottom:12px;">
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
         <div>
           <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:6px;">Doctor Pay Type</label>
           <select class="ts-doctor-pay-type" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:13px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updatePlacementPayType(this)">
@@ -2687,16 +2659,38 @@ function renderTimesheetCard(ts) {
         <div>
           <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:6px;">On-Costs (%)</label>
           <div style="display:flex; align-items:center; gap:6px;">
-            <input type="number" class="ts-on-costs" min="0" step="0.01" value="${onCosts}" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateQldActPricing(this)" />
+            <input type="number" class="ts-on-costs" min="0" step="0.01" value="${onCosts}" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" />
             <span style="font-weight:600; font-size:12px;">%</span>
           </div>
         </div>
         <div>
           <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:6px;">Agency Fee (%)</label>
           <div style="display:flex; align-items:center; gap:6px;">
-            <input type="number" class="ts-agency-fee-qld" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateQldActPricing(this)" />
+            <input type="number" class="ts-agency-fee" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" />
             <span style="font-weight:600; font-size:12px;">%</span>
           </div>
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:6px;">Charge Rate</label>
+          <input type="number" class="ts-charge-rate" min="0" step="0.01" value="${chargeRate || dayRate || 0}" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" placeholder="$0" />
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:12px;">
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:6px;">Doctor Pay Inc Super $</label>
+          <div style="font-size:14px; font-weight:700; color:#2196F3;" class="ts-doctor-pay-display">$0.00</div>
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:6px;">Est Total Margin/Week</label>
+          <div style="font-size:14px; font-weight:700; color:#2196F3;" class="ts-est-total-margin">$0.00</div>
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:6px;">Act Total Margin/Week</label>
+          <div style="font-size:14px; font-weight:700; color:#4CAF50;" class="ts-act-total-margin">$0.00</div>
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:6px;">Forecast Difference</label>
+          <div style="font-size:14px; font-weight:700;" class="ts-forecast-diff">$0.00</div>
         </div>
       </div>
     </div>
@@ -3036,53 +3030,29 @@ function updateTimesheetMargins(card) {
 }
 
 function updateQldActPricing(element) {
-  const placementId = element.dataset.placementId;
-  const weekStart = element.dataset.weekStart;
-
-  // Find the card container
   const card = element.closest('.timesheetCard');
   if (!card) return;
 
-  // Get all the input values
-  const chargeRateInput = card.querySelector('.ts-qld-charge-rate');
+  // Get all the input values using unified field names
+  const chargeRateInput = card.querySelector('.ts-charge-rate');
   const onCostsInput = card.querySelector('.ts-on-costs');
-  const agencyFeeQldInput = card.querySelector('.ts-agency-fee-qld');
+  const agencyFeeInput = card.querySelector('.ts-agency-fee');
 
   const chargeRate = parseFloat(chargeRateInput?.value) || 0;
   const onCosts = parseFloat(onCostsInput?.value) || 3.25;
-  const agencyFeePercent = parseFloat(agencyFeeQldInput?.value) || 0;
+  const agencyFeePercent = parseFloat(agencyFeeInput?.value) || 0;
 
   // Calculate Doctor Pay Inc Super and Agency Fee $
   const divisor = 1 + (onCosts / 100) + (agencyFeePercent / 100);
   const doctorPayIncSuper = chargeRate / divisor;
-  const agencyFeeAmt = doctorPayIncSuper * (agencyFeePercent / 100);
+  const agencyFeeAmt = chargeRate * (agencyFeePercent / 100);
 
-  // Update display values
-  const agencyFeeAmtSpan = card.querySelector('.ts-qld-agency-fee-amt');
-  const doctorPaySpan = card.querySelector('.ts-qld-doctor-pay');
+  // Update display value in the settings section
+  const doctorPayDisplay = card.querySelector('.ts-doctor-pay-display');
+  if (doctorPayDisplay) doctorPayDisplay.textContent = `$${doctorPayIncSuper.toFixed(2)}`;
 
-  if (agencyFeeAmtSpan) agencyFeeAmtSpan.textContent = agencyFeeAmt.toFixed(2);
-  if (doctorPaySpan) doctorPaySpan.textContent = doctorPayIncSuper.toFixed(2);
-
-  // Save to placement timesheet_data
-  const placement = events.find(e => e.id === placementId);
-  if (placement) {
-    if (!placement.timesheet_data) placement.timesheet_data = {};
-    if (!placement.timesheet_data[weekStart]) placement.timesheet_data[weekStart] = {};
-
-    placement.timesheet_data[weekStart].qldActChargeRate = chargeRate;
-    placement.timesheet_data[weekStart].onCosts = onCosts;
-    placement.timesheet_data[weekStart].agencyFeePercent = agencyFeePercent;
-    placement.placement_data.agency_fee_percent = agencyFeePercent;
-
-    saveEvents(events);
-
-    // Sync to Firebase
-    if (firebase_user && firebase_db) {
-      const sanitized = sanitizeEventsForFirebase(events);
-      firebase_db.ref(`users/${firebase_user.uid}/events`).set(sanitized);
-    }
-  }
+  // Call updateTimesheetMargins to update all other totals
+  updateTimesheetMargins(card);
 }
 
 function updatePlacementPayType(element) {
@@ -3126,7 +3096,7 @@ function addTimesheetListeners() {
     const inputs = card.querySelectorAll(
       '.ts-actual-days, .ts-actual-nights, .ts-actual-extra1, .ts-actual-extra2, ' +
       '.ts-day-rate, .ts-night-rate, .ts-extra1-rate, .ts-extra2-rate, ' +
-      '.ts-agency-fee, .ts-qld-charge-rate, .ts-on-costs, .ts-agency-fee-qld, ' +
+      '.ts-on-costs, .ts-agency-fee, .ts-charge-rate, ' +
       '.ts-shift-units, .ts-shift-charge-rate'
     );
     inputs.forEach(input => {
@@ -3156,16 +3126,18 @@ function addTimesheetListeners() {
           }
         }
 
-        // For on-costs and agency fee, update saved data
-        if (input.classList.contains('ts-on-costs') || input.classList.contains('ts-agency-fee-qld')) {
+        // For on-costs, agency fee, and charge rate, update saved data
+        if (input.classList.contains('ts-on-costs') || input.classList.contains('ts-agency-fee') || input.classList.contains('ts-charge-rate')) {
           try {
             const placement = events.find(e => e.id === placementId);
             if (placement?.timesheet_data?.[weekStart]) {
               const onCostsEl = card.querySelector('.ts-on-costs');
-              const agencyFeeEl = card.querySelector('.ts-agency-fee-qld');
+              const agencyFeeEl = card.querySelector('.ts-agency-fee');
+              const chargeRateEl = card.querySelector('.ts-charge-rate');
 
               if (onCostsEl) placement.timesheet_data[weekStart].onCosts = parseFloat(onCostsEl.value) || 3.25;
               if (agencyFeeEl) placement.timesheet_data[weekStart].agencyFeePercent = parseFloat(agencyFeeEl.value) || 0;
+              if (chargeRateEl) placement.timesheet_data[weekStart].chargeRate = parseFloat(chargeRateEl.value) || 0;
             }
           } catch (e) {
             console.error('Error updating pricing data:', e);
@@ -3173,10 +3145,6 @@ function addTimesheetListeners() {
         }
 
         updateTimesheetMargins(card);
-        // Also update QLD/ACT pricing if it's a QLD/ACT field
-        if (input.classList.contains('ts-qld-charge-rate') || input.classList.contains('ts-on-costs') || input.classList.contains('ts-agency-fee-qld')) {
-          updateQldActPricing(input);
-        }
       });
     });
   });
