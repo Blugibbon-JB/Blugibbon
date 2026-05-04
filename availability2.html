@@ -6787,7 +6787,8 @@ function handleStateChange() {
   document.getElementById('standardRatesSection').style.display = isQldAct ? 'none' : 'block';
   document.getElementById('qldActPricingSection').style.display = isQldAct ? 'block' : 'none';
   document.getElementById('standardRatesQuickEdit').style.display = isQldAct ? 'none' : 'block';
-  document.getElementById('qldActRatesQuickEdit').style.display = isQldAct ? 'block' : 'none';
+  // Keep QLD/ACT Quick Edit hidden - charge rate is set in Step 2, no need for per-shift adjustment
+  document.getElementById('qldActRatesQuickEdit').style.display = 'none';
   if (isQldAct) {
     updateQldActCalculations();
   }
@@ -7441,10 +7442,11 @@ function proceedToPlacementDetails() {
       ${extra1ShiftCount > 0 ? `<div><strong>Extra Rate 1 Shifts:</strong> ${extra1ShiftCount}</div>` : ''}
       ${extra2ShiftCount > 0 ? `<div><strong>Extra Rate 2 Shifts:</strong> ${extra2ShiftCount}</div>` : ''}
       <div><strong>Unit Type:</strong> ${placementWorkflow.unitType === 'hourly' ? 'Hourly' : 'Daily'}</div>
-      <div><strong>Standard Rate:</strong> $${placementWorkflow.standardRate}</div>
-      ${placementWorkflow.nightRate ? `<div><strong>Night Rate:</strong> $${placementWorkflow.nightRate}</div>` : ''}
-      ${placementWorkflow.extraRate1 ? `<div><strong>Extra Rate 1:</strong> $${placementWorkflow.extraRate1}</div>` : ''}
-      ${placementWorkflow.extraRate2 ? `<div><strong>Extra Rate 2:</strong> $${placementWorkflow.extraRate2}</div>` : ''}
+      ${placementWorkflow.isQldAct ? `<div><strong>Charge Rate:</strong> $${placementWorkflow.chargeRate}</div>` : `<div><strong>Standard Rate:</strong> $${placementWorkflow.standardRate}</div>`}
+      ${!placementWorkflow.isQldAct && placementWorkflow.nightRate ? `<div><strong>Night Rate:</strong> $${placementWorkflow.nightRate}</div>` : ''}
+      ${!placementWorkflow.isQldAct && placementWorkflow.extraRate1 ? `<div><strong>Extra Rate 1:</strong> $${placementWorkflow.extraRate1}</div>` : ''}
+      ${!placementWorkflow.isQldAct && placementWorkflow.extraRate2 ? `<div><strong>Extra Rate 2:</strong> $${placementWorkflow.extraRate2}</div>` : ''}
+      ${placementWorkflow.isQldAct ? `<div><strong>On-Costs:</strong> ${placementWorkflow.onCosts || 3.25}%</div>` : ''}
       <div><strong>Agency Fee:</strong> ${placementWorkflow.agencyFeePercent}%</div>
     `;
 
@@ -7460,16 +7462,16 @@ function proceedToPlacementDetails() {
       if(qldActPricingBreakdownEl) qldActPricingBreakdownEl.style.display = 'block';
       if(standardPricingBreakdownEl) standardPricingBreakdownEl.style.display = 'none';
 
-      const dayChargeRate = placementWorkflow.standardRate || 0;
+      const chargeRate = placementWorkflow.chargeRate || 0;
       const onCostsPercent = placementWorkflow.onCosts || 3.25;
       const agencyFeePercentVal = placementWorkflow.agencyFeePercent || 0;
 
       const divisor = 1 + (onCostsPercent / 100) + (agencyFeePercentVal / 100);
-      const doctorPayIncSuper = dayChargeRate / divisor;
+      const doctorPayIncSuper = chargeRate / divisor;
       const onCostsAmt = doctorPayIncSuper * (onCostsPercent / 100);
       const agencyFeeAmt = doctorPayIncSuper * (agencyFeePercentVal / 100);
 
-      document.getElementById('qldActConfirmChargeRate').textContent = dayChargeRate.toFixed(2);
+      document.getElementById('qldActConfirmChargeRate').textContent = chargeRate.toFixed(2);
       document.getElementById('qldActConfirmOnCostsPercent').textContent = onCostsPercent.toFixed(2);
       document.getElementById('qldActConfirmOnCostsAmt').textContent = onCostsAmt.toFixed(2);
       document.getElementById('qldActConfirmAgencyFeePercent').textContent = agencyFeePercentVal.toFixed(2);
