@@ -919,26 +919,12 @@
         </div>
       </div>
 
-      <!-- QLD/ACT Pricing Section -->
+      <!-- QLD/ACT Pricing Section - Simplified -->
       <div id="qldActPricingSection" style="display:none; background:#e8f5e9; padding:12px; border-radius:8px; border:1px solid #81c784;">
         <div class="field full">
-          <label style="font-weight:600;">Day Charge Rate ($)</label>
-          <input type="number" id="qldActDayChargeRate" placeholder="200" min="0" step="0.01" oninput="updateQldActCalculations()" />
-        </div>
-
-        <div class="field full">
-          <label style="font-weight:600;">Night Charge Rate ($)</label>
-          <input type="number" id="qldActNightChargeRate" placeholder="250" min="0" step="0.01" oninput="updateQldActCalculations()" />
-        </div>
-
-        <div class="field full">
-          <label style="font-weight:600;">Extra Rate 1 Charge Rate ($)</label>
-          <input type="number" id="qldActExtra1ChargeRate" placeholder="0" min="0" step="0.01" oninput="updateQldActCalculations()" />
-        </div>
-
-        <div class="field full">
-          <label style="font-weight:600;">Extra Rate 2 Charge Rate ($)</label>
-          <input type="number" id="qldActExtra2ChargeRate" placeholder="0" min="0" step="0.01" oninput="updateQldActCalculations()" />
+          <label style="font-weight:600;">Daily/Hourly Charge Rate ($)</label>
+          <input type="number" id="qldActChargeRate" placeholder="200" min="0" step="0.01" oninput="updateQldActCalculations()" />
+          <div style="font-size:11px; color:#666; margin-top:4px;">All-inclusive rate per day or hour (applies to all shift types)</div>
         </div>
 
         <div class="field full">
@@ -954,7 +940,7 @@
 
         <!-- Calculated Fields Display -->
         <div style="background:#fff; padding:12px; border-radius:6px; margin-top:12px; border:1px solid #c8e6c9;">
-          <div style="font-weight:600; margin-bottom:10px; font-size:13px;">Calculated Pay (Day/Hour):</div>
+          <div style="font-weight:600; margin-bottom:10px; font-size:13px;">Calculated Breakdown (per day/hour):</div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
             <div style="font-size:12px;">
               <div style="color:#666; font-size:11px; margin-bottom:2px;">Doctor Pay Inc Super:</div>
@@ -965,11 +951,7 @@
               <div style="font-weight:600; color:#FF9800;">$<span id="qldActOnCostsAmtDisplay">0.00</span></div>
             </div>
             <div style="font-size:12px;">
-              <div style="color:#666; font-size:11px; margin-bottom:2px;">Agency Fee Amount:</div>
-              <div style="font-weight:600; color:#F44336;">$<span id="qldActAgencyFeeAmtDisplay">0.00</span></div>
-            </div>
-            <div style="font-size:12px;">
-              <div style="color:#666; font-size:11px; margin-bottom:2px;">Margin (Agency):</div>
+              <div style="color:#666; font-size:11px; margin-bottom:2px;">Margin ($):</div>
               <div style="font-weight:600; color:#4CAF50;">$<span id="qldActMarginDisplay">0.00</span></div>
             </div>
           </div>
@@ -2564,11 +2546,24 @@ function renderTimesheetCard(ts) {
   const actualExtra1 = ts.actualExtra1 ?? savedData.actualExtra1 ?? null;
   const actualExtra2 = ts.actualExtra2 ?? savedData.actualExtra2 ?? null;
 
-  // Calculate margins per shift type
-  const marginPerDay = (dayRate * agencyFeePercent) / 100;
-  const marginPerNight = (nightRate * agencyFeePercent) / 100;
-  const marginPerExtra1 = (extraRate1 * agencyFeePercent) / 100;
-  const marginPerExtra2 = (extraRate2 * agencyFeePercent) / 100;
+  // Calculate margins - different logic for QLD/ACT vs others
+  let marginPerDay, marginPerNight, marginPerExtra1, marginPerExtra2;
+
+  if (state === 'QLD' || state === 'ACT') {
+    // QLD/ACT: Margin = Charge Rate × Agency Fee % / (1 + On-Costs % + Agency Fee %)
+    const onCosts = placementData.on_costs || 3.25;
+    const divisor = 1 + (onCosts / 100) + (agencyFeePercent / 100);
+    marginPerDay = (chargeRate * agencyFeePercent) / 100 / divisor;
+    marginPerNight = marginPerDay;  // Same per unit
+    marginPerExtra1 = marginPerDay;
+    marginPerExtra2 = marginPerDay;
+  } else {
+    // Non-QLD/ACT: Margin = Rate × Agency Fee %
+    marginPerDay = (dayRate * agencyFeePercent) / 100;
+    marginPerNight = (nightRate * agencyFeePercent) / 100;
+    marginPerExtra1 = (extraRate1 * agencyFeePercent) / 100;
+    marginPerExtra2 = (extraRate2 * agencyFeePercent) / 100;
+  }
 
   // Estimated margins
   const estimatedDayMargin = (ts.estimatedDays * marginPerDay);
@@ -2584,12 +2579,6 @@ function renderTimesheetCard(ts) {
   const actualExtra2Margin = ((actualExtra2 || 0) * marginPerExtra2);
   const totalActualMargin = (actualDayMargin + actualNightMargin + actualExtra1Margin + actualExtra2Margin).toFixed(2);
 
-  // Forecast differences
-  const dayForecast = (actualDayMargin - estimatedDayMargin).toFixed(2);
-  const nightForecast = (actualNightMargin - estimatedNightMargin).toFixed(2);
-  const extra1Forecast = (actualExtra1Margin - estimatedExtra1Margin).toFixed(2);
-  const extra2Forecast = (actualExtra2Margin - estimatedExtra2Margin).toFixed(2);
-
   const statusClass = ts.status === 'processed' ? 'processed' : (ts.status === 'overdue' ? 'overdue' : 'pending');
   const statusLabel = ts.status === 'processed' ? 'Processed' : (ts.status === 'overdue' ? 'Overdue' : 'Pending');
 
@@ -2604,93 +2593,34 @@ function renderTimesheetCard(ts) {
       <span class="tsStatus ${statusClass}">${statusLabel}</span>
     </div>
 
-    <!-- Agency Fee & Doctor Pay Type Section (for non-QLD/ACT or QLD/ACT with top-level display) -->
-    <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px; ${(state === 'QLD' || state === 'ACT') ? 'display:none;' : ''}">
-      <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
-        <div style="flex:1; min-width:200px;">
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Agency Fee %</div>
-          <input type="number" class="ts-agency-fee" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="width:100px; padding:6px 8px;" />
+    <!-- Unified Top Section - Agency Fee & Doctor Pay Type -->
+    <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px;">
+      <div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
+        <div style="flex:1; min-width:150px;">
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Doctor Pay Type</label>
+          <select class="ts-unit-type-select" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateUnitType(this)">
+            <option value="daily" ${unitType === 'daily' ? 'selected' : ''}>Daily</option>
+            <option value="hourly" ${unitType === 'hourly' ? 'selected' : ''}>Hourly</option>
+          </select>
         </div>
-        <div style="flex:1; min-width:200px;">
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Doctor Pay Type</div>
-          <div style="font-weight:600; padding:6px 8px; color:#333;">${doctorPayType || 'N/A'}</div>
+        <div style="flex:1; min-width:150px;">
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Agency Fee %</label>
+          <input type="number" class="ts-agency-fee" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateAgencyFee(this)" />
         </div>
-        ${(state === 'QLD' || state === 'ACT') && allInclusiveRate ? `
-        <div style="flex:1; min-width:200px;">
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">All Inclusive Charge Rate</div>
-          <div style="font-weight:600; padding:6px 8px; color:#333;">$${allInclusiveRate}</div>
+        ${(state === 'QLD' || state === 'ACT') ? `
+        <div style="flex:1; min-width:150px;">
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Charge Rate ($)</label>
+          <input type="number" class="ts-charge-rate-unified" min="0" step="0.01" value="${chargeRate || 0}" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateChargeRate(this)" />
         </div>
-        ` : ''}
-        <div style="flex:1; min-width:200px;">
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Est. Total Margin/Week</div>
-          <div class="ts-est-total-margin" style="font-weight:600; padding:6px 8px; color:#2196F3;">$${totalEstimatedMargin}</div>
+        ` : `
+        <div style="flex:1; min-width:150px;">
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Doctor Pay ($)</label>
+          <input type="number" class="ts-doctor-pay-unified" min="0" step="0.01" value="${dayRate || 0}" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateDoctorPay(this)" />
         </div>
-        <div style="flex:1; min-width:200px;">
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Act. Total Margin/Week</div>
-          <div class="ts-act-total-margin" style="font-weight:600; padding:6px 8px; color:#4CAF50;">$${totalActualMargin}</div>
-        </div>
+        `}
       </div>
     </div>
 
-    <!-- QLD/ACT Pricing Breakdown (Timesheet) -->
-    ${(state === 'QLD' || state === 'ACT') ? `
-    <div style="background:#c8e6c9; padding:12px; border-radius:8px; margin-bottom:12px; border:2px solid #81c784;">
-      <div style="font-weight:600; font-size:12px; margin-bottom:10px; color:#1b5e20;">QLD/ACT Pricing Breakdown (per day/hour)</div>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:10px; font-size:12px;">
-        <!-- Total Charge Rate - Editable -->
-        <div style="background:#fff; padding:10px; border-radius:6px; border:1px solid #81c784;">
-          <div style="color:#666; font-size:11px; margin-bottom:4px; font-weight:600;">Total Charge Rate:</div>
-          <div style="display:flex; align-items:center; gap:4px;">
-            <span style="font-weight:600;">$</span>
-            <input type="number" class="ts-qld-charge-rate" min="0" step="0.01" value="${placementData.standard_rate || 0}" style="flex:1; padding:6px 4px; border:1px solid #ccc; border-radius:4px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateQldActPricing(this)" />
-          </div>
-        </div>
-        <!-- On-Costs - Editable -->
-        <div style="background:#fff; padding:10px; border-radius:6px; border:1px solid #81c784;">
-          <div style="color:#666; font-size:11px; margin-bottom:4px; font-weight:600;">On-Costs (%):</div>
-          <div style="display:flex; align-items:center; gap:4px;">
-            <input type="number" class="ts-on-costs" min="0" step="0.01" value="${placementData.on_costs || 3.25}" style="width:100%; padding:6px 4px; border:1px solid #ccc; border-radius:4px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateQldActPricing(this)" />
-            <span style="font-weight:600;">%</span>
-          </div>
-        </div>
-        <!-- Agency Fee % - Editable (for QLD/ACT) -->
-        <div style="background:#fff; padding:10px; border-radius:6px; border:1px solid #81c784;">
-          <div style="color:#666; font-size:11px; margin-bottom:4px; font-weight:600;">Agency Fee (%):</div>
-          <div style="display:flex; align-items:center; gap:4px;">
-            <input type="number" class="ts-agency-fee-qld" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="width:100%; padding:6px 4px; border:1px solid #ccc; border-radius:4px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateQldActPricing(this)" />
-            <span style="font-weight:600;">%</span>
-          </div>
-        </div>
-        <!-- Agency Fee $ -->
-        <div style="background:#fff; padding:10px; border-radius:6px; border:1px solid #81c784;">
-          <div style="color:#666; font-size:11px; margin-bottom:4px; font-weight:600;">Agency Fee ($):</div>
-          <div style="font-weight:600; color:#F44336; padding:6px 4px;">$<span class="ts-qld-agency-fee-amt">${((placementData.standard_rate || 0) * (placementData.agency_fee_percent || 0) / 100 / (1 + ((placementData.on_costs || 3.25) / 100) + ((placementData.agency_fee_percent || 0) / 100))).toFixed(2)}</span></div>
-        </div>
-        <!-- Doctor Pay Inc Super -->
-        <div style="background:#fff; padding:10px; border-radius:6px; border:1px solid #81c784;">
-          <div style="color:#666; font-size:11px; margin-bottom:4px; font-weight:600;">Doctor Pay Inc Super:</div>
-          <div style="font-weight:600; color:#2196F3;">$<span class="ts-qld-doctor-pay">${((placementData.standard_rate || 0) / (1 + ((placementData.on_costs || 3.25) / 100) + ((placementData.agency_fee_percent || 0) / 100))).toFixed(2)}</span></div>
-        </div>
-      </div>
-    </div>
-    ` : ''}
-
-    <!-- Doctor Pay Type (Editable) -->
-    <div style="background:#f5f5f5; padding:10px; border-radius:8px; margin-bottom:12px; display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
-      <div style="flex:1; min-width:200px;">
-        <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:6px;">Doctor Pay Type</label>
-        <select class="ts-doctor-pay-type" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:13px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updatePlacementPayType(this)">
-          <option value="">Select pay type</option>
-          <option value="BG PAYG" ${doctorPayType === 'BG PAYG' ? 'selected' : ''}>BG PAYG</option>
-          <option value="BG Pty Ltd" ${doctorPayType === 'BG Pty Ltd' ? 'selected' : ''}>BG Pty Ltd</option>
-          <option value="CLIENT PAYG" ${doctorPayType === 'CLIENT PAYG' ? 'selected' : ''}>CLIENT PAYG</option>
-          <option value="Client Sole Trader" ${doctorPayType === 'Client Sole Trader' ? 'selected' : ''}>Client Sole Trader</option>
-          <option value="Client Pty Ltd" ${doctorPayType === 'Client Pty Ltd' ? 'selected' : ''}>Client Pty Ltd</option>
-          <option value="Payroll Company" ${doctorPayType === 'Payroll Company' ? 'selected' : ''}>Payroll Company</option>
-          <option value="Another agency" ${doctorPayType === 'Another agency' ? 'selected' : ''}>Another agency</option>
-        </select>
-      </div>
-    </div>
 
     <!-- Shift Types Section -->
     <div style="border:1px solid #e0e0e0; border-radius:8px; padding:12px; margin-bottom:12px;">
@@ -2698,24 +2628,18 @@ function renderTimesheetCard(ts) {
 
       <!-- Day Shifts -->
       <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
           <div>
             <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${dayLabel}</div>
             <div style="padding:4px; font-weight:600;">${ts.estimatedDays}</div>
           </div>
           <div>
             <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${dayLabel}</label>
-            <input type="number" class="ts-actual-days" min="0" value="${actualDays ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
+            <input type="number" class="ts-actual-days" min="0" value="${actualDays ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
           </div>
           <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate</label>
-            <input type="number" class="ts-day-rate" min="0" step="0.01" value="${dayRate}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" />
-          </div>
-          <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
-            <div style="padding:4px; font-weight:600; ${dayForecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}" data-forecast="day">
-              ${dayForecast >= 0 ? '+' : ''}$${dayForecast}
-            </div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate ($)</label>
+            <input type="number" class="ts-day-rate" min="0" step="0.01" value="${dayRate}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
           </div>
         </div>
         <div style="font-size:11px; color:var(--muted);" data-margin="day-est">Est. Margin: <strong>$${estimatedDayMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualDayMargin.toFixed(2)}</strong></div>
@@ -2724,24 +2648,18 @@ function renderTimesheetCard(ts) {
       <!-- Night Shifts -->
       ${ts.estimatedNights > 0 || actualNights ? `
       <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
           <div>
             <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${nightLabel}</div>
             <div style="padding:4px; font-weight:600;">${ts.estimatedNights}</div>
           </div>
           <div>
             <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${nightLabel}</label>
-            <input type="number" class="ts-actual-nights" min="0" value="${actualNights ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
+            <input type="number" class="ts-actual-nights" min="0" value="${actualNights ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
           </div>
           <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate</label>
-            <input type="number" class="ts-night-rate" min="0" step="0.01" value="${nightRate}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" />
-          </div>
-          <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
-            <div style="padding:4px; font-weight:600; ${nightForecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}" data-forecast="night">
-              ${nightForecast >= 0 ? '+' : ''}$${nightForecast}
-            </div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate ($)</label>
+            <input type="number" class="ts-night-rate" min="0" step="0.01" value="${nightRate}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
           </div>
         </div>
         <div style="font-size:11px; color:var(--muted);" data-margin="night-est">Est. Margin: <strong>$${estimatedNightMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualNightMargin.toFixed(2)}</strong></div>
@@ -2751,24 +2669,18 @@ function renderTimesheetCard(ts) {
       <!-- Extra Rate 1 -->
       ${ts.estimatedExtra1 > 0 || actualExtra1 ? `
       <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
           <div>
             <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${extra1Label}</div>
             <div style="padding:4px; font-weight:600;">${ts.estimatedExtra1}</div>
           </div>
           <div>
             <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${extra1Label}</label>
-            <input type="number" class="ts-actual-extra1" min="0" value="${actualExtra1 ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
+            <input type="number" class="ts-actual-extra1" min="0" value="${actualExtra1 ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
           </div>
           <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate</label>
-            <input type="number" class="ts-extra1-rate" min="0" step="0.01" value="${extraRate1}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" />
-          </div>
-          <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
-            <div style="padding:4px; font-weight:600; ${extra1Forecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}" data-forecast="extra1">
-              ${extra1Forecast >= 0 ? '+' : ''}$${extra1Forecast}
-            </div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate ($)</label>
+            <input type="number" class="ts-extra1-rate" min="0" step="0.01" value="${extraRate1}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
           </div>
         </div>
         <div style="font-size:11px; color:var(--muted);" data-margin="extra1-est">Est. Margin: <strong>$${estimatedExtra1Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra1Margin.toFixed(2)}</strong></div>
@@ -2778,24 +2690,18 @@ function renderTimesheetCard(ts) {
       <!-- Extra Rate 2 -->
       ${ts.estimatedExtra2 > 0 || actualExtra2 ? `
       <div style="padding:10px; background:#f9f9f9; border-radius:6px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
           <div>
             <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${extra2Label}</div>
             <div style="padding:4px; font-weight:600;">${ts.estimatedExtra2}</div>
           </div>
           <div>
             <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${extra2Label}</label>
-            <input type="number" class="ts-actual-extra2" min="0" value="${actualExtra2 ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" />
+            <input type="number" class="ts-actual-extra2" min="0" value="${actualExtra2 ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
           </div>
           <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate</label>
-            <input type="number" class="ts-extra2-rate" min="0" step="0.01" value="${extraRate2}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" />
-          </div>
-          <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Forecast</div>
-            <div style="padding:4px; font-weight:600; ${extra2Forecast >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}" data-forecast="extra2">
-              ${extra2Forecast >= 0 ? '+' : ''}$${extra2Forecast}
-            </div>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate ($)</label>
+            <input type="number" class="ts-extra2-rate" min="0" step="0.01" value="${extraRate2}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
           </div>
         </div>
         <div style="font-size:11px; color:var(--muted);" data-margin="extra2-est">Est. Margin: <strong>$${estimatedExtra2Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra2Margin.toFixed(2)}</strong></div>
@@ -2851,6 +2757,7 @@ function updateTimesheetMargins(card) {
   const placement = events.find(e => e.id === ts.placementId);
   const placementData = placement?.placement_data || {};
   const savedData = placement?.timesheet_data?.[ts.weekStart] || {};
+  const state = placementData.state || '';
 
   // Get current input values
   ts.actualDays = parseInt(card.querySelector('.ts-actual-days')?.value) || null;
@@ -2858,18 +2765,32 @@ function updateTimesheetMargins(card) {
   ts.actualExtra1 = parseInt(card.querySelector('.ts-actual-extra1')?.value) || null;
   ts.actualExtra2 = parseInt(card.querySelector('.ts-actual-extra2')?.value) || null;
 
-  // Get rates from inputs
-  const dayRate = parseFloat(card.querySelector('.ts-day-rate')?.value) || 0;
+  // Get rates from inputs - handle both unified and shift-specific inputs
+  let dayRate = parseFloat(card.querySelector('.ts-day-rate')?.value) || parseFloat(card.querySelector('.ts-doctor-pay-unified')?.value) || 0;
   const nightRate = parseFloat(card.querySelector('.ts-night-rate')?.value) || 0;
   const extraRate1 = parseFloat(card.querySelector('.ts-extra1-rate')?.value) || 0;
   const extraRate2 = parseFloat(card.querySelector('.ts-extra2-rate')?.value) || 0;
+  const chargeRate = parseFloat(card.querySelector('.ts-charge-rate-unified')?.value) || 0;
   const agencyFeePercent = parseFloat(card.querySelector('.ts-agency-fee')?.value) || 0;
 
-  // Calculate margins per shift type
-  const marginPerDay = (dayRate * agencyFeePercent) / 100;
-  const marginPerNight = (nightRate * agencyFeePercent) / 100;
-  const marginPerExtra1 = (extraRate1 * agencyFeePercent) / 100;
-  const marginPerExtra2 = (extraRate2 * agencyFeePercent) / 100;
+  // Calculate margins per shift type - different logic for QLD/ACT
+  let marginPerDay, marginPerNight, marginPerExtra1, marginPerExtra2;
+
+  if (state === 'QLD' || state === 'ACT') {
+    // QLD/ACT: Margin = Charge Rate × Agency Fee % / (1 + On-Costs % + Agency Fee %)
+    const onCosts = placementData.on_costs || 3.25;
+    const divisor = 1 + (onCosts / 100) + (agencyFeePercent / 100);
+    marginPerDay = (chargeRate * agencyFeePercent) / 100 / divisor;
+    marginPerNight = marginPerDay;
+    marginPerExtra1 = marginPerDay;
+    marginPerExtra2 = marginPerDay;
+  } else {
+    // Non-QLD/ACT: Margin = Rate × Agency Fee %
+    marginPerDay = (dayRate * agencyFeePercent) / 100;
+    marginPerNight = (nightRate * agencyFeePercent) / 100;
+    marginPerExtra1 = (extraRate1 * agencyFeePercent) / 100;
+    marginPerExtra2 = (extraRate2 * agencyFeePercent) / 100;
+  }
 
   // Estimated margins
   const estimatedDayMargin = (ts.estimatedDays * marginPerDay);
@@ -2898,50 +2819,26 @@ function updateTimesheetMargins(card) {
   const actMarginEl = card.querySelector('.ts-act-total-margin');
   if (actMarginEl) actMarginEl.textContent = `$${totalActualMargin}`;
 
-  // Update day shift margin and forecast
+  // Update day shift margin
   const dayMarginEl = card.querySelector('[data-margin="day-est"]');
   if (dayMarginEl) dayMarginEl.innerHTML = `Est. Margin: <strong>$${estimatedDayMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualDayMargin.toFixed(2)}</strong>`;
 
-  const dayForecastEl = card.querySelector('[data-forecast="day"]');
-  if (dayForecastEl) {
-    dayForecastEl.textContent = `${dayForecast >= 0 ? '+' : ''}$${dayForecast}`;
-    dayForecastEl.style.color = dayForecast >= 0 ? '#4CAF50' : '#f44336';
-  }
-
-  // Update night shift margin and forecast if present
+  // Update night shift margin if present
   if (ts.estimatedNights > 0 || ts.actualNights) {
     const nightMarginEl = card.querySelector('[data-margin="night-est"]');
     if (nightMarginEl) nightMarginEl.innerHTML = `Est. Margin: <strong>$${estimatedNightMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualNightMargin.toFixed(2)}</strong>`;
-
-    const nightForecastEl = card.querySelector('[data-forecast="night"]');
-    if (nightForecastEl) {
-      nightForecastEl.textContent = `${nightForecast >= 0 ? '+' : ''}$${nightForecast}`;
-      nightForecastEl.style.color = nightForecast >= 0 ? '#4CAF50' : '#f44336';
-    }
   }
 
-  // Update extra1 margin and forecast if present
+  // Update extra1 margin if present
   if (ts.estimatedExtra1 > 0 || ts.actualExtra1) {
     const extra1MarginEl = card.querySelector('[data-margin="extra1-est"]');
     if (extra1MarginEl) extra1MarginEl.innerHTML = `Est. Margin: <strong>$${estimatedExtra1Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra1Margin.toFixed(2)}</strong>`;
-
-    const extra1ForecastEl = card.querySelector('[data-forecast="extra1"]');
-    if (extra1ForecastEl) {
-      extra1ForecastEl.textContent = `${extra1Forecast >= 0 ? '+' : ''}$${extra1Forecast}`;
-      extra1ForecastEl.style.color = extra1Forecast >= 0 ? '#4CAF50' : '#f44336';
-    }
   }
 
-  // Update extra2 margin and forecast if present
+  // Update extra2 margin if present
   if (ts.estimatedExtra2 > 0 || ts.actualExtra2) {
     const extra2MarginEl = card.querySelector('[data-margin="extra2-est"]');
     if (extra2MarginEl) extra2MarginEl.innerHTML = `Est. Margin: <strong>$${estimatedExtra2Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra2Margin.toFixed(2)}</strong>`;
-
-    const extra2ForecastEl = card.querySelector('[data-forecast="extra2"]');
-    if (extra2ForecastEl) {
-      extra2ForecastEl.textContent = `${extra2Forecast >= 0 ? '+' : ''}$${extra2Forecast}`;
-      extra2ForecastEl.style.color = extra2Forecast >= 0 ? '#4CAF50' : '#f44336';
-    }
   }
 
   // Update summary section at the bottom
@@ -3029,6 +2926,122 @@ function updatePlacementPayType(element) {
   }
 }
 
+function updateUnitType(element) {
+  const placementId = element.dataset.placementId;
+  const newUnitType = element.value;
+
+  // Update placement data
+  const placement = events.find(e => e.id === placementId);
+  if (placement) {
+    // Update all timesheets for this placement with the new unit type
+    const affectedTimesheets = timesheets.filter(ts => ts.placementId === placementId);
+    affectedTimesheets.forEach(ts => {
+      ts.unitType = newUnitType;
+    });
+
+    saveEvents(events);
+    renderTimesheets();
+
+    if (firebase_user && firebase_db) {
+      const sanitized = sanitizeEventsForFirebase(events);
+      firebase_db.ref(`users/${firebase_user.uid}/events`).set(sanitized);
+    }
+  }
+}
+
+function updateAgencyFee(element) {
+  const placementId = element.dataset.placementId;
+  const weekStart = element.dataset.weekStart;
+  const newAgencyFee = parseFloat(element.value) || 0;
+
+  // Find the placement and update
+  const placement = events.find(e => e.id === placementId);
+  if (placement) {
+    // Update placement level data
+    placement.placement_data.agency_fee_percent = newAgencyFee;
+
+    // Also save to timesheet data for this week
+    if (!placement.timesheet_data) placement.timesheet_data = {};
+    if (!placement.timesheet_data[weekStart]) placement.timesheet_data[weekStart] = {};
+    placement.timesheet_data[weekStart].agencyFeePercent = newAgencyFee;
+
+    saveEvents(events);
+
+    // Update the card's margin calculations
+    const card = element.closest('.timesheetCard');
+    if (card) {
+      updateTimesheetMargins(card);
+    }
+
+    if (firebase_user && firebase_db) {
+      const sanitized = sanitizeEventsForFirebase(events);
+      firebase_db.ref(`users/${firebase_user.uid}/events`).set(sanitized);
+    }
+  }
+}
+
+function updateChargeRate(element) {
+  const placementId = element.dataset.placementId;
+  const weekStart = element.dataset.weekStart;
+  const newChargeRate = parseFloat(element.value) || 0;
+
+  // Find the placement and update
+  const placement = events.find(e => e.id === placementId);
+  if (placement) {
+    // Update placement level data
+    placement.placement_data.charge_rate = newChargeRate;
+
+    // Also save to timesheet data for this week
+    if (!placement.timesheet_data) placement.timesheet_data = {};
+    if (!placement.timesheet_data[weekStart]) placement.timesheet_data[weekStart] = {};
+    placement.timesheet_data[weekStart].chargeRate = newChargeRate;
+
+    saveEvents(events);
+
+    // Update the card's margin calculations
+    const card = element.closest('.timesheetCard');
+    if (card) {
+      updateTimesheetMargins(card);
+    }
+
+    if (firebase_user && firebase_db) {
+      const sanitized = sanitizeEventsForFirebase(events);
+      firebase_db.ref(`users/${firebase_user.uid}/events`).set(sanitized);
+    }
+  }
+}
+
+function updateDoctorPay(element) {
+  const placementId = element.dataset.placementId;
+  const weekStart = element.dataset.weekStart;
+  const newDoctorPay = parseFloat(element.value) || 0;
+
+  // Find the placement and update
+  const placement = events.find(e => e.id === placementId);
+  if (placement) {
+    // Update placement level data (standard_rate is the doctor pay for non-QLD/ACT)
+    placement.placement_data.standard_rate = newDoctorPay;
+
+    // Also save to timesheet data for this week
+    if (!placement.timesheet_data) placement.timesheet_data = {};
+    if (!placement.timesheet_data[weekStart]) placement.timesheet_data[weekStart] = {};
+    placement.timesheet_data[weekStart].dayRate = newDoctorPay;
+
+    saveEvents(events);
+
+    // Update the card's margin calculations
+    const card = element.closest('.timesheetCard');
+    if (card) {
+      updateTimesheetMargins(card);
+    }
+
+    if (firebase_user && firebase_db) {
+      const sanitized = sanitizeEventsForFirebase(events);
+      firebase_db.ref(`users/${firebase_user.uid}/events`).set(sanitized);
+    }
+  }
+}
+
 function addTimesheetListeners() {
   // Click card to open placement details
   document.querySelectorAll('.timesheetCard').forEach(card => {
@@ -3045,20 +3058,16 @@ function addTimesheetListeners() {
     });
   });
 
-  // Live margin updates on input change
+  // Live margin updates on input change (removed old QLD/ACT specific selectors - now unified)
   document.querySelectorAll('.timesheetCard').forEach(card => {
     const inputs = card.querySelectorAll(
       '.ts-actual-days, .ts-actual-nights, .ts-actual-extra1, .ts-actual-extra2, ' +
       '.ts-day-rate, .ts-night-rate, .ts-extra1-rate, .ts-extra2-rate, ' +
-      '.ts-agency-fee, .ts-qld-charge-rate, .ts-on-costs, .ts-agency-fee-qld'
+      '.ts-agency-fee, .ts-charge-rate-unified, .ts-doctor-pay-unified'
     );
     inputs.forEach(input => {
       input.addEventListener('input', () => {
         updateTimesheetMargins(card);
-        // Also update QLD/ACT pricing if it's a QLD/ACT field
-        if (input.classList.contains('ts-qld-charge-rate') || input.classList.contains('ts-on-costs') || input.classList.contains('ts-agency-fee-qld')) {
-          updateQldActPricing(input);
-        }
       });
     });
   });
@@ -6785,38 +6794,25 @@ function handleStateChange() {
 }
 
 function updateQldActCalculations() {
-  const dayChargeRate = parseFloat(document.getElementById('qldActDayChargeRate').value) || 0;
-  const nightChargeRate = parseFloat(document.getElementById('qldActNightChargeRate').value) || 0;
-  const extra1ChargeRate = parseFloat(document.getElementById('qldActExtra1ChargeRate').value) || 0;
-  const extra2ChargeRate = parseFloat(document.getElementById('qldActExtra2ChargeRate').value) || 0;
+  // Simplified: single charge rate applies to all shift types
+  const chargeRate = parseFloat(document.getElementById('qldActChargeRate').value) || 0;
   const agencyFeePercent = parseFloat(document.getElementById('qldActAgencyFeePercent').value) || 0;
   const onCostsPercent = parseFloat(document.getElementById('qldActOnCosts').value) || 3.25;
 
-  const calculatePayAndMargin = (chargeRate) => {
-    const divisor = 1 + (onCostsPercent / 100) + (agencyFeePercent / 100);
-    const doctorPayIncSuper = chargeRate / divisor;
-    const onCostsAmt = doctorPayIncSuper * (onCostsPercent / 100);
-    const agencyFeeAmt = doctorPayIncSuper * (agencyFeePercent / 100);
-    const margin = agencyFeeAmt;
-    return { doctorPayIncSuper: doctorPayIncSuper.toFixed(2), onCostsAmt: onCostsAmt.toFixed(2), agencyFeeAmt: agencyFeeAmt.toFixed(2), margin: margin.toFixed(2) };
-  };
+  // Calculate pay and margin components
+  const divisor = 1 + (onCostsPercent / 100) + (agencyFeePercent / 100);
+  const doctorPayIncSuper = chargeRate / divisor;
+  const onCostsAmt = doctorPayIncSuper * (onCostsPercent / 100);
+  const margin = doctorPayIncSuper * (agencyFeePercent / 100);
 
-  const dayCalc = calculatePayAndMargin(dayChargeRate);
-  const nightCalc = calculatePayAndMargin(nightChargeRate);
-  const extra1Calc = calculatePayAndMargin(extra1ChargeRate);
-  const extra2Calc = calculatePayAndMargin(extra2ChargeRate);
+  document.getElementById('qldActDoctorPayDisplay').textContent = doctorPayIncSuper.toFixed(2);
+  document.getElementById('qldActOnCostsAmtDisplay').textContent = onCostsAmt.toFixed(2);
+  document.getElementById('qldActMarginDisplay').textContent = margin.toFixed(2);
 
-  document.getElementById('qldActDoctorPayDisplay').textContent = dayCalc.doctorPayIncSuper;
-  document.getElementById('qldActOnCostsAmtDisplay').textContent = dayCalc.onCostsAmt;
-  document.getElementById('qldActAgencyFeeAmtDisplay').textContent = dayCalc.agencyFeeAmt;
-  document.getElementById('qldActMarginDisplay').textContent = dayCalc.margin;
-
-  placementWorkflow.qldActDayChargeRate = dayChargeRate;
-  placementWorkflow.qldActNightChargeRate = nightChargeRate;
-  placementWorkflow.qldActExtra1ChargeRate = extra1ChargeRate;
-  placementWorkflow.qldActExtra2ChargeRate = extra2ChargeRate;
-  placementWorkflow.qldActAgencyFeePercent = agencyFeePercent;
-  placementWorkflow.qldActOnCosts = onCostsPercent;
+  // Save to placement workflow
+  placementWorkflow.chargeRate = chargeRate;
+  placementWorkflow.agencyFeePercent = agencyFeePercent;
+  placementWorkflow.onCosts = onCostsPercent;
 }
 
 function updateDefaultShiftType(type) {
@@ -6870,16 +6866,14 @@ function proceedToDaySelection() {
   }
 
   if (isQldAct) {
-    placementWorkflow.standardRate = parseFloat(document.getElementById('qldActDayChargeRate').value) || 0;
-    placementWorkflow.nightRate = parseFloat(document.getElementById('qldActNightChargeRate').value) || 0;
-    placementWorkflow.extraRate1 = parseFloat(document.getElementById('qldActExtra1ChargeRate').value) || 0;
-    placementWorkflow.extraRate2 = parseFloat(document.getElementById('qldActExtra2ChargeRate').value) || 0;
+    // Simplified: single charge rate for all shift types
+    placementWorkflow.chargeRate = parseFloat(document.getElementById('qldActChargeRate').value) || 0;
     placementWorkflow.agencyFeePercent = parseFloat(document.getElementById('qldActAgencyFeePercent').value) || 0;
     placementWorkflow.onCosts = parseFloat(document.getElementById('qldActOnCosts').value) || 3.25;
     placementWorkflow.isQldAct = true;
 
-    if (!placementWorkflow.standardRate) {
-      alert('Please enter a day charge rate');
+    if (!placementWorkflow.chargeRate) {
+      alert('Please enter a charge rate');
       return;
     }
   } else {
