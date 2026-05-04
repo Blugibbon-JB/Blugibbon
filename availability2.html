@@ -3143,30 +3143,10 @@ function addTimesheetListeners() {
       '.ts-actual-days, .ts-actual-nights, .ts-actual-extra1, .ts-actual-extra2, ' +
       '.ts-day-rate, .ts-night-rate, .ts-extra1-rate, .ts-extra2-rate, ' +
       '.ts-agency-fee, .ts-qld-charge-rate, .ts-on-costs, .ts-agency-fee-qld, ' +
-      '.ts-shift-units, .ts-shift-charge-rate'
+      '.ts-shift-units'
     );
     inputs.forEach(input => {
       input.addEventListener('input', () => {
-        // Update saved data for additional shifts before calculating margins
-        if (input.classList.contains('ts-shift-units') || input.classList.contains('ts-shift-charge-rate')) {
-          const placementId = card.dataset.placementId;
-          const weekStart = card.dataset.weekStart;
-          const placement = events.find(e => e.id === placementId);
-
-          if (placement && placement.timesheet_data && placement.timesheet_data[weekStart]) {
-            const shiftElement = input.closest('.ts-additional-shift');
-            const shiftIndex = parseInt(shiftElement?.dataset.shiftIndex);
-
-            if (!isNaN(shiftIndex) && placement.timesheet_data[weekStart].additional_shifts && placement.timesheet_data[weekStart].additional_shifts[shiftIndex]) {
-              const unitsInput = shiftElement.querySelector('.ts-shift-units');
-              const rateInput = shiftElement.querySelector('.ts-shift-charge-rate');
-
-              placement.timesheet_data[weekStart].additional_shifts[shiftIndex].units = parseFloat(unitsInput?.value) || 0;
-              placement.timesheet_data[weekStart].additional_shifts[shiftIndex].charge_rate = parseFloat(rateInput?.value) || 0;
-            }
-          }
-        }
-
         updateTimesheetMargins(card);
         // Also update QLD/ACT pricing if it's a QLD/ACT field
         if (input.classList.contains('ts-qld-charge-rate') || input.classList.contains('ts-on-costs') || input.classList.contains('ts-agency-fee-qld')) {
