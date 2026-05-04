@@ -3125,10 +3125,51 @@ function addTimesheetListeners() {
       '.ts-actual-days, .ts-actual-nights, .ts-actual-extra1, .ts-actual-extra2, ' +
       '.ts-day-rate, .ts-night-rate, .ts-extra1-rate, .ts-extra2-rate, ' +
       '.ts-agency-fee, .ts-qld-charge-rate, .ts-on-costs, .ts-agency-fee-qld, ' +
-      '.ts-shift-units'
+      '.ts-shift-units, .ts-shift-charge-rate'
     );
     inputs.forEach(input => {
       input.addEventListener('input', () => {
+        const placementId = card.dataset.placementId;
+        const weekStart = card.dataset.weekStart;
+
+        // For additional shift inputs, update saved data first
+        if (input.classList.contains('ts-shift-units') || input.classList.contains('ts-shift-charge-rate')) {
+          try {
+            const placement = events.find(e => e.id === placementId);
+            if (placement?.timesheet_data?.[weekStart]?.additional_shifts) {
+              const shiftEl = input.closest('.ts-additional-shift');
+              const shiftIdx = parseInt(shiftEl?.dataset.shiftIndex);
+
+              if (!isNaN(shiftIdx) && placement.timesheet_data[weekStart].additional_shifts[shiftIdx]) {
+                const shift = placement.timesheet_data[weekStart].additional_shifts[shiftIdx];
+                const unitsEl = shiftEl.querySelector('.ts-shift-units');
+                const rateEl = shiftEl.querySelector('.ts-shift-charge-rate');
+
+                if (unitsEl) shift.units = parseFloat(unitsEl.value) || 0;
+                if (rateEl) shift.charge_rate = parseFloat(rateEl.value) || 0;
+              }
+            }
+          } catch (e) {
+            console.error('Error updating shift data:', e);
+          }
+        }
+
+        // For on-costs and agency fee, update saved data
+        if (input.classList.contains('ts-on-costs') || input.classList.contains('ts-agency-fee-qld')) {
+          try {
+            const placement = events.find(e => e.id === placementId);
+            if (placement?.timesheet_data?.[weekStart]) {
+              const onCostsEl = card.querySelector('.ts-on-costs');
+              const agencyFeeEl = card.querySelector('.ts-agency-fee-qld');
+
+              if (onCostsEl) placement.timesheet_data[weekStart].onCosts = parseFloat(onCostsEl.value) || 3.25;
+              if (agencyFeeEl) placement.timesheet_data[weekStart].agencyFeePercent = parseFloat(agencyFeeEl.value) || 0;
+            }
+          } catch (e) {
+            console.error('Error updating pricing data:', e);
+          }
+        }
+
         updateTimesheetMargins(card);
         // Also update QLD/ACT pricing if it's a QLD/ACT field
         if (input.classList.contains('ts-qld-charge-rate') || input.classList.contains('ts-on-costs') || input.classList.contains('ts-agency-fee-qld')) {
