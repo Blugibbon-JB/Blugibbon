@@ -1351,6 +1351,51 @@
   </div>
 </div>
 
+<!-- Add Shift Modal -->
+<div class="modalBackdrop" id="addShiftBackdrop" style="display:none;">
+  <div class="modal" style="width:min(500px, 95vw);">
+    <div class="modalHeader">
+      <div class="h">Add Extra Shift</div>
+      <button onclick="closeAddShiftModal()" style="background:none; border:none; font-size:24px; cursor:pointer; padding:0; color:#666;">✕</button>
+    </div>
+
+    <div class="modalBody" style="grid-template-columns: 1fr; gap: 12px;">
+      <div class="field full">
+        <label>Shift Label (e.g., "Overtime", "Extra Shift")</label>
+        <input type="text" id="shiftLabel" placeholder="e.g., Overtime" style="width:100%;" />
+      </div>
+
+      <div class="field full">
+        <label>Rate Type</label>
+        <select id="shiftRateType" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:8px; font-size:13px;" onchange="updateShiftUnitsLabel()">
+          <option value="daily">Daily</option>
+          <option value="hourly">Hourly</option>
+        </select>
+      </div>
+
+      <div class="field full">
+        <label>Rate ($)</label>
+        <input type="number" id="shiftRate" placeholder="0.00" min="0" step="0.01" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:8px;" oninput="previewShiftMargin()" />
+      </div>
+
+      <div class="field full">
+        <label id="shiftUnitsLabel">Units (days)</label>
+        <input type="number" id="shiftUnits" placeholder="0" min="0" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:8px;" oninput="previewShiftMargin()" />
+      </div>
+
+      <div style="background:#f0f7ff; padding:10px; border-radius:8px; border-left:4px solid #2196F3;">
+        <div style="font-size:12px; color:#666; margin-bottom:4px;">Preview Margin:</div>
+        <div style="font-weight:600; font-size:14px; color:#2196F3;">$<span id="shiftMarginPreview">0.00</span></div>
+      </div>
+    </div>
+
+    <div class="modalFooter">
+      <button onclick="closeAddShiftModal()">Cancel</button>
+      <button class="primary" onclick="confirmAddShift()">Add Shift</button>
+    </div>
+  </div>
+</div>
+
 <!-- Cloud Storage Panel -->
 
 <script>
@@ -1607,24 +1652,20 @@ function generateTimesheets() {
   }
 
   for (const placement of allPlacements) {
-    if (!placement.dateStart || !placement.dateEnd) continue; // Skip invalid placements
+    if (!placement.dateStart || !placement.dateEnd) continue;
 
     const startDate = new Date(placement.dateStart + 'T00:00:00Z');
     const endDate = new Date(placement.dateEnd + 'T00:00:00Z');
 
-    // Skip if dates are invalid
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) continue;
 
-    // Get placement event for day_shifts and rates
     const placementEvent = events.find(e => e.id === placement.id);
     const dayShifts = placementEvent?.placement_data?.day_shifts || {};
     const placementData = placementEvent?.placement_data || {};
 
-    // Split placement into weekly chunks (Mon-Sun)
     let currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
-      // Find Sunday (end of week)
       const dayOfWeek = currentDate.getUTCDay();
       const daysUntilSunday = (7 - dayOfWeek) % 7 || 7;
       const sundayDate = new Date(currentDate);
@@ -1634,7 +1675,6 @@ function generateTimesheets() {
       const weekStart = new Date(currentDate);
       const weekStartISO = weekStart.toISOString().split('T')[0];
 
-      // Count estimated units per shift type for this week
       let estimatedDays = 0, estimatedNights = 0, estimatedExtra1 = 0, estimatedExtra2 = 0;
       let loopDate = new Date(weekStart);
       while (loopDate <= weekEnd) {
@@ -1647,7 +1687,6 @@ function generateTimesheets() {
         loopDate.setUTCDate(loopDate.getUTCDate() + 1);
       }
 
-      // Convert to hours if placement is hourly
       const unitType = placementData.unit_type || 'daily';
       const hoursPerShift = placementData.hours_per_shift || 8;
       if (unitType === 'hourly') {
@@ -1657,15 +1696,85 @@ function generateTimesheets() {
         estimatedExtra2 *= hoursPerShift;
       }
 
-      // Skip timesheets with no estimated units (placement doesn't cover this week)
       if (estimatedDays === 0 && estimatedNights === 0 && estimatedExtra1 === 0 && estimatedExtra2 === 0) {
         currentDate = new Date(weekEnd);
-        currentDate.setUTCDate(currentDate.getUTCDate() + 1); // Move to next day
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
         continue;
       }
 
-      // Check if there's persisted timesheet data for this week
       const savedData = placementEvent?.timesheet_data?.[weekStartISO] || {};
+
+      // Build shifts array from original placement
+      const shifts = [];
+
+      // Add day shift if estimated
+      if (estimatedDays > 0) {
+        shifts.push({
+          id: 'shift_original_day',
+          type: 'day',
+          label: 'Day Shift',
+          isOriginal: true,
+          chargeRate: placementData.charge_rate || null,
+          payRate: placementData.standard_rate || null,
+          rateType: unitType,
+          estimatedUnits: estimatedDays,
+          actualUnits: savedData.actualDays ?? null,
+          hoursPerShift: hoursPerShift
+        });
+      }
+
+      // Add night shift if estimated
+      if (estimatedNights > 0) {
+        shifts.push({
+          id: 'shift_original_night',
+          type: 'night',
+          label: 'Night Shift',
+          isOriginal: true,
+          chargeRate: placementData.charge_rate || null,
+          payRate: placementData.night_rate || null,
+          rateType: unitType,
+          estimatedUnits: estimatedNights,
+          actualUnits: savedData.actualNights ?? null,
+          hoursPerShift: hoursPerShift
+        });
+      }
+
+      // Add extra1 shift if estimated
+      if (estimatedExtra1 > 0) {
+        shifts.push({
+          id: 'shift_original_extra1',
+          type: 'extra1',
+          label: 'Extra Shift 1',
+          isOriginal: true,
+          chargeRate: placementData.charge_rate || null,
+          payRate: placementData.extra_rate_1 || null,
+          rateType: unitType,
+          estimatedUnits: estimatedExtra1,
+          actualUnits: savedData.actualExtra1 ?? null,
+          hoursPerShift: hoursPerShift
+        });
+      }
+
+      // Add extra2 shift if estimated
+      if (estimatedExtra2 > 0) {
+        shifts.push({
+          id: 'shift_original_extra2',
+          type: 'extra2',
+          label: 'Extra Shift 2',
+          isOriginal: true,
+          chargeRate: placementData.charge_rate || null,
+          payRate: placementData.extra_rate_2 || null,
+          rateType: unitType,
+          estimatedUnits: estimatedExtra2,
+          actualUnits: savedData.actualExtra2 ?? null,
+          hoursPerShift: hoursPerShift
+        });
+      }
+
+      // Add any additional shifts from saved data
+      if (savedData.additionalShifts) {
+        shifts.push(...savedData.additionalShifts);
+      }
 
       const timesheet = {
         id: `ts_${placement.id}_${weekStartISO}`,
@@ -1674,24 +1783,19 @@ function generateTimesheets() {
         site: placement.site,
         weekStart: weekStartISO,
         weekEnd: weekEnd.toISOString().split('T')[0],
-        unitType: unitType,
-        hoursPerShift: hoursPerShift,
-        estimatedDays: estimatedDays,
-        estimatedNights: estimatedNights,
-        estimatedExtra1: estimatedExtra1,
-        estimatedExtra2: estimatedExtra2,
-        actualDays: savedData.actualDays ?? null,
-        actualNights: savedData.actualNights ?? null,
-        actualExtra1: savedData.actualExtra1 ?? null,
-        actualExtra2: savedData.actualExtra2 ?? null,
+        state: placementData.state || '',
+        isQldAct: placementData.is_qld_act || false,
+        agencyFeePercent: placementData.agency_fee_percent || 0,
+        onCosts: placementData.on_costs || 3.25,
+        shifts: shifts,
         notes: savedData.notes || '',
-        status: savedData.status || 'pending', // pending|processed
+        status: savedData.status || 'pending',
         sentToClickUp: savedData.sentToClickUp || false
       };
 
       timesheets.push(timesheet);
       currentDate = new Date(weekEnd);
-      currentDate.setUTCDate(currentDate.getUTCDate() + 1); // Move to next day
+      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
     }
   }
 }
@@ -2513,74 +2617,70 @@ function renderTimesheetsByDoctor(container, filteredTimesheets = null) {
 }
 
 function renderTimesheetCard(ts) {
+  if (!ts.shifts || ts.shifts.length === 0) {
+    console.warn('Timesheet has no shifts:', ts);
+    return '<div class="timesheetCard">Error: No shifts found</div>';
+  }
+
   const weekEnd = new Date(ts.weekEnd + 'T00:00:00Z');
   const weekStart = new Date(ts.weekStart + 'T00:00:00Z');
 
-  // Get placement data for rates
   const placement = events.find(e => e.id === ts.placementId);
   const placementData = placement?.placement_data || {};
   const savedData = placement?.timesheet_data?.[ts.weekStart] || {};
-
-  // Unit type labels
-  const unitType = ts.unitType || 'daily';
-  const unitLabel = unitType === 'hourly' ? 'hrs' : 'days';
-  const dayLabel = unitType === 'hourly' ? 'Day Hours' : 'Days';
-  const nightLabel = unitType === 'hourly' ? 'Night Hours' : 'Nights';
-  const extra1Label = unitType === 'hourly' ? 'Extra 1 Hours' : 'Extra 1';
-  const extra2Label = unitType === 'hourly' ? 'Extra 2 Hours' : 'Extra 2';
-
-  // Extract rates from placement or use saved overrides
-  const dayRate = savedData.dayRate ?? placementData.standard_rate ?? 0;
-  const nightRate = savedData.nightRate ?? placementData.night_rate ?? 0;
-  const extraRate1 = savedData.extraRate1 ?? placementData.extra_rate_1 ?? 0;
-  const extraRate2 = savedData.extraRate2 ?? placementData.extra_rate_2 ?? 0;
-  const chargeRate = savedData.chargeRate ?? placementData.charge_rate ?? 0;
-  const agencyFeePercent = savedData.agencyFeePercent ?? placementData.agency_fee_percent ?? 0;
   const doctorPayType = placementData.doctor_pay_type || '';
-  const allInclusiveRate = placementData.all_inclusive_rate || null;
-  const state = placementData.state || '';
 
-  // Get actual values
-  const actualDays = ts.actualDays ?? savedData.actualDays ?? null;
-  const actualNights = ts.actualNights ?? savedData.actualNights ?? null;
-  const actualExtra1 = ts.actualExtra1 ?? savedData.actualExtra1 ?? null;
-  const actualExtra2 = ts.actualExtra2 ?? savedData.actualExtra2 ?? null;
+  const agencyFeePercent = ts.agencyFeePercent || 0;
+  const state = ts.state || '';
+  const isQldAct = ts.isQldAct || false;
+  const onCosts = ts.onCosts || 3.25;
 
-  // Calculate margins - different logic for QLD/ACT vs others
-  let marginPerDay, marginPerNight, marginPerExtra1, marginPerExtra2;
-
-  if (state === 'QLD' || state === 'ACT') {
-    // QLD/ACT: Margin = Charge Rate × Agency Fee % / (1 + On-Costs % + Agency Fee %)
-    const onCosts = placementData.on_costs || 3.25;
-    const divisor = 1 + (onCosts / 100) + (agencyFeePercent / 100);
-    marginPerDay = (chargeRate * agencyFeePercent) / 100 / divisor;
-    marginPerNight = marginPerDay;  // Same per unit
-    marginPerExtra1 = marginPerDay;
-    marginPerExtra2 = marginPerDay;
-  } else {
-    // Non-QLD/ACT: Margin = Rate × Agency Fee %
-    marginPerDay = (dayRate * agencyFeePercent) / 100;
-    marginPerNight = (nightRate * agencyFeePercent) / 100;
-    marginPerExtra1 = (extraRate1 * agencyFeePercent) / 100;
-    marginPerExtra2 = (extraRate2 * agencyFeePercent) / 100;
-  }
-
-  // Estimated margins
-  const estimatedDayMargin = (ts.estimatedDays * marginPerDay);
-  const estimatedNightMargin = (ts.estimatedNights * marginPerNight);
-  const estimatedExtra1Margin = (ts.estimatedExtra1 * marginPerExtra1);
-  const estimatedExtra2Margin = (ts.estimatedExtra2 * marginPerExtra2);
-  const totalEstimatedMargin = (estimatedDayMargin + estimatedNightMargin + estimatedExtra1Margin + estimatedExtra2Margin).toFixed(2);
-
-  // Actual margins
-  const actualDayMargin = ((actualDays || 0) * marginPerDay);
-  const actualNightMargin = ((actualNights || 0) * marginPerNight);
-  const actualExtra1Margin = ((actualExtra1 || 0) * marginPerExtra1);
-  const actualExtra2Margin = ((actualExtra2 || 0) * marginPerExtra2);
-  const totalActualMargin = (actualDayMargin + actualNightMargin + actualExtra1Margin + actualExtra2Margin).toFixed(2);
+  // Calculate totals from all shifts
+  const margins = recalculateTimesheetMargins(ts.id);
+  const totalEstimatedMargin = margins.totalEstimatedMargin;
+  const totalActualMargin = margins.totalActualMargin;
+  const totalDoctorPay = margins.totalDoctorPay;
 
   const statusClass = ts.status === 'processed' ? 'processed' : (ts.status === 'overdue' ? 'overdue' : 'pending');
   const statusLabel = ts.status === 'processed' ? 'Processed' : (ts.status === 'overdue' ? 'Overdue' : 'Pending');
+
+  // Build shifts HTML
+  const shiftsHtml = ts.shifts.map(shift => {
+    let marginPerUnit = 0;
+
+    if (isQldAct) {
+      const divisor = 1 + (onCosts / 100) + (agencyFeePercent / 100);
+      marginPerUnit = (shift.chargeRate * agencyFeePercent / 100) / divisor;
+    } else {
+      marginPerUnit = shift.payRate * (agencyFeePercent / 100);
+    }
+
+    const estMargin = (shift.estimatedUnits || 0) * marginPerUnit;
+    const actMargin = (shift.actualUnits || 0) * marginPerUnit;
+
+    const unitsLabel = shift.rateType === 'hourly' ? 'hours' : 'days';
+    const estDisplay = shift.estimatedUnits ? `Est: ${shift.estimatedUnits} ${unitsLabel}` : '';
+
+    return `
+    <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px; border-left:3px solid ${shift.isOriginal ? '#2196F3' : '#FF9800'};">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
+        <div style="font-weight:600; font-size:12px;">${shift.label}</div>
+        ${!shift.isOriginal ? `<button onclick="removeAdditionalShift('${ts.id}', '${shift.id}')" style="padding:2px 8px; font-size:11px; background:#fee; border:1px solid #fcc; color:#c33; border-radius:4px; cursor:pointer;">✕ Remove</button>` : ''}
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+        ${shift.estimatedUnits ? `<div><div style="font-size:11px; color:#666;">Estimated</div><div style="font-weight:600;">${shift.estimatedUnits} ${unitsLabel}</div></div>` : '<div></div>'}
+        <div>
+          <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${unitsLabel}</label>
+          <input type="number" class="shift-actual-units" min="0" value="${shift.actualUnits ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" data-shift-id="${shift.id}" data-ts-id="${ts.id}" onchange="updateShiftActuals(this)" />
+        </div>
+        <div>
+          <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate ($)</label>
+          <input type="number" class="shift-rate" min="0" step="0.01" value="${shift.chargeRate || shift.payRate || 0}" style="width:100%; padding:4px 6px; font-size:12px;" data-shift-id="${shift.id}" data-ts-id="${ts.id}" onchange="updateShiftRate(this)" />
+        </div>
+      </div>
+      <div style="font-size:11px; color:var(--muted);">Est. Margin: <strong>$${estMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actMargin.toFixed(2)}</strong></div>
+    </div>`;
+  }).join('');
 
   return `<div class="timesheetCard" data-ts-id="${ts.id}" data-placement-id="${ts.placementId}" style="cursor:pointer;">
     <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;">
@@ -2619,94 +2719,11 @@ function renderTimesheetCard(ts) {
 
     <!-- Shift Types Section -->
     <div style="border:1px solid #e0e0e0; border-radius:8px; padding:12px; margin-bottom:12px;">
-      <div style="font-weight:600; font-size:13px; margin-bottom:12px; color:#333;">Shifts & Margins</div>
-
-      <!-- Day Shifts -->
-      <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
-          <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${dayLabel}</div>
-            <div style="padding:4px; font-weight:600;">${ts.estimatedDays}</div>
-          </div>
-          <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${dayLabel}</label>
-            <input type="number" class="ts-actual-days" min="0" value="${actualDays ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
-          </div>
-          <div>
-            ${(state === 'QLD' || state === 'ACT') ? `
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Charge Rate ($)</label>
-            <input type="number" class="ts-charge-rate-unified" min="0" step="0.01" value="${chargeRate || 0}" style="width:100%; padding:4px 6px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateChargeRate(this)" />
-            ` : `
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Doctor Pay ($)</label>
-            <input type="number" class="ts-day-rate" min="0" step="0.01" value="${dayRate}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
-            `}
-          </div>
-        </div>
-        <div style="font-size:11px; color:var(--muted);" data-margin="day-est">Est. Margin: <strong>$${estimatedDayMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualDayMargin.toFixed(2)}</strong></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="font-weight:600; font-size:13px; color:#333;">Shifts & Margins</div>
+        <button onclick="openAddShiftModal('${ts.id}')" style="padding:6px 12px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">+ Add Shift</button>
       </div>
-
-      <!-- Night Shifts -->
-      ${ts.estimatedNights > 0 || actualNights ? `
-      <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
-          <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${nightLabel}</div>
-            <div style="padding:4px; font-weight:600;">${ts.estimatedNights}</div>
-          </div>
-          <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${nightLabel}</label>
-            <input type="number" class="ts-actual-nights" min="0" value="${actualNights ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
-          </div>
-          <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate ($)</label>
-            <input type="number" class="ts-night-rate" min="0" step="0.01" value="${nightRate}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
-          </div>
-        </div>
-        <div style="font-size:11px; color:var(--muted);" data-margin="night-est">Est. Margin: <strong>$${estimatedNightMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualNightMargin.toFixed(2)}</strong></div>
-      </div>
-      ` : ''}
-
-      <!-- Extra Rate 1 -->
-      ${ts.estimatedExtra1 > 0 || actualExtra1 ? `
-      <div style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
-          <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${extra1Label}</div>
-            <div style="padding:4px; font-weight:600;">${ts.estimatedExtra1}</div>
-          </div>
-          <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${extra1Label}</label>
-            <input type="number" class="ts-actual-extra1" min="0" value="${actualExtra1 ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
-          </div>
-          <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate ($)</label>
-            <input type="number" class="ts-extra1-rate" min="0" step="0.01" value="${extraRate1}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
-          </div>
-        </div>
-        <div style="font-size:11px; color:var(--muted);" data-margin="extra1-est">Est. Margin: <strong>$${estimatedExtra1Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra1Margin.toFixed(2)}</strong></div>
-      </div>
-      ` : ''}
-
-      <!-- Extra Rate 2 -->
-      ${ts.estimatedExtra2 > 0 || actualExtra2 ? `
-      <div style="padding:10px; background:#f9f9f9; border-radius:6px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
-          <div>
-            <div style="font-size:11px; color:var(--muted); font-weight:600;">Est. ${extra2Label}</div>
-            <div style="padding:4px; font-weight:600;">${ts.estimatedExtra2}</div>
-          </div>
-          <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${extra2Label}</label>
-            <input type="number" class="ts-actual-extra2" min="0" value="${actualExtra2 ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
-          </div>
-          <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate ($)</label>
-            <input type="number" class="ts-extra2-rate" min="0" step="0.01" value="${extraRate2}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
-          </div>
-        </div>
-        <div style="font-size:11px; color:var(--muted);" data-margin="extra2-est">Est. Margin: <strong>$${estimatedExtra2Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra2Margin.toFixed(2)}</strong></div>
-      </div>
-      ` : ''}
+      ${shiftsHtml}
     </div>
 
     <!-- Margin & Pay Summary -->
@@ -2722,12 +2739,12 @@ function renderTimesheetCard(ts) {
         </div>
         <div>
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Doctor Pay (Week)</div>
-          <div style="font-size:16px; font-weight:700; color:#FF9800;" data-summary="doctor-pay-total">$0.00</div>
+          <div style="font-size:16px; font-weight:700; color:#FF9800;" data-summary="doctor-pay-total">$${totalDoctorPay}</div>
         </div>
         <div>
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Forecast Diff</div>
-          <div style="font-size:16px; font-weight:700; ${totalActualMargin - totalEstimatedMargin >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}" data-summary="forecast-diff">
-            ${(totalActualMargin - totalEstimatedMargin) >= 0 ? '+' : ''}$${(totalActualMargin - totalEstimatedMargin).toFixed(2)}
+          <div style="font-size:16px; font-weight:700; ${parseFloat(totalActualMargin) - parseFloat(totalEstimatedMargin) >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}" data-summary="forecast-diff">
+            ${parseFloat(totalActualMargin) - parseFloat(totalEstimatedMargin) >= 0 ? '+' : ''}$${(parseFloat(totalActualMargin) - parseFloat(totalEstimatedMargin)).toFixed(2)}
           </div>
         </div>
       </div>
@@ -3064,6 +3081,250 @@ function updateDoctorPay(element) {
   }
 }
 
+// ===== SHIFT MANAGEMENT FUNCTIONS =====
+
+let pendingShiftData = {
+  tsId: null,
+  placementId: null,
+  weekStart: null
+};
+
+function openAddShiftModal(tsId) {
+  const ts = timesheets.find(t => t.id === tsId);
+  if (!ts) return;
+
+  pendingShiftData = {
+    tsId: tsId,
+    placementId: ts.placementId,
+    weekStart: ts.weekStart
+  };
+
+  document.getElementById('shiftLabel').value = '';
+  document.getElementById('shiftRateType').value = 'daily';
+  document.getElementById('shiftRate').value = '';
+  document.getElementById('shiftUnits').value = '';
+  document.getElementById('shiftMarginPreview').textContent = '0.00';
+
+  updateShiftUnitsLabel();
+  document.getElementById('addShiftBackdrop').style.display = 'flex';
+}
+
+function updateShiftUnitsLabel() {
+  const rateType = document.getElementById('shiftRateType').value;
+  const unitsLabel = document.getElementById('shiftUnitsLabel');
+  const unitsInput = document.getElementById('shiftUnits');
+
+  if (rateType === 'hourly') {
+    unitsLabel.textContent = 'Units (hours)';
+    unitsInput.placeholder = '0 (hours)';
+  } else {
+    unitsLabel.textContent = 'Units (days)';
+    unitsInput.placeholder = '0 (days)';
+  }
+}
+
+function closeAddShiftModal() {
+  document.getElementById('addShiftBackdrop').style.display = 'none';
+  pendingShiftData = { tsId: null, placementId: null, weekStart: null };
+}
+
+function previewShiftMargin() {
+  const ts = timesheets.find(t => t.id === pendingShiftData.tsId);
+  if (!ts) return;
+
+  const rate = parseFloat(document.getElementById('shiftRate').value) || 0;
+  const agencyFee = ts.agencyFeePercent || 0;
+
+  let marginPerUnit = 0;
+
+  if (ts.isQldAct) {
+    const divisor = 1 + (ts.onCosts / 100) + (agencyFee / 100);
+    marginPerUnit = (rate * agencyFee / 100) / divisor;
+  } else {
+    marginPerUnit = rate * (agencyFee / 100);
+  }
+
+  const units = parseFloat(document.getElementById('shiftUnits').value) || 0;
+  const totalMargin = marginPerUnit * units;
+
+  document.getElementById('shiftMarginPreview').textContent = totalMargin.toFixed(2);
+}
+
+function confirmAddShift() {
+  const label = document.getElementById('shiftLabel').value.trim();
+  const rateType = document.getElementById('shiftRateType').value;
+  const rate = parseFloat(document.getElementById('shiftRate').value);
+  const units = parseFloat(document.getElementById('shiftUnits').value);
+
+  if (!label) {
+    alert('Please enter a shift label');
+    return;
+  }
+  if (isNaN(rate) || rate < 0) {
+    alert('Please enter a valid rate');
+    return;
+  }
+  if (isNaN(units) || units < 0) {
+    alert('Please enter valid units');
+    return;
+  }
+
+  const ts = timesheets.find(t => t.id === pendingShiftData.tsId);
+  if (!ts) return;
+
+  // Create new shift
+  const newShift = {
+    id: 'shift_extra_' + Date.now(),
+    type: 'custom',
+    label: label,
+    isOriginal: false,
+    chargeRate: ts.isQldAct ? rate : null,
+    payRate: !ts.isQldAct ? rate : null,
+    rateType: rateType,
+    estimatedUnits: null,
+    actualUnits: units,
+    hoursPerShift: 8
+  };
+
+  ts.shifts.push(newShift);
+
+  // Save to placement
+  const placement = events.find(e => e.id === ts.placementId);
+  if (placement) {
+    if (!placement.timesheet_data) placement.timesheet_data = {};
+    if (!placement.timesheet_data[ts.weekStart]) placement.timesheet_data[ts.weekStart] = {};
+
+    if (!placement.timesheet_data[ts.weekStart].additionalShifts) {
+      placement.timesheet_data[ts.weekStart].additionalShifts = [];
+    }
+    placement.timesheet_data[ts.weekStart].additionalShifts.push(newShift);
+    saveEvents(events);
+  }
+
+  closeAddShiftModal();
+  renderTimesheets();
+}
+
+function removeAdditionalShift(tsId, shiftId) {
+  const ts = timesheets.find(t => t.id === tsId);
+  if (!ts) return;
+
+  const shiftIdx = ts.shifts.findIndex(s => s.id === shiftId);
+  if (shiftIdx < 0) return;
+
+  ts.shifts.splice(shiftIdx, 1);
+
+  // Save to placement
+  const placement = events.find(e => e.id === ts.placementId);
+  if (placement) {
+    if (!placement.timesheet_data) placement.timesheet_data = {};
+    if (!placement.timesheet_data[ts.weekStart]) placement.timesheet_data[ts.weekStart] = {};
+
+    placement.timesheet_data[ts.weekStart].additionalShifts = ts.shifts.filter(s => !s.isOriginal);
+    saveEvents(events);
+  }
+
+  renderTimesheets();
+}
+
+function updateShiftActuals(input) {
+  const tsId = input.dataset.tsId;
+  const shiftId = input.dataset.shiftId;
+  const ts = timesheets.find(t => t.id === tsId);
+  if (!ts) return;
+
+  const shift = ts.shifts.find(s => s.id === shiftId);
+  if (!shift) return;
+
+  shift.actualUnits = parseFloat(input.value) || null;
+
+  // Save to Firebase
+  const placement = events.find(e => e.id === ts.placementId);
+  if (placement) {
+    if (!placement.timesheet_data) placement.timesheet_data = {};
+    if (!placement.timesheet_data[ts.weekStart]) placement.timesheet_data[ts.weekStart] = {};
+    placement.timesheet_data[ts.weekStart].additionalShifts = ts.shifts.filter(s => !s.isOriginal);
+    saveEvents(events);
+  }
+
+  // Update the card display
+  const card = document.querySelector(`[data-ts-id="${tsId}"]`);
+  if (card) {
+    updateTimesheetMargins(card);
+  }
+}
+
+function updateShiftRate(input) {
+  const tsId = input.dataset.tsId;
+  const shiftId = input.dataset.shiftId;
+  const ts = timesheets.find(t => t.id === tsId);
+  if (!ts) return;
+
+  const shift = ts.shifts.find(s => s.id === shiftId);
+  if (!shift) return;
+
+  const newRate = parseFloat(input.value) || 0;
+  if (ts.isQldAct) {
+    shift.chargeRate = newRate;
+  } else {
+    shift.payRate = newRate;
+  }
+
+  // Save to Firebase
+  const placement = events.find(e => e.id === ts.placementId);
+  if (placement) {
+    if (!placement.timesheet_data) placement.timesheet_data = {};
+    if (!placement.timesheet_data[ts.weekStart]) placement.timesheet_data[ts.weekStart] = {};
+    placement.timesheet_data[ts.weekStart].additionalShifts = ts.shifts.filter(s => !s.isOriginal);
+    saveEvents(events);
+  }
+
+  // Update the card display
+  const card = document.querySelector(`[data-ts-id="${tsId}"]`);
+  if (card) {
+    updateTimesheetMargins(card);
+  }
+}
+
+function recalculateTimesheetMargins(tsId) {
+  const ts = timesheets.find(t => t.id === tsId);
+  if (!ts || !ts.shifts) return;
+
+  let totalEstimatedMargin = 0;
+  let totalActualMargin = 0;
+  let totalDoctorPay = 0;
+
+  for (const shift of ts.shifts) {
+    let marginPerUnit = 0;
+    let doctorPayPerUnit = 0;
+
+    if (ts.isQldAct) {
+      const divisor = 1 + (ts.onCosts / 100) + (ts.agencyFeePercent / 100);
+      marginPerUnit = (shift.chargeRate * ts.agencyFeePercent / 100) / divisor;
+      doctorPayPerUnit = shift.chargeRate / divisor;
+    } else {
+      marginPerUnit = shift.payRate * (ts.agencyFeePercent / 100);
+      doctorPayPerUnit = shift.payRate;
+    }
+
+    if (shift.estimatedUnits) {
+      totalEstimatedMargin += shift.estimatedUnits * marginPerUnit;
+    }
+
+    if (shift.actualUnits) {
+      totalActualMargin += shift.actualUnits * marginPerUnit;
+      totalDoctorPay += shift.actualUnits * doctorPayPerUnit;
+    }
+  }
+
+  return {
+    totalEstimatedMargin: totalEstimatedMargin.toFixed(2),
+    totalActualMargin: totalActualMargin.toFixed(2),
+    totalDoctorPay: totalDoctorPay.toFixed(2),
+    forecastDiff: (totalActualMargin - totalEstimatedMargin).toFixed(2)
+  };
+}
+
 function addTimesheetListeners() {
   // Click card to open placement details
   document.querySelectorAll('.timesheetCard').forEach(card => {
@@ -3080,17 +3341,24 @@ function addTimesheetListeners() {
     });
   });
 
-  // Live margin updates on input change (removed old QLD/ACT specific selectors - now unified)
-  document.querySelectorAll('.timesheetCard').forEach(card => {
-    const inputs = card.querySelectorAll(
-      '.ts-actual-days, .ts-actual-nights, .ts-actual-extra1, .ts-actual-extra2, ' +
-      '.ts-day-rate, .ts-night-rate, .ts-extra1-rate, .ts-extra2-rate, ' +
-      '.ts-agency-fee, .ts-charge-rate-unified, .ts-doctor-pay-unified'
-    );
-    inputs.forEach(input => {
-      input.addEventListener('input', () => {
+  // Live margin updates on shift input change
+  document.querySelectorAll('.shift-actual-units, .shift-rate').forEach(input => {
+    input.addEventListener('input', () => {
+      const tsId = input.dataset.tsId;
+      const card = document.querySelector(`[data-ts-id="${tsId}"]`);
+      if (card) {
         updateTimesheetMargins(card);
-      });
+      }
+    });
+  });
+
+  // Live margin updates on agency fee change
+  document.querySelectorAll('.ts-agency-fee').forEach(input => {
+    input.addEventListener('input', () => {
+      const card = input.closest('.timesheetCard');
+      if (card) {
+        updateTimesheetMargins(card);
+      }
     });
   });
 
@@ -3102,40 +3370,25 @@ function addTimesheetListeners() {
       const ts = timesheets.find(t => t.id === tsId);
 
       if (ts) {
-        ts.actualDays = parseInt(card.querySelector('.ts-actual-days').value) || null;
-        ts.actualNights = parseInt(card.querySelector('.ts-actual-nights').value) || null;
-        ts.actualExtra1 = parseInt(card.querySelector('.ts-actual-extra1').value) || null;
-        ts.actualExtra2 = parseInt(card.querySelector('.ts-actual-extra2').value) || null;
         ts.notes = card.querySelector('.ts-notes').value;
-
-        const dayRate = parseFloat(card.querySelector('.ts-day-rate').value) || 0;
-        const nightRate = parseFloat(card.querySelector('.ts-night-rate').value) || 0;
-        const extraRate1 = parseFloat(card.querySelector('.ts-extra1-rate').value) || 0;
-        const extraRate2 = parseFloat(card.querySelector('.ts-extra2-rate').value) || 0;
-        const agencyFeePercent = parseFloat(card.querySelector('.ts-agency-fee').value) || 0;
 
         // Persist timesheet data to the placement event
         const placement = events.find(e => e.id === ts.placementId);
         if (placement) {
           if (!placement.timesheet_data) placement.timesheet_data = {};
-          placement.timesheet_data[ts.weekStart] = {
-            actualDays: ts.actualDays,
-            actualNights: ts.actualNights,
-            actualExtra1: ts.actualExtra1,
-            actualExtra2: ts.actualExtra2,
-            notes: ts.notes,
-            dayRate: dayRate,
-            nightRate: nightRate,
-            extraRate1: extraRate1,
-            extraRate2: extraRate2,
-            agencyFeePercent: agencyFeePercent,
-            status: ts.status
-          };
+          if (!placement.timesheet_data[ts.weekStart]) placement.timesheet_data[ts.weekStart] = {};
+
+          // Save all shifts (original + additional)
+          placement.timesheet_data[ts.weekStart].shifts = ts.shifts;
+          placement.timesheet_data[ts.weekStart].additionalShifts = ts.shifts.filter(s => !s.isOriginal);
+          placement.timesheet_data[ts.weekStart].notes = ts.notes;
+          placement.timesheet_data[ts.weekStart].status = ts.status;
+
           saveEvents(events);
         }
 
         alert('Timesheet saved!');
-        renderTimesheets(); // Re-render
+        renderTimesheets();
       }
     });
   });
