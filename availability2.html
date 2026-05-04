@@ -919,42 +919,21 @@
         </div>
       </div>
 
-      <!-- QLD/ACT Pricing Section - Simplified -->
-      <div id="qldActPricingSection" style="display:none; background:#e8f5e9; padding:12px; border-radius:8px; border:1px solid #81c784;">
-        <div class="field full">
-          <label style="font-weight:600;">Daily/Hourly Charge Rate ($)</label>
-          <input type="number" id="qldActChargeRate" placeholder="200" min="0" step="0.01" oninput="updateQldActCalculations()" />
-          <div style="font-size:11px; color:#666; margin-top:4px;">All-inclusive rate per day or hour (applies to all shift types)</div>
-        </div>
-
+      <!-- QLD/ACT On-Costs & Agency Fee (Charge Rate Moved to Step 3) -->
+      <div id="qldActOnCostsSection" style="display:none; background:#e8f5e9; padding:12px; border-radius:8px; border:1px solid #81c784;">
         <div class="field full">
           <label style="font-weight:600;">Agency Fee (%)</label>
-          <input type="number" id="qldActAgencyFeePercent" placeholder="15" min="0" max="100" step="0.1" oninput="updateQldActCalculations()" />
+          <input type="number" id="qldActAgencyFeePercent" placeholder="15" min="0" max="100" step="0.1" />
         </div>
 
         <div class="field full">
           <label style="font-weight:600;">On-Costs (%)</label>
-          <input type="number" id="qldActOnCosts" placeholder="3.25" min="0" step="0.01" value="3.25" oninput="updateQldActCalculations()" />
+          <input type="number" id="qldActOnCosts" placeholder="3.25" min="0" step="0.01" value="3.25" />
           <div style="font-size:11px; color:#666; margin-top:4px;">Default: 3.25% (workers comp, super, etc.)</div>
         </div>
 
-        <!-- Calculated Fields Display -->
-        <div style="background:#fff; padding:12px; border-radius:6px; margin-top:12px; border:1px solid #c8e6c9;">
-          <div style="font-weight:600; margin-bottom:10px; font-size:13px;">Calculated Breakdown (per day/hour):</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-            <div style="font-size:12px;">
-              <div style="color:#666; font-size:11px; margin-bottom:2px;">Doctor Pay Inc Super:</div>
-              <div style="font-weight:600; color:#2196F3;">$<span id="qldActDoctorPayDisplay">0.00</span></div>
-            </div>
-            <div style="font-size:12px;">
-              <div style="color:#666; font-size:11px; margin-bottom:2px;">On-Costs Amount:</div>
-              <div style="font-weight:600; color:#FF9800;">$<span id="qldActOnCostsAmtDisplay">0.00</span></div>
-            </div>
-            <div style="font-size:12px;">
-              <div style="color:#666; font-size:11px; margin-bottom:2px;">Margin ($):</div>
-              <div style="font-weight:600; color:#4CAF50;">$<span id="qldActMarginDisplay">0.00</span></div>
-            </div>
-          </div>
+        <div style="font-size:11px; color:#666; margin-top:8px; padding:8px; background:#fff; border-radius:4px; border-left:3px solid #81c784;">
+          💡 <strong>Note:</strong> Charge rate is entered in the next step (Select Working Days) alongside your actual shifts.
         </div>
       </div>
     </div>
@@ -1114,37 +1093,17 @@
         </div>
       </div>
 
-      <!-- QLD/ACT Charge Rates Quick Edit -->
-      <div id="qldActRatesQuickEdit" style="background: #c8e6c9; padding: 12px; border-radius: 8px; margin-top: 12px; border: 2px solid #81c784; display:none;">
-        <div style="font-size: 12px; font-weight: 600; margin-bottom: 10px;">📊 Current Charge Rates & Quick Edit</div>
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 12px;">
-          <div style="background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #81c784;">
-            <label style="display: block; margin-bottom: 3px; color: #666;">☀️ Day Charge Rate</label>
-            <div style="display: flex; align-items: center; gap: 4px;">
-              <span style="font-weight: 600;">$</span>
-              <input type="number" id="quickEditQldActDayRate" style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateQuickEditRate('day')" />
+      <!-- QLD/ACT Charge Rate Input (Unified) -->
+      <div id="qldActChargeRateSection" style="background: #c8e6c9; padding: 12px; border-radius: 8px; margin-top: 12px; border: 2px solid #81c784; display:none;">
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 10px;">💰 Charge Rate (All Shift Types)</div>
+        <div style="display: grid; grid-template-columns: 1fr; gap: 10px; font-size: 12px;">
+          <div style="background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #81c784;">
+            <label style="display: block; margin-bottom: 6px; color: #666; font-weight: 600;">Daily/Hourly Charge Rate</label>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-weight: 600; font-size: 14px;">$</span>
+              <input type="number" id="dayPickerQldActChargeRate" placeholder="200" min="0" step="0.01" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;" />
             </div>
-          </div>
-          <div style="background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #81c784;">
-            <label style="display: block; margin-bottom: 3px; color: #666;">🌙 Night Charge Rate</label>
-            <div style="display: flex; align-items: center; gap: 4px;">
-              <span style="font-weight: 600;">$</span>
-              <input type="number" id="quickEditQldActNightRate" style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateQuickEditRate('night')" />
-            </div>
-          </div>
-          <div style="background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #81c784;">
-            <label style="display: block; margin-bottom: 3px; color: #666;">➕ Extra Rate 1 Charge</label>
-            <div style="display: flex; align-items: center; gap: 4px;">
-              <span style="font-weight: 600;">$</span>
-              <input type="number" id="quickEditQldActExtra1Rate" style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateQuickEditRate('extra1')" />
-            </div>
-          </div>
-          <div style="background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #81c784;">
-            <label style="display: block; margin-bottom: 3px; color: #666;">➕➕ Extra Rate 2 Charge</label>
-            <div style="display: flex; align-items: center; gap: 4px;">
-              <span style="font-weight: 600;">$</span>
-              <input type="number" id="quickEditQldActExtra2Rate" style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateQuickEditRate('extra2')" />
-            </div>
+            <div style="font-size: 10px; color: #666; margin-top: 4px;">All-inclusive rate per day or hour (applies to all shift types)</div>
           </div>
         </div>
       </div>
@@ -2579,6 +2538,25 @@ function renderTimesheetCard(ts) {
   const actualExtra2Margin = ((actualExtra2 || 0) * marginPerExtra2);
   const totalActualMargin = (actualDayMargin + actualNightMargin + actualExtra1Margin + actualExtra2Margin).toFixed(2);
 
+  // Calculate Doctor Pay (for this week)
+  let totalDoctorPay = 0;
+  if (state === 'QLD' || state === 'ACT') {
+    // QLD/ACT: Doctor Pay = Charge Rate / (1 + On-Costs % + Agency Fee %)
+    const onCosts = placementData.on_costs || 3.25;
+    const divisor = 1 + (onCosts / 100) + (agencyFeePercent / 100);
+    const doctorPayPerUnit = chargeRate / divisor;
+    // Use actual values if available, otherwise use estimated
+    const totalUnits = (actualDays || ts.estimatedDays || 0) + (actualNights || ts.estimatedNights || 0) +
+                       (actualExtra1 || ts.estimatedExtra1 || 0) + (actualExtra2 || ts.estimatedExtra2 || 0);
+    totalDoctorPay = totalUnits * doctorPayPerUnit;
+  } else {
+    // Non-QLD/ACT: Doctor Pay = sum of (actual units × rate for each shift type)
+    totalDoctorPay = ((actualDays || ts.estimatedDays || 0) * dayRate) +
+                     ((actualNights || ts.estimatedNights || 0) * nightRate) +
+                     ((actualExtra1 || ts.estimatedExtra1 || 0) * extraRate1) +
+                     ((actualExtra2 || ts.estimatedExtra2 || 0) * extraRate2);
+  }
+
   const statusClass = ts.status === 'processed' ? 'processed' : (ts.status === 'overdue' ? 'overdue' : 'pending');
   const statusLabel = ts.status === 'processed' ? 'Processed' : (ts.status === 'overdue' ? 'Overdue' : 'Pending');
 
@@ -2722,7 +2700,7 @@ function renderTimesheetCard(ts) {
         </div>
         <div>
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Doctor Pay (Week)</div>
-          <div style="font-size:16px; font-weight:700; color:#FF9800;" data-summary="doctor-pay-total">$0.00</div>
+          <div style="font-size:16px; font-weight:700; color:#FF9800;" data-summary="doctor-pay-total">$${totalDoctorPay.toFixed(2)}</div>
         </div>
         <div>
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Forecast Diff</div>
@@ -6807,13 +6785,8 @@ function handleStateChange() {
   const state = document.getElementById('placementState').value;
   const isQldAct = state === 'QLD' || state === 'ACT';
   document.getElementById('standardRatesSection').style.display = isQldAct ? 'none' : 'block';
-  document.getElementById('qldActPricingSection').style.display = isQldAct ? 'block' : 'none';
+  document.getElementById('qldActOnCostsSection').style.display = isQldAct ? 'block' : 'none';
   document.getElementById('standardRatesQuickEdit').style.display = isQldAct ? 'none' : 'block';
-  // Keep QLD/ACT Quick Edit hidden - charge rate is set in Step 2, no need for per-shift adjustment
-  document.getElementById('qldActRatesQuickEdit').style.display = 'none';
-  if (isQldAct) {
-    updateQldActCalculations();
-  }
 }
 
 function updateQldActCalculations() {
@@ -6889,16 +6862,9 @@ function proceedToDaySelection() {
   }
 
   if (isQldAct) {
-    // Simplified: single charge rate for all shift types
-    placementWorkflow.chargeRate = parseFloat(document.getElementById('qldActChargeRate').value) || 0;
     placementWorkflow.agencyFeePercent = parseFloat(document.getElementById('qldActAgencyFeePercent').value) || 0;
     placementWorkflow.onCosts = parseFloat(document.getElementById('qldActOnCosts').value) || 3.25;
     placementWorkflow.isQldAct = true;
-
-    if (!placementWorkflow.chargeRate) {
-      alert('Please enter a charge rate');
-      return;
-    }
   } else {
     placementWorkflow.standardRate = parseFloat(document.getElementById('standardRate').value) || 0;
     placementWorkflow.nightRate = parseFloat(document.getElementById('nightRate').value) || 0;
@@ -6920,6 +6886,13 @@ function proceedToDaySelection() {
   }
   updateDayPickerStats();
   renderDayPicker();
+
+  // Show/hide charge rate section for QLD/ACT in Step 3
+  document.getElementById('qldActChargeRateSection').style.display = isQldAct ? 'block' : 'none';
+  // Pre-fill charge rate if it was previously entered
+  if(isQldAct && placementWorkflow.chargeRate) {
+    document.getElementById('dayPickerQldActChargeRate').value = placementWorkflow.chargeRate;
+  }
 
   document.getElementById('rateSelectionBackdrop').style.display = 'none';
   document.getElementById('dayPickerBackdrop').style.display = 'flex';
@@ -7407,6 +7380,17 @@ function proceedToPlacementDetails() {
     if(selectedArray.length === 0) {
       alert('Please select at least one working day');
       return;
+    }
+
+    // For QLD/ACT, get charge rate from Step 3 input
+    if(placementWorkflow.isQldAct) {
+      const chargeRateInput = document.getElementById('dayPickerQldActChargeRate');
+      placementWorkflow.chargeRate = parseFloat(chargeRateInput?.value) || 0;
+
+      if(!placementWorkflow.chargeRate) {
+        alert('Please enter a charge rate');
+        return;
+      }
     }
 
     const startDate = selectedArray[0];
