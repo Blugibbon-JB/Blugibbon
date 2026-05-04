@@ -2842,46 +2842,45 @@ function renderTimesheetCard(ts) {
       <div data-additional-shifts-container style="margin-top:12px;">
         ${(savedData.additional_shifts || []).map((shift, idx) => {
           const shiftAmount = (shift.units || 0) * (shift.charge_rate || 0);
+          const doctorPayIncSuper = isQldAct
+            ? shiftAmount / (1 + (onCosts/100) + (agencyFeePercent/100))
+            : (shift.doctor_pay || 0);
           let shiftMargin = 0;
 
           if (isQldAct) {
-            const doctorPayIncSuper = shiftAmount / (1 + (onCosts/100) + (agencyFeePercent/100));
             const onCostsAmount = doctorPayIncSuper * (onCosts/100);
             const agencyFeeAmount = shiftAmount * (agencyFeePercent/100);
             shiftMargin = shiftAmount - doctorPayIncSuper - onCostsAmount - agencyFeeAmount;
           } else {
-            shiftMargin = shiftAmount - (shift.doctor_pay || 0);
+            shiftMargin = shiftAmount - doctorPayIncSuper;
           }
 
           return `
-          <div class="ts-additional-shift" data-shift-index="${idx}" style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px; border-left:3px solid #FF9800;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <div style="font-weight:600; font-size:12px;">
-                ${shift.shift_type === 'hourly' ? '⏰ Hourly' : '📅 Day'} Shift - ${shift.units} ${shift.shift_type === 'hourly' ? 'hrs' : 'days'}
+          <div class="ts-additional-shift" data-shift-index="${idx}" style="padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:10px;">
+            <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr auto; gap:10px; align-items:flex-end;">
+              <div>
+                <div style="font-size:11px; color:var(--muted); font-weight:600; margin-bottom:2px;">Added ${shift.shift_type === 'hourly' ? 'Hour' : 'Day'} Shift</div>
+                <div style="font-weight:600; font-size:12px;">+${shift.units} ${shift.shift_type === 'hourly' ? 'hrs' : 'days'}</div>
               </div>
-              <button class="ts-delete-shift-btn" data-shift-index="${idx}" style="background:#f44336; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:11px;">Delete</button>
-            </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+              <div>
+                <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Act. ${shift.shift_type === 'hourly' ? 'Hours' : 'Days'}</label>
+                <input type="number" class="ts-shift-units" data-shift-index="${idx}" min="0" step="0.5" value="${shift.units || 0}" style="width:100%; padding:4px 6px; font-size:12px; border:1px solid #ccc; border-radius:4px;" />
+              </div>
               <div>
                 <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Charge Rate</label>
-                <input type="number" class="ts-shift-charge-rate" data-shift-index="${idx}" min="0" step="0.01" value="${shift.charge_rate || 0}" style="width:100%; padding:4px 6px; font-size:12px;" />
+                <input type="number" class="ts-shift-charge-rate" data-shift-index="${idx}" min="0" step="0.01" value="${shift.charge_rate || 0}" style="width:100%; padding:4px 6px; font-size:12px; border:1px solid #ccc; border-radius:4px;" />
               </div>
               <div>
-                <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">${isQldAct ? 'Doctor Pay Inc Super' : 'Doctor Pay'}</label>
-                <div style="padding:4px; font-weight:600; font-size:12px;">
-                  ${isQldAct ? '$' + (shiftAmount / (1 + (onCosts/100) + (agencyFeePercent/100))).toFixed(2) : '$' + (shift.doctor_pay || 0).toFixed(2)}
-                </div>
+                <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Doctor Pay Inc Super</label>
+                <div style="padding:4px 6px; font-weight:600; font-size:12px; color:#2196F3;">$${doctorPayIncSuper.toFixed(2)}</div>
               </div>
               <div>
-                <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Total</label>
-                <div style="padding:4px; font-weight:600; font-size:12px; color:#2196F3;">$${shiftAmount.toFixed(2)}</div>
-              </div>
-              <div>
-                <div style="font-size:11px; color:var(--muted); font-weight:600;">Margin</div>
-                <div style="padding:4px; font-weight:600; font-size:12px; ${shiftMargin >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
+                <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Margin</label>
+                <div style="padding:4px 6px; font-weight:600; font-size:12px; ${shiftMargin >= 0 ? 'color:#4CAF50;' : 'color:#f44336;'}">
                   ${shiftMargin >= 0 ? '+' : ''}$${shiftMargin.toFixed(2)}
                 </div>
               </div>
+              <button class="ts-delete-shift-btn" data-shift-index="${idx}" style="background:#f44336; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:600; align-self:flex-end;">Delete</button>
             </div>
           </div>
           `;
