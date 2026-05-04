@@ -2885,18 +2885,19 @@ function updateTimesheetMargins(card) {
 
   // Calculate additional shifts margin
   let additionalShiftsMargin = 0;
-  const isQldAct = placementData.is_qld_act || false;
+  const state = placementData.state || '';
   if (savedData.additional_shifts && savedData.additional_shifts.length > 0) {
-    const onCosts = savedData.onCosts || 3.25;
+    const onCosts = placementData.on_costs || 3.25;
     for (const shift of savedData.additional_shifts) {
       const shiftAmount = (shift.units || 0) * (shift.charge_rate || 0);
-      if (isQldAct) {
-        const doctorPayIncSuper = shiftAmount / (1 + (onCosts/100) + (agencyFeePercent/100));
-        const onCostsAmount = doctorPayIncSuper * (onCosts/100);
-        const agencyFeeAmount = shiftAmount * (agencyFeePercent/100);
-        additionalShiftsMargin += shiftAmount - doctorPayIncSuper - onCostsAmount - agencyFeeAmount;
+      if (state === 'QLD' || state === 'ACT') {
+        // QLD/ACT: Margin = Charge Rate × Agency Fee % / (1 + On-Costs % + Agency Fee %)
+        const shiftMargin = (shift.charge_rate * agencyFeePercent) / 100 / (1 + (onCosts/100) + (agencyFeePercent/100));
+        additionalShiftsMargin += (shift.units || 0) * shiftMargin;
       } else {
-        additionalShiftsMargin += shiftAmount - (shift.doctor_pay || 0);
+        // Non-QLD/ACT: Margin = Rate × Agency Fee %
+        const shiftMargin = (shift.charge_rate * agencyFeePercent) / 100;
+        additionalShiftsMargin += (shift.units || 0) * shiftMargin;
       }
     }
   }
@@ -2986,41 +2987,38 @@ function updateTimesheetMargins(card) {
 
   // Calculate Total Doctor Pay Inc Super $ from actual units
   let totalDoctorPay = 0;
-  const onCostsInput = card.querySelector('.ts-on-costs');
-  const agencyFeeInput = card.querySelector('.ts-agency-fee-qld');
-  const onCostsVal = parseFloat(onCostsInput?.value) || 3.25;
-  const agencyFeeVal = parseFloat(agencyFeeInput?.value) || 0;
-  const divisor = 1 + (onCostsVal / 100) + (agencyFeeVal / 100);
+  const onCosts = placementData.on_costs || 3.25;
 
-  // Day shift doctor pay
-  if (ts.actualDays) {
-    const dayTotal = (ts.actualDays || 0) * dayRate;
-    totalDoctorPay += dayTotal / divisor;
-  }
+  if (state === 'QLD' || state === 'ACT') {
+    // QLD/ACT: Doctor Pay = Charge Rate / (1 + On-Costs % + Agency Fee %)
+    const divisor = 1 + (onCosts / 100) + (agencyFeePercent / 100);
+    const chargeRate = parseFloat(card.querySelector('.ts-charge-rate-unified')?.value) || 0;
+    const doctorPayPerUnit = chargeRate / divisor;
 
-  // Night shift doctor pay
-  if (ts.actualNights) {
-    const nightTotal = (ts.actualNights || 0) * nightRate;
-    totalDoctorPay += nightTotal / divisor;
-  }
+    totalDoctorPay = (ts.actualDays || 0) * doctorPayPerUnit +
+                     (ts.actualNights || 0) * doctorPayPerUnit +
+                     (ts.actualExtra1 || 0) * doctorPayPerUnit +
+                     (ts.actualExtra2 || 0) * doctorPayPerUnit;
 
-  // Extra1 shift doctor pay
-  if (ts.actualExtra1) {
-    const extra1Total = (ts.actualExtra1 || 0) * extraRate1;
-    totalDoctorPay += extra1Total / divisor;
-  }
+    // Add additional shifts doctor pay
+    if (savedData.additional_shifts && savedData.additional_shifts.length > 0) {
+      for (const shift of savedData.additional_shifts) {
+        const shiftDoctorPayPerUnit = (shift.charge_rate || 0) / divisor;
+        totalDoctorPay += (shift.units || 0) * shiftDoctorPayPerUnit;
+      }
+    }
+  } else {
+    // Non-QLD/ACT: Doctor Pay = sum of (actual units × rate for each shift type)
+    totalDoctorPay = ((ts.actualDays || 0) * dayRate) +
+                     ((ts.actualNights || 0) * nightRate) +
+                     ((ts.actualExtra1 || 0) * extraRate1) +
+                     ((ts.actualExtra2 || 0) * extraRate2);
 
-  // Extra2 shift doctor pay
-  if (ts.actualExtra2) {
-    const extra2Total = (ts.actualExtra2 || 0) * extraRate2;
-    totalDoctorPay += extra2Total / divisor;
-  }
-
-  // Add additional shifts doctor pay
-  if (savedData.additional_shifts && savedData.additional_shifts.length > 0) {
-    for (const shift of savedData.additional_shifts) {
-      const shiftTotal = (shift.units || 0) * (shift.charge_rate || 0);
-      totalDoctorPay += shiftTotal / divisor;
+    // Add additional shifts doctor pay
+    if (savedData.additional_shifts && savedData.additional_shifts.length > 0) {
+      for (const shift of savedData.additional_shifts) {
+        totalDoctorPay += (shift.units || 0) * (shift.charge_rate || 0);
+      }
     }
   }
 
@@ -3276,6 +3274,14 @@ function addTimesheetListeners() {
 
   // Update shift charge rate in real-time
   document.querySelectorAll('.ts-shift-charge-rate').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const card = e.target.closest('.timesheetCard');
+      if (card) updateTimesheetMargins(card);
+    });
+  });
+
+  // Update shift units in real-time
+  document.querySelectorAll('.ts-shift-units').forEach(input => {
     input.addEventListener('input', (e) => {
       const card = e.target.closest('.timesheetCard');
       if (card) updateTimesheetMargins(card);
