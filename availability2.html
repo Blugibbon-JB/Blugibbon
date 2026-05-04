@@ -2607,17 +2607,6 @@ function renderTimesheetCard(ts) {
           <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Agency Fee %</label>
           <input type="number" class="ts-agency-fee" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateAgencyFee(this)" />
         </div>
-        ${(state === 'QLD' || state === 'ACT') ? `
-        <div style="flex:1; min-width:150px;">
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Charge Rate ($)</label>
-          <input type="number" class="ts-charge-rate-unified" min="0" step="0.01" value="${chargeRate || 0}" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateChargeRate(this)" />
-        </div>
-        ` : `
-        <div style="flex:1; min-width:150px;">
-          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Doctor Pay ($)</label>
-          <input type="number" class="ts-doctor-pay-unified" min="0" step="0.01" value="${dayRate || 0}" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateDoctorPay(this)" />
-        </div>
-        `}
       </div>
     </div>
 
@@ -2638,8 +2627,13 @@ function renderTimesheetCard(ts) {
             <input type="number" class="ts-actual-days" min="0" value="${actualDays ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
           </div>
           <div>
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate ($)</label>
+            ${(state === 'QLD' || state === 'ACT') ? `
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Charge Rate ($)</label>
+            <input type="number" class="ts-charge-rate-unified" min="0" step="0.01" value="${chargeRate || 0}" style="width:100%; padding:4px 6px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateChargeRate(this)" />
+            ` : `
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Doctor Pay ($)</label>
             <input type="number" class="ts-day-rate" min="0" step="0.01" value="${dayRate}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
+            `}
           </div>
         </div>
         <div style="font-size:11px; color:var(--muted);" data-margin="day-est">Est. Margin: <strong>$${estimatedDayMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualDayMargin.toFixed(2)}</strong></div>
@@ -2709,16 +2703,20 @@ function renderTimesheetCard(ts) {
       ` : ''}
     </div>
 
-    <!-- Margin Summary -->
+    <!-- Margin & Pay Summary -->
     <div style="background:#f0f7ff; padding:12px; border-radius:8px; margin-bottom:12px; border-left:4px solid #2196F3;">
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:12px;">
         <div>
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Estimated Total</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Estimated Margin</div>
           <div style="font-size:16px; font-weight:700; color:#2196F3;" data-summary="est-total">$${totalEstimatedMargin}</div>
         </div>
         <div>
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Actual Total</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Actual Margin</div>
           <div style="font-size:16px; font-weight:700; color:#4CAF50;" data-summary="act-total">$${totalActualMargin}</div>
+        </div>
+        <div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Doctor Pay (Week)</div>
+          <div style="font-size:16px; font-weight:700; color:#FF9800;" data-summary="doctor-pay-total">$0.00</div>
         </div>
         <div>
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Forecast Diff</div>
@@ -2841,12 +2839,30 @@ function updateTimesheetMargins(card) {
     if (extra2MarginEl) extra2MarginEl.innerHTML = `Est. Margin: <strong>$${estimatedExtra2Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra2Margin.toFixed(2)}</strong>`;
   }
 
+  // Calculate Doctor Pay for actual worked units
+  let totalDoctorPay = 0;
+  if (state === 'QLD' || state === 'ACT') {
+    // For QLD/ACT: Doctor Pay = Charge Rate / (1 + On-Costs % + Agency Fee %)
+    const onCosts = placementData.on_costs || 3.25;
+    const divisor = 1 + (onCosts / 100) + (agencyFeePercent / 100);
+    const doctorPayPerUnit = chargeRate / divisor;
+    totalDoctorPay = (ts.actualDays || 0) * doctorPayPerUnit + (ts.actualNights || 0) * doctorPayPerUnit +
+                     (ts.actualExtra1 || 0) * doctorPayPerUnit + (ts.actualExtra2 || 0) * doctorPayPerUnit;
+  } else {
+    // For non-QLD/ACT: Doctor Pay = sum of (actual units × rate for each shift type)
+    totalDoctorPay = ((ts.actualDays || 0) * dayRate) + ((ts.actualNights || 0) * nightRate) +
+                     ((ts.actualExtra1 || 0) * extraRate1) + ((ts.actualExtra2 || 0) * extraRate2);
+  }
+
   // Update summary section at the bottom
   const summaryEstEl = card.querySelector('[data-summary="est-total"]');
   if (summaryEstEl) summaryEstEl.textContent = `$${totalEstimatedMargin}`;
 
   const summaryActEl = card.querySelector('[data-summary="act-total"]');
   if (summaryActEl) summaryActEl.textContent = `$${totalActualMargin}`;
+
+  const summaryDoctorPayEl = card.querySelector('[data-summary="doctor-pay-total"]');
+  if (summaryDoctorPayEl) summaryDoctorPayEl.textContent = `$${totalDoctorPay.toFixed(2)}`;
 
   const summaryForecastEl = card.querySelector('[data-summary="forecast-diff"]');
   if (summaryForecastEl) {
