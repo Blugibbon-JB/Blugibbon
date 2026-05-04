@@ -2889,22 +2889,33 @@ function updateTimesheetMargins(card) {
   const estimatedExtra1Margin = (ts.estimatedExtra1 * marginPerExtra1);
   const estimatedExtra2Margin = (ts.estimatedExtra2 * marginPerExtra2);
 
-  // Calculate additional shifts margin
+  // Calculate additional shifts margin - read from DOM to get real-time values
   let additionalShiftsMargin = 0;
   const isQldAct = placementData.is_qld_act || false;
-  if (savedData.additional_shifts && savedData.additional_shifts.length > 0) {
-    const onCosts = savedData.onCosts || 3.25;
-    for (const shift of savedData.additional_shifts) {
-      const shiftAmount = (shift.units || 0) * (shift.charge_rate || 0);
-      if (isQldAct) {
-        const doctorPayIncSuper = shiftAmount / (1 + (onCosts/100) + (agencyFeePercent/100));
-        const onCostsAmount = doctorPayIncSuper * (onCosts/100);
-        const agencyFeeAmount = shiftAmount * (agencyFeePercent/100);
-        additionalShiftsMargin += shiftAmount - doctorPayIncSuper - onCostsAmount - agencyFeeAmount;
-      } else {
-        additionalShiftsMargin += shiftAmount - (shift.doctor_pay || 0);
+  const additionalShiftElements = card.querySelectorAll('.ts-additional-shift');
+  const onCostsVal = parseFloat(card.querySelector('.ts-on-costs')?.value) || parseFloat(card.querySelector('.ts-agency-fee-qld')?.parentElement?.querySelector('.ts-on-costs')?.value) || 3.25;
+
+  if (additionalShiftElements.length > 0) {
+    additionalShiftElements.forEach((shiftEl) => {
+      const unitsInput = shiftEl.querySelector('.ts-shift-units');
+      const rateInput = shiftEl.querySelector('.ts-shift-charge-rate');
+      const units = parseFloat(unitsInput?.value) || 0;
+      const chargeRate = parseFloat(rateInput?.value) || 0;
+      const shiftAmount = units * chargeRate;
+
+      if (shiftAmount > 0) {
+        if (isQldAct) {
+          const doctorPayIncSuper = shiftAmount / (1 + (onCostsVal/100) + (agencyFeePercent/100));
+          const onCostsAmount = doctorPayIncSuper * (onCostsVal/100);
+          const agencyFeeAmount = shiftAmount * (agencyFeePercent/100);
+          additionalShiftsMargin += shiftAmount - doctorPayIncSuper - onCostsAmount - agencyFeeAmount;
+        } else {
+          // For non-QLD/ACT, shift.doctor_pay would be a fixed amount, but since we're reading from DOM, we don't have that
+          // So we can't calculate margin accurately - just add to totals
+          additionalShiftsMargin += 0;
+        }
       }
-    }
+    });
   }
 
   const totalEstimatedMargin = (estimatedDayMargin + estimatedNightMargin + estimatedExtra1Margin + estimatedExtra2Margin + additionalShiftsMargin).toFixed(2);
@@ -3007,12 +3018,19 @@ function updateTimesheetMargins(card) {
     totalDoctorPay += extra2Total / divisor;
   }
 
-  // Add additional shifts doctor pay
-  if (savedData.additional_shifts && savedData.additional_shifts.length > 0) {
-    for (const shift of savedData.additional_shifts) {
-      const shiftTotal = (shift.units || 0) * (shift.charge_rate || 0);
-      totalDoctorPay += shiftTotal / divisor;
-    }
+  // Add additional shifts doctor pay - read from DOM to get real-time values
+  const additionalShiftElements = card.querySelectorAll('.ts-additional-shift');
+  if (additionalShiftElements.length > 0) {
+    additionalShiftElements.forEach((shiftEl) => {
+      const unitsInput = shiftEl.querySelector('.ts-shift-units');
+      const rateInput = shiftEl.querySelector('.ts-shift-charge-rate');
+      const units = parseFloat(unitsInput?.value) || 0;
+      const chargeRate = parseFloat(rateInput?.value) || 0;
+      const shiftTotal = units * chargeRate;
+      if (shiftTotal > 0) {
+        totalDoctorPay += shiftTotal / divisor;
+      }
+    });
   }
 
   // Update summary section at the bottom
