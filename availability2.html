@@ -2593,26 +2593,31 @@ function renderTimesheetCard(ts) {
       <span class="tsStatus ${statusClass}">${statusLabel}</span>
     </div>
 
-    <!-- Unified Top Section - Doctor Pay Type & Agency Fee -->
+    <!-- Unified Top Section - Agency Fee & Doctor Pay Type -->
     <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px;">
       <div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
         <div style="flex:1; min-width:150px;">
           <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Doctor Pay Type</label>
-          <select class="ts-doctor-pay-type" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updatePlacementPayType(this)">
-            <option value="">Select pay type</option>
-            <option value="BG PAYG" ${doctorPayType === 'BG PAYG' ? 'selected' : ''}>BG PAYG</option>
-            <option value="BG Pty Ltd" ${doctorPayType === 'BG Pty Ltd' ? 'selected' : ''}>BG Pty Ltd</option>
-            <option value="CLIENT PAYG" ${doctorPayType === 'CLIENT PAYG' ? 'selected' : ''}>CLIENT PAYG</option>
-            <option value="Client Sole Trader" ${doctorPayType === 'Client Sole Trader' ? 'selected' : ''}>Client Sole Trader</option>
-            <option value="Client Pty Ltd" ${doctorPayType === 'Client Pty Ltd' ? 'selected' : ''}>Client Pty Ltd</option>
-            <option value="Payroll Company" ${doctorPayType === 'Payroll Company' ? 'selected' : ''}>Payroll Company</option>
-            <option value="Another agency" ${doctorPayType === 'Another agency' ? 'selected' : ''}>Another agency</option>
+          <select class="ts-unit-type-select" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateUnitType(this)">
+            <option value="daily" ${unitType === 'daily' ? 'selected' : ''}>Daily</option>
+            <option value="hourly" ${unitType === 'hourly' ? 'selected' : ''}>Hourly</option>
           </select>
         </div>
         <div style="flex:1; min-width:150px;">
           <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Agency Fee %</label>
           <input type="number" class="ts-agency-fee" min="0" max="100" step="0.1" value="${agencyFeePercent}" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateAgencyFee(this)" />
         </div>
+        ${(state === 'QLD' || state === 'ACT') ? `
+        <div style="flex:1; min-width:150px;">
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Charge Rate ($)</label>
+          <input type="number" class="ts-charge-rate-unified" min="0" step="0.01" value="${chargeRate || 0}" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateChargeRate(this)" />
+        </div>
+        ` : `
+        <div style="flex:1; min-width:150px;">
+          <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px;">Doctor Pay ($)</label>
+          <input type="number" class="ts-doctor-pay-unified" min="0" step="0.01" value="${dayRate || 0}" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateDoctorPay(this)" />
+        </div>
+        `}
       </div>
     </div>
 
@@ -2633,13 +2638,8 @@ function renderTimesheetCard(ts) {
             <input type="number" class="ts-actual-days" min="0" value="${actualDays ?? ''}" placeholder="0" style="width:100%; padding:4px 6px; font-size:12px;" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
           </div>
           <div>
-            ${(state === 'QLD' || state === 'ACT') ? `
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Charge Rate ($)</label>
-            <input type="number" class="ts-charge-rate-unified" min="0" step="0.01" value="${chargeRate || 0}" style="width:100%; padding:4px 6px; font-size:12px;" data-placement-id="${ts.placementId}" data-week-start="${ts.weekStart}" onchange="updateChargeRate(this)" />
-            ` : `
-            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Doctor Pay ($)</label>
+            <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Rate ($)</label>
             <input type="number" class="ts-day-rate" min="0" step="0.01" value="${dayRate}" style="width:100%; padding:4px 6px; font-size:12px;" placeholder="$0" onchange="updateTimesheetMargins(this.closest('.timesheetCard'))" />
-            `}
           </div>
         </div>
         <div style="font-size:11px; color:var(--muted);" data-margin="day-est">Est. Margin: <strong>$${estimatedDayMargin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualDayMargin.toFixed(2)}</strong></div>
@@ -2709,20 +2709,16 @@ function renderTimesheetCard(ts) {
       ` : ''}
     </div>
 
-    <!-- Margin & Pay Summary -->
+    <!-- Margin Summary -->
     <div style="background:#f0f7ff; padding:12px; border-radius:8px; margin-bottom:12px; border-left:4px solid #2196F3;">
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:12px;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
         <div>
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Estimated Margin</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Estimated Total</div>
           <div style="font-size:16px; font-weight:700; color:#2196F3;" data-summary="est-total">$${totalEstimatedMargin}</div>
         </div>
         <div>
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Actual Margin</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Actual Total</div>
           <div style="font-size:16px; font-weight:700; color:#4CAF50;" data-summary="act-total">$${totalActualMargin}</div>
-        </div>
-        <div>
-          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Doctor Pay (Week)</div>
-          <div style="font-size:16px; font-weight:700; color:#FF9800;" data-summary="doctor-pay-total">$0.00</div>
         </div>
         <div>
           <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Forecast Diff</div>
@@ -2845,30 +2841,12 @@ function updateTimesheetMargins(card) {
     if (extra2MarginEl) extra2MarginEl.innerHTML = `Est. Margin: <strong>$${estimatedExtra2Margin.toFixed(2)}</strong> | Act. Margin: <strong>$${actualExtra2Margin.toFixed(2)}</strong>`;
   }
 
-  // Calculate Doctor Pay for actual worked units
-  let totalDoctorPay = 0;
-  if (state === 'QLD' || state === 'ACT') {
-    // For QLD/ACT: Doctor Pay = Charge Rate / (1 + On-Costs % + Agency Fee %)
-    const onCosts = placementData.on_costs || 3.25;
-    const divisor = 1 + (onCosts / 100) + (agencyFeePercent / 100);
-    const doctorPayPerUnit = chargeRate / divisor;
-    totalDoctorPay = (ts.actualDays || 0) * doctorPayPerUnit + (ts.actualNights || 0) * doctorPayPerUnit +
-                     (ts.actualExtra1 || 0) * doctorPayPerUnit + (ts.actualExtra2 || 0) * doctorPayPerUnit;
-  } else {
-    // For non-QLD/ACT: Doctor Pay = sum of (actual units × rate for each shift type)
-    totalDoctorPay = ((ts.actualDays || 0) * dayRate) + ((ts.actualNights || 0) * nightRate) +
-                     ((ts.actualExtra1 || 0) * extraRate1) + ((ts.actualExtra2 || 0) * extraRate2);
-  }
-
   // Update summary section at the bottom
   const summaryEstEl = card.querySelector('[data-summary="est-total"]');
   if (summaryEstEl) summaryEstEl.textContent = `$${totalEstimatedMargin}`;
 
   const summaryActEl = card.querySelector('[data-summary="act-total"]');
   if (summaryActEl) summaryActEl.textContent = `$${totalActualMargin}`;
-
-  const summaryDoctorPayEl = card.querySelector('[data-summary="doctor-pay-total"]');
-  if (summaryDoctorPayEl) summaryDoctorPayEl.textContent = `$${totalDoctorPay.toFixed(2)}`;
 
   const summaryForecastEl = card.querySelector('[data-summary="forecast-diff"]');
   if (summaryForecastEl) {
@@ -6809,8 +6787,7 @@ function handleStateChange() {
   document.getElementById('standardRatesSection').style.display = isQldAct ? 'none' : 'block';
   document.getElementById('qldActPricingSection').style.display = isQldAct ? 'block' : 'none';
   document.getElementById('standardRatesQuickEdit').style.display = isQldAct ? 'none' : 'block';
-  // Keep QLD/ACT Quick Edit hidden - charge rate is set in Step 2, no need for per-shift adjustment
-  document.getElementById('qldActRatesQuickEdit').style.display = 'none';
+  document.getElementById('qldActRatesQuickEdit').style.display = isQldAct ? 'block' : 'none';
   if (isQldAct) {
     updateQldActCalculations();
   }
@@ -7464,11 +7441,10 @@ function proceedToPlacementDetails() {
       ${extra1ShiftCount > 0 ? `<div><strong>Extra Rate 1 Shifts:</strong> ${extra1ShiftCount}</div>` : ''}
       ${extra2ShiftCount > 0 ? `<div><strong>Extra Rate 2 Shifts:</strong> ${extra2ShiftCount}</div>` : ''}
       <div><strong>Unit Type:</strong> ${placementWorkflow.unitType === 'hourly' ? 'Hourly' : 'Daily'}</div>
-      ${placementWorkflow.isQldAct ? `<div><strong>Charge Rate:</strong> $${placementWorkflow.chargeRate}</div>` : `<div><strong>Standard Rate:</strong> $${placementWorkflow.standardRate}</div>`}
-      ${!placementWorkflow.isQldAct && placementWorkflow.nightRate ? `<div><strong>Night Rate:</strong> $${placementWorkflow.nightRate}</div>` : ''}
-      ${!placementWorkflow.isQldAct && placementWorkflow.extraRate1 ? `<div><strong>Extra Rate 1:</strong> $${placementWorkflow.extraRate1}</div>` : ''}
-      ${!placementWorkflow.isQldAct && placementWorkflow.extraRate2 ? `<div><strong>Extra Rate 2:</strong> $${placementWorkflow.extraRate2}</div>` : ''}
-      ${placementWorkflow.isQldAct ? `<div><strong>On-Costs:</strong> ${placementWorkflow.onCosts || 3.25}%</div>` : ''}
+      <div><strong>Standard Rate:</strong> $${placementWorkflow.standardRate}</div>
+      ${placementWorkflow.nightRate ? `<div><strong>Night Rate:</strong> $${placementWorkflow.nightRate}</div>` : ''}
+      ${placementWorkflow.extraRate1 ? `<div><strong>Extra Rate 1:</strong> $${placementWorkflow.extraRate1}</div>` : ''}
+      ${placementWorkflow.extraRate2 ? `<div><strong>Extra Rate 2:</strong> $${placementWorkflow.extraRate2}</div>` : ''}
       <div><strong>Agency Fee:</strong> ${placementWorkflow.agencyFeePercent}%</div>
     `;
 
@@ -7484,16 +7460,16 @@ function proceedToPlacementDetails() {
       if(qldActPricingBreakdownEl) qldActPricingBreakdownEl.style.display = 'block';
       if(standardPricingBreakdownEl) standardPricingBreakdownEl.style.display = 'none';
 
-      const chargeRate = placementWorkflow.chargeRate || 0;
+      const dayChargeRate = placementWorkflow.standardRate || 0;
       const onCostsPercent = placementWorkflow.onCosts || 3.25;
       const agencyFeePercentVal = placementWorkflow.agencyFeePercent || 0;
 
       const divisor = 1 + (onCostsPercent / 100) + (agencyFeePercentVal / 100);
-      const doctorPayIncSuper = chargeRate / divisor;
+      const doctorPayIncSuper = dayChargeRate / divisor;
       const onCostsAmt = doctorPayIncSuper * (onCostsPercent / 100);
       const agencyFeeAmt = doctorPayIncSuper * (agencyFeePercentVal / 100);
 
-      document.getElementById('qldActConfirmChargeRate').textContent = chargeRate.toFixed(2);
+      document.getElementById('qldActConfirmChargeRate').textContent = dayChargeRate.toFixed(2);
       document.getElementById('qldActConfirmOnCostsPercent').textContent = onCostsPercent.toFixed(2);
       document.getElementById('qldActConfirmOnCostsAmt').textContent = onCostsAmt.toFixed(2);
       document.getElementById('qldActConfirmAgencyFeePercent').textContent = agencyFeePercentVal.toFixed(2);
