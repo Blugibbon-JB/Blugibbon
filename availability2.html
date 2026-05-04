@@ -2791,10 +2791,9 @@ function renderTimesheetCard(ts) {
             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:10px; align-items:flex-end;">
               <div>
                 <div style="font-size:11px; color:var(--muted); font-weight:600;">Added ${shift.shift_type === 'hourly' ? 'Hourly' : 'Daily'} Shift</div>
-                <div style="padding:4px; font-weight:600; font-size:12px;">-</div>
               </div>
               <div>
-                <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Act. ${shift.shift_type === 'hourly' ? 'Hours' : 'Days'}</label>
+                <label style="font-size:11px; color:var(--muted); font-weight:600; display:block; margin-bottom:2px;">Actual ${shift.shift_type === 'hourly' ? 'Hours' : 'Days'}</label>
                 <input type="number" class="ts-shift-units" data-shift-index="${idx}" min="0" step="0.5" value="${shift.units || 0}" style="width:100%; padding:4px 6px; font-size:12px; border:1px solid #ccc; border-radius:4px;" />
               </div>
               <div>
@@ -3125,7 +3124,8 @@ function addTimesheetListeners() {
     const inputs = card.querySelectorAll(
       '.ts-actual-days, .ts-actual-nights, .ts-actual-extra1, .ts-actual-extra2, ' +
       '.ts-day-rate, .ts-night-rate, .ts-extra1-rate, .ts-extra2-rate, ' +
-      '.ts-agency-fee, .ts-qld-charge-rate, .ts-on-costs, .ts-agency-fee-qld'
+      '.ts-agency-fee, .ts-qld-charge-rate, .ts-on-costs, .ts-agency-fee-qld, ' +
+      '.ts-shift-units'
     );
     inputs.forEach(input => {
       input.addEventListener('input', () => {
