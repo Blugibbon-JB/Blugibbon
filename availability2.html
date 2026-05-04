@@ -2573,6 +2573,10 @@ function renderTimesheetCard(ts) {
   const allInclusiveRate = placementData.all_inclusive_rate || null;
   const state = placementData.state || '';
 
+  // QLD/ACT specific values
+  const isQldAct = placementData.is_qld_act || false;
+  const onCosts = savedData.onCosts ?? placementData.on_costs ?? 3.25;
+
   // Get actual values
   const actualDays = ts.actualDays ?? savedData.actualDays ?? null;
   const actualNights = ts.actualNights ?? savedData.actualNights ?? null;
