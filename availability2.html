@@ -7683,24 +7683,43 @@ function createPlacementEvent(status) {
   const nightShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'night').length;
   const extra1ShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'extra1').length;
   const extra2ShiftCount = selectedArray.filter(d => placementWorkflow.selectedDays[d] === 'extra2').length;
+  const totalShifts = dayShiftCount + nightShiftCount + extra1ShiftCount + extra2ShiftCount;
 
-  // Calculate rate margins from agency fee
-  const dayMarginPerUnit = (placementWorkflow.standardRate * placementWorkflow.agencyFeePercent) / 100;
-  const nightMarginPerUnit = (placementWorkflow.nightRate * placementWorkflow.agencyFeePercent) / 100;
-  const extra1MarginPerUnit = (placementWorkflow.extraRate1 * placementWorkflow.agencyFeePercent) / 100;
-  const extra2MarginPerUnit = (placementWorkflow.extraRate2 * placementWorkflow.agencyFeePercent) / 100;
-
-  // Calculate total margin based on unit type
-  let estimatedTotalUnits = numDays;
+  // Calculate margins - different logic for QLD/ACT vs others
+  let dayMarginPerUnit, nightMarginPerUnit, extra1MarginPerUnit, extra2MarginPerUnit;
   let totalMargin = 0;
+  let estimatedTotalUnits = numDays;
 
-  if(placementWorkflow.unitType === 'hourly') {
-    const totalShifts = dayShiftCount + nightShiftCount + extra1ShiftCount + extra2ShiftCount;
-    estimatedTotalUnits = placementWorkflow.hoursPerShift * totalShifts;
-    const weightedMarginPerUnit = (dayShiftCount * dayMarginPerUnit + nightShiftCount * nightMarginPerUnit + extra1ShiftCount * extra1MarginPerUnit + extra2ShiftCount * extra2MarginPerUnit) / (totalShifts || 1);
-    totalMargin = weightedMarginPerUnit * estimatedTotalUnits;
+  if (placementWorkflow.isQldAct) {
+    // QLD/ACT: Single charge rate for all shifts, Margin = Charge Rate × Agency Fee % / (1 + On-Costs % + Agency Fee %)
+    const onCosts = placementWorkflow.onCosts || 3.25;
+    const divisor = 1 + (onCosts / 100) + (placementWorkflow.agencyFeePercent / 100);
+    const marginPerUnit = (placementWorkflow.chargeRate * placementWorkflow.agencyFeePercent) / 100 / divisor;
+    dayMarginPerUnit = marginPerUnit;
+    nightMarginPerUnit = marginPerUnit;
+    extra1MarginPerUnit = marginPerUnit;
+    extra2MarginPerUnit = marginPerUnit;
+
+    if (placementWorkflow.unitType === 'hourly') {
+      estimatedTotalUnits = placementWorkflow.hoursPerShift * totalShifts;
+      totalMargin = marginPerUnit * estimatedTotalUnits;
+    } else {
+      totalMargin = marginPerUnit * totalShifts;
+    }
   } else {
-    totalMargin = (dayShiftCount * dayMarginPerUnit) + (nightShiftCount * nightMarginPerUnit) + (extra1ShiftCount * extra1MarginPerUnit) + (extra2ShiftCount * extra2MarginPerUnit);
+    // Non-QLD/ACT: Different rates for each shift type, Margin = Rate × Agency Fee %
+    dayMarginPerUnit = (placementWorkflow.standardRate * placementWorkflow.agencyFeePercent) / 100;
+    nightMarginPerUnit = (placementWorkflow.nightRate * placementWorkflow.agencyFeePercent) / 100;
+    extra1MarginPerUnit = (placementWorkflow.extraRate1 * placementWorkflow.agencyFeePercent) / 100;
+    extra2MarginPerUnit = (placementWorkflow.extraRate2 * placementWorkflow.agencyFeePercent) / 100;
+
+    if (placementWorkflow.unitType === 'hourly') {
+      estimatedTotalUnits = placementWorkflow.hoursPerShift * totalShifts;
+      const weightedMarginPerUnit = (dayShiftCount * dayMarginPerUnit + nightShiftCount * nightMarginPerUnit + extra1ShiftCount * extra1MarginPerUnit + extra2ShiftCount * extra2MarginPerUnit) / (totalShifts || 1);
+      totalMargin = weightedMarginPerUnit * estimatedTotalUnits;
+    } else {
+      totalMargin = (dayShiftCount * dayMarginPerUnit) + (nightShiftCount * nightMarginPerUnit) + (extra1ShiftCount * extra1MarginPerUnit) + (extra2ShiftCount * extra2MarginPerUnit);
+    }
   }
 
   const unitsPerWeek = (estimatedTotalUnits / weeks).toFixed(1);
@@ -7713,15 +7732,13 @@ function createPlacementEvent(status) {
   const notes = `
 Site: ${placementWorkflow.selectedSite.name}
 Day Shifts: ${dayShiftCount} | Night Shifts: ${nightShiftCount} | Extra 1: ${extra1ShiftCount} | Extra 2: ${extra2ShiftCount}
-Standard Rate: $${placementWorkflow.standardRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}
-${placementWorkflow.nightRate ? `Night Rate: $${placementWorkflow.nightRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
-${placementWorkflow.extraRate1 ? `Extra Rate 1: $${placementWorkflow.extraRate1}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
-${placementWorkflow.extraRate2 ? `Extra Rate 2: $${placementWorkflow.extraRate2}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
+${placementWorkflow.isQldAct ? `Charge Rate: $${placementWorkflow.chargeRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : `Standard Rate: $${placementWorkflow.standardRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}`}
+${!placementWorkflow.isQldAct && placementWorkflow.nightRate ? `Night Rate: $${placementWorkflow.nightRate}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
+${!placementWorkflow.isQldAct && placementWorkflow.extraRate1 ? `Extra Rate 1: $${placementWorkflow.extraRate1}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
+${!placementWorkflow.isQldAct && placementWorkflow.extraRate2 ? `Extra Rate 2: $${placementWorkflow.extraRate2}/${placementWorkflow.unitType === 'hourly' ? 'hr' : 'day'}` : ''}
+${placementWorkflow.isQldAct ? `On-Costs: ${placementWorkflow.onCosts || 3.25}%` : ''}
 Agency Fee: ${placementWorkflow.agencyFeePercent}%
-Day Margin/Unit: $${dayMarginPerUnit.toFixed(2)}
-${placementWorkflow.nightRate ? `Night Margin/Unit: $${nightMarginPerUnit.toFixed(2)}` : ''}
-${placementWorkflow.extraRate1 ? `Extra 1 Margin/Unit: $${extra1MarginPerUnit.toFixed(2)}` : ''}
-${placementWorkflow.extraRate2 ? `Extra 2 Margin/Unit: $${extra2MarginPerUnit.toFixed(2)}` : ''}
+Margin/Unit: $${dayMarginPerUnit.toFixed(2)}
 Total Margin: $${totalMargin.toFixed(2)}
 `.trim();
 
@@ -7759,10 +7776,12 @@ Total Margin: $${totalMargin.toFixed(2)}
       extra1_shift_count: extra1ShiftCount,
       extra2_shift_count: extra2ShiftCount,
       unit_type: placementWorkflow.unitType,
-      standard_rate: placementWorkflow.standardRate,
-      night_rate: placementWorkflow.nightRate,
-      extra_rate_1: placementWorkflow.extraRate1,
-      extra_rate_2: placementWorkflow.extraRate2,
+      // QLD/ACT uses charge_rate, others use individual shift rates
+      charge_rate: placementWorkflow.isQldAct ? placementWorkflow.chargeRate : null,
+      standard_rate: !placementWorkflow.isQldAct ? placementWorkflow.standardRate : null,
+      night_rate: !placementWorkflow.isQldAct ? placementWorkflow.nightRate : null,
+      extra_rate_1: !placementWorkflow.isQldAct ? placementWorkflow.extraRate1 : null,
+      extra_rate_2: !placementWorkflow.isQldAct ? placementWorkflow.extraRate2 : null,
       hours_per_shift: placementWorkflow.hoursPerShift,
       agency_fee_percent: placementWorkflow.agencyFeePercent,
       day_margin_per_unit: dayMarginPerUnit,
@@ -7811,10 +7830,20 @@ function openPlacementFromTimesheet(placementId) {
   placementWorkflow.selectedDoctor = doctor;
   placementWorkflow.selectedSite = site;
   placementWorkflow.unitType = pd.unit_type || 'daily';
-  placementWorkflow.standardRate = pd.standard_rate || 0;
-  placementWorkflow.nightRate = pd.night_rate || 0;
-  placementWorkflow.extraRate1 = pd.extra_rate_1 || 0;
-  placementWorkflow.extraRate2 = pd.extra_rate_2 || 0;
+  placementWorkflow.state = pd.state || '';
+  placementWorkflow.isQldAct = pd.is_qld_act || false;
+
+  // Load rates based on placement type
+  if (pd.is_qld_act) {
+    placementWorkflow.chargeRate = pd.charge_rate || 0;
+    placementWorkflow.onCosts = pd.on_costs || 3.25;
+  } else {
+    placementWorkflow.standardRate = pd.standard_rate || 0;
+    placementWorkflow.nightRate = pd.night_rate || 0;
+    placementWorkflow.extraRate1 = pd.extra_rate_1 || 0;
+    placementWorkflow.extraRate2 = pd.extra_rate_2 || 0;
+  }
+
   placementWorkflow.hoursPerShift = pd.hours_per_shift || 8;
   placementWorkflow.agencyFeePercent = pd.agency_fee_percent || 0;
   placementWorkflow.selectedDays = pd.day_shifts || {};
