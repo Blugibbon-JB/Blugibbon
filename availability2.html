@@ -8664,12 +8664,23 @@ function expandPlacementToDailyEvents(placement, docById) {
 }
 
 function openEventEditor(payload){
+  if(!payload) { console.error('openEventEditor: payload is null'); return; }
+
   const d = doctors.find(x => String(x.ahpra_id) === String(payload.ahpra_id));
-  if(!d) return;
+  if(!d) { console.error('openEventEditor: doctor not found for AHPRA ID', payload.ahpra_id); return; }
 
   const mode = payload.mode;
-  const start = payload.start;
-  const end = payload.end;
+  let start = payload.start;
+  let end = payload.end;
+
+  // Ensure start and end are valid Date objects
+  if(!(start instanceof Date) && start) {
+    start = new Date(start);
+  }
+  if(!(end instanceof Date) && end) {
+    end = new Date(end);
+  }
+  if(!start || !end) { console.error('openEventEditor: invalid dates', { start, end }); return; }
 
   modalTitle.textContent = (mode === "create") ? "Add status block" : "Edit status block";
 
@@ -13437,8 +13448,14 @@ function createSiteManually() {
   }
 
   window.bgShowQuickAdd = function(info, sel){
-    currentSel = sel ? { start: new Date(sel.start), end: new Date(sel.end) } : null;
-    if(!currentSel) return;
+    if(!sel || !sel.start || !sel.end) {
+      console.error('bgShowQuickAdd: invalid selection', sel);
+      return;
+    }
+    var startDate = sel.start instanceof Date ? sel.start : new Date(sel.start);
+    var endDate = sel.end instanceof Date ? sel.end : new Date(sel.end);
+    currentSel = { start: startDate, end: endDate };
+
     var startStr = fmtAU(currentSel.start);
     var endStr   = fmtAU(new Date(currentSel.end.getTime() - 86400000));
     qaDate.textContent = (startStr === endStr) ? startStr : (startStr + ' → ' + endStr);
