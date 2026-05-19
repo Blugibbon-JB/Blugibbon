@@ -7456,6 +7456,13 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
       const eInc = formatDateAU(addDaysUTC(lastSelection.end, -1));
       statusChip.textContent = `Selected: ${s} → ${eInc}`;
       updateActionButtons();
+      // Open the event editor to allow user to add/clear availability for the selected date range
+      openEventEditor({
+        mode: "create",
+        ahpra_id: selectedDoctorId,
+        start: lastSelection.start,
+        end: lastSelection.end
+      });
     } catch(e) {}
   }
 ,
