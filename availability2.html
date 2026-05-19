@@ -7456,13 +7456,27 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
       const eInc = formatDateAU(addDaysUTC(lastSelection.end, -1));
       statusChip.textContent = `Selected: ${s} → ${eInc}`;
       updateActionButtons();
-      // Open the event editor to allow user to add/clear availability for the selected date range
-      openEventEditor({
-        mode: "create",
-        ahpra_id: selectedDoctorId,
-        start: lastSelection.start,
-        end: lastSelection.end
+
+      // Auto-open event editor if range is blank (no existing events)
+      const hasExistingEvents = events.some(e => {
+        const eStart = normalizeToUTCDate(new Date(e.start));
+        const eEnd = normalizeToUTCDate(new Date(e.end));
+        const overlapStart = eStart < lastSelection.end && eEnd > lastSelection.start;
+        return overlapStart && String(e.ahpra_id) === String(selectedDoctorId);
       });
+
+      if(!hasExistingEvents){
+        // Small delay to ensure UI is ready
+        setTimeout(() => {
+          openEventEditor({
+            mode: "create",
+            id: null,
+            ahpra_id: selectedDoctorId,
+            start: lastSelection.start,
+            end: lastSelection.end
+          });
+        }, 100);
+      }
     } catch(e) {}
   }
 ,
