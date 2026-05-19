@@ -13512,138 +13512,28 @@ function createSiteManually() {
 
   qaClear.addEventListener('click', function(){
     if(!currentSel) { close(); return; }
-    var docId = (typeof selectedDoctorId !== 'undefined') ? selectedDoctorId : null;
-    // Look for overlapping bookings/placements for this doctor in the selected range
-    var conflict = null;
-    try {
-      var evs = (typeof events !== 'undefined' && Array.isArray(events)) ? events : [];
-      conflict = evs.find(function(e){
-        if(String(e.ahpra_id) !== String(docId)) return false;
-        var es = new Date(e.start), ee = new Date(e.end);
-        var overlap = es < currentSel.end && ee > currentSel.start;
-        if(!overlap) return false;
-        // Treat placements / bookings as protected
-        if(e.type === 'placement') return true;
-        if(e.parent_placement_id || (e.placement_data)) return true;
-        var st = (e.status || '').toLowerCase();
-        if(st === 'booked' || st === 'booking') return true;
-        return false;
-      });
-    } catch(_){}
-
-    if(conflict){
-      var msg = 'There is a booking or placement in the selected range.\n\nPlease edit or delete the placement directly instead of clearing the range.';
-      if(window.confirm){ window.confirm(msg); }
-      close();
-      // Open the conflicting record so user can act on it
-      try {
-        if(conflict.type === 'placement' && typeof openPlacementEditor === 'function'){
-          openPlacementEditor(conflict);
-        } else if(typeof openEventEditor === 'function'){
-          openEventEditor({ mode:'edit', ...conflict, start:new Date(conflict.start), end:new Date(conflict.end) });
-        }
-      } catch(_){}
-      return;
-    }
-
-    // Safe to clear: trim overlapping portions of availability/leave events (or delete if fully covered)
-    try {
-      var modified = 0;
-      var kept = [];
-      for(var i=0;i<events.length;i++){
-        var e = events[i];
-        if(String(e.ahpra_id) !== String(docId) || e.type === 'placement' || e.parent_placement_id) {
-          kept.push(e);
-          continue;
-        }
-        var es = new Date(e.start), ee = new Date(e.end);
-        var overlaps = es < currentSel.end && ee > currentSel.start;
-        if(!overlaps) {
-          kept.push(e);
-          continue;
-        }
-        // Event overlaps selected range - trim it
-        if(es < currentSel.start) {
-          // Keep the part before the selection
-          var newEnd = currentSel.start;
-          kept.push({...e, end: newEnd});
-          modified++;
-        }
-        if(ee > currentSel.end) {
-          // Keep the part after the selection
-          var newStart = currentSel.end;
-          kept.push({...e, start: newStart});
-          modified++;
-        }
-        if(es >= currentSel.start && ee <= currentSel.end) {
-          // Event fully within selection - delete it
-          modified++;
-        }
-      }
-      events.length = 0; for(var k=0;k<kept.length;k++) events.push(kept[k]);
-      if(typeof saveEvents === 'function') saveEvents();
-      if(typeof renderCalendar === 'function') renderCalendar();
-      if(window.__bgCalendar){ try{ window.__bgCalendar.unselect(); }catch(_){} }
-      if(typeof statusChip !== 'undefined' && statusChip){
-        statusChip.textContent = modified > 0
-          ? ('Cleared ' + modified + ' block(s) in selected range')
-          : 'Nothing to clear in selected range';
-      }
-    } catch(e){ console.warn('clear failed', e); }
     close();
+    // Use the same clearSelectedRange function as the top button for consistency
+    try {
+      if(typeof clearSelectedRange === 'function') {
+        clearSelectedRange();
+        if(window.__bgCalendar){ try{ window.__bgCalendar.unselect(); }catch(_){} }
+      }
+    } catch(e){ console.warn('clearSelectedRange failed', e); }
   });
 
-  // Clear entire block (delete full event)
+  // Clear entire block (delete full event) - uses the same function as the delete button
   if(qaClearBlock) {
     qaClearBlock.addEventListener('click', function(){
       if(!currentSel) { close(); return; }
-      var docId = (typeof selectedDoctorId !== 'undefined') ? selectedDoctorId : null;
-      // Find the event(s) in this range
-      var toDelete = [];
-      try {
-        var evs = (typeof events !== 'undefined' && Array.isArray(events)) ? events : [];
-        for(var i=0;i<evs.length;i++){
-          var e = evs[i];
-          if(String(e.ahpra_id) !== String(docId)) continue;
-          if(e.type === 'placement' || e.parent_placement_id) continue;
-          var es = new Date(e.start), ee = new Date(e.end);
-          if(es < currentSel.end && ee > currentSel.start) {
-            toDelete.push(e);
-          }
-        }
-      } catch(_){}
-
-      if(toDelete.length === 0) {
-        if(typeof statusChip !== 'undefined' && statusChip){
-          statusChip.textContent = 'No blocks found to delete';
-        }
-        close();
-        return;
-      }
-
-      var confirmMsg = 'Delete ' + toDelete.length + ' entire block(s) in this range? This cannot be undone.';
-      if(!window.confirm || !window.confirm(confirmMsg)) {
-        close();
-        return;
-      }
-
-      try {
-        var kept = [];
-        for(var i=0;i<events.length;i++){
-          var e = events[i];
-          if(!toDelete.find(function(d){ return d.id === e.id; })) {
-            kept.push(e);
-          }
-        }
-        events.length = 0; for(var k=0;k<kept.length;k++) events.push(kept[k]);
-        if(typeof saveEvents === 'function') saveEvents();
-        if(typeof renderCalendar === 'function') renderCalendar();
-        if(window.__bgCalendar){ try{ window.__bgCalendar.unselect(); }catch(_){} }
-        if(typeof statusChip !== 'undefined' && statusChip){
-          statusChip.textContent = 'Deleted ' + toDelete.length + ' block(s)';
-        }
-      } catch(e){ console.warn('delete failed', e); }
       close();
+      // Use the same deleteSelectedEvents function for consistency
+      try {
+        if(typeof deleteSelectedEvents === 'function') {
+          deleteSelectedEvents();
+          if(window.__bgCalendar){ try{ window.__bgCalendar.unselect(); }catch(_){} }
+        }
+      } catch(e){ console.warn('deleteSelectedEvents failed', e); }
     });
   }
 
