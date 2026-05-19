@@ -13472,6 +13472,10 @@ function createSiteManually() {
 
   qaAdd.addEventListener('click', function(){
     if(!currentSel) { close(); return; }
+    // Store the selection before closing, since close() nullifies it
+    var selStart = currentSel.start;
+    var selEnd = currentSel.end;
+
     var docId = (typeof selectedDoctorId !== 'undefined' && selectedDoctorId) ? selectedDoctorId : null;
     // Fall back to the first available doctor if none is selected, so the modal still opens.
     if(!docId){
@@ -13497,8 +13501,8 @@ function createSiteManually() {
         mode: 'create',
         id: null,
         ahpra_id: docId,
-        start: currentSel.start,
-        end: currentSel.end
+        start: selStart,
+        end: selEnd
       });
     } catch(e){
       console.error('openEventEditor failed:', e);
