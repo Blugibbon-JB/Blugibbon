@@ -13320,6 +13320,7 @@ function createSiteManually() {
   <div class="bg-qa-actions">
     <button type="button" class="bg-qa-btn bg-qa-primary" id="bgQaAdd">Add availability / booking</button>
     <button type="button" class="bg-qa-btn bg-qa-secondary" id="bgQaClear">Clear selected range</button>
+    <button type="button" class="bg-qa-btn bg-qa-secondary" id="bgQaClearBlock" style="color:#dc2626; border-color:#fecaca; background:#fee2e2;">Clear entire block</button>
   </div>
   <button type="button" class="bg-qa-cancel" id="bgQaCancel">Cancel</button>
 </div>
@@ -13398,6 +13399,7 @@ function createSiteManually() {
   var qaDate = document.getElementById('bgQaDate');
   var qaAdd = document.getElementById('bgQaAdd');
   var qaClear = document.getElementById('bgQaClear');
+  var qaClearBlock = document.getElementById('bgQaClearBlock');
   var qaCancel = document.getElementById('bgQaCancel');
   if(!qa) return;
 
@@ -13469,6 +13471,11 @@ function createSiteManually() {
     }
     close();
     try {
+      if(typeof openEventEditor !== 'function') {
+        console.error('openEventEditor is not defined');
+        alert('Error: openEventEditor function not found');
+        return;
+      }
       openEventEditor({
         mode: 'create',
         id: null,
@@ -13476,7 +13483,10 @@ function createSiteManually() {
         start: currentSel.start,
         end: currentSel.end
       });
-    } catch(e){ console.warn('openEventEditor failed', e); }
+    } catch(e){
+      console.error('openEventEditor failed:', e);
+      alert('Error opening status editor: ' + e.message);
+    }
   });
 
   qaClear.addEventListener('click', function(){
@@ -13515,30 +13525,106 @@ function createSiteManually() {
       return;
     }
 
-    // Safe to clear: delete any availability/leave (non-booking) events overlapping the range
+    // Safe to clear: trim overlapping portions of availability/leave events (or delete if fully covered)
     try {
-      var before = events.length;
+      var modified = 0;
       var kept = [];
       for(var i=0;i<events.length;i++){
         var e = events[i];
+        if(String(e.ahpra_id) !== String(docId) || e.type === 'placement' || e.parent_placement_id) {
+          kept.push(e);
+          continue;
+        }
         var es = new Date(e.start), ee = new Date(e.end);
-        var overlaps = String(e.ahpra_id) === String(docId) && es < currentSel.end && ee > currentSel.start;
-        if(overlaps && e.type !== 'placement' && !e.parent_placement_id) continue;
-        kept.push(e);
+        var overlaps = es < currentSel.end && ee > currentSel.start;
+        if(!overlaps) {
+          kept.push(e);
+          continue;
+        }
+        // Event overlaps selected range - trim it
+        if(es < currentSel.start) {
+          // Keep the part before the selection
+          var newEnd = currentSel.start;
+          kept.push({...e, end: newEnd});
+          modified++;
+        }
+        if(ee > currentSel.end) {
+          // Keep the part after the selection
+          var newStart = currentSel.end;
+          kept.push({...e, start: newStart});
+          modified++;
+        }
+        if(es >= currentSel.start && ee <= currentSel.end) {
+          // Event fully within selection - delete it
+          modified++;
+        }
       }
-      var removed = before - kept.length;
       events.length = 0; for(var k=0;k<kept.length;k++) events.push(kept[k]);
       if(typeof saveEvents === 'function') saveEvents();
       if(typeof renderCalendar === 'function') renderCalendar();
       if(window.__bgCalendar){ try{ window.__bgCalendar.unselect(); }catch(_){} }
       if(typeof statusChip !== 'undefined' && statusChip){
-        statusChip.textContent = removed
-          ? ('Cleared ' + removed + ' block(s) in selected range')
+        statusChip.textContent = modified > 0
+          ? ('Cleared ' + modified + ' block(s) in selected range')
           : 'Nothing to clear in selected range';
       }
     } catch(e){ console.warn('clear failed', e); }
     close();
   });
+
+  // Clear entire block (delete full event)
+  if(qaClearBlock) {
+    qaClearBlock.addEventListener('click', function(){
+      if(!currentSel) { close(); return; }
+      var docId = (typeof selectedDoctorId !== 'undefined') ? selectedDoctorId : null;
+      // Find the event(s) in this range
+      var toDelete = [];
+      try {
+        var evs = (typeof events !== 'undefined' && Array.isArray(events)) ? events : [];
+        for(var i=0;i<evs.length;i++){
+          var e = evs[i];
+          if(String(e.ahpra_id) !== String(docId)) continue;
+          if(e.type === 'placement' || e.parent_placement_id) continue;
+          var es = new Date(e.start), ee = new Date(e.end);
+          if(es < currentSel.end && ee > currentSel.start) {
+            toDelete.push(e);
+          }
+        }
+      } catch(_){}
+
+      if(toDelete.length === 0) {
+        if(typeof statusChip !== 'undefined' && statusChip){
+          statusChip.textContent = 'No blocks found to delete';
+        }
+        close();
+        return;
+      }
+
+      var confirmMsg = 'Delete ' + toDelete.length + ' entire block(s) in this range? This cannot be undone.';
+      if(!window.confirm || !window.confirm(confirmMsg)) {
+        close();
+        return;
+      }
+
+      try {
+        var kept = [];
+        for(var i=0;i<events.length;i++){
+          var e = events[i];
+          if(!toDelete.find(function(d){ return d.id === e.id; })) {
+            kept.push(e);
+          }
+        }
+        events.length = 0; for(var k=0;k<kept.length;k++) events.push(kept[k]);
+        if(typeof saveEvents === 'function') saveEvents();
+        if(typeof renderCalendar === 'function') renderCalendar();
+        if(window.__bgCalendar){ try{ window.__bgCalendar.unselect(); }catch(_){} }
+        if(typeof statusChip !== 'undefined' && statusChip){
+          statusChip.textContent = 'Deleted ' + toDelete.length + ' block(s)';
+        }
+      } catch(e){ console.warn('delete failed', e); }
+      close();
+    });
+  }
 
   // Dismiss on outside click / Escape
   document.addEventListener('mousedown', function(ev){
