@@ -8688,7 +8688,7 @@ function openEventEditor(payload){
   const startStr = formatDateAU(start);
   const endStrExclusive = formatDateAU(addDaysUTC(end, -1));
 
-  const defaultStatus = payload.status || "Booked";
+  const defaultStatus = payload.status || (mode === "create" ? "Available" : "Booked");
   const defaultLocation = payload.location || "";
   const defaultNotes = payload.notes || "";
   const defaultTitle = payload.title || "";
