@@ -4491,6 +4491,33 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
   });
 }
 
+// Initialize finder with default 2-week date range
+function initializeFinder() {
+  const sEl = document.getElementById("finderStart");
+  const eEl = document.getElementById("finderEnd");
+
+  if (!sEl || !eEl) return;
+
+  // Only set defaults if both are empty
+  if (!sEl.value && !eEl.value) {
+    // Get today's date in ISO format
+    const today = new Date();
+    const todayISO = today.toISOString().slice(0, 10);
+
+    // Calculate 14 days from today
+    const twoWeeksISO = addDaysISO(todayISO, 14);
+
+    // Set the input values
+    sEl.value = todayISO;
+    eEl.value = twoWeeksISO;
+
+    // Auto-trigger the finder search
+    const filterInput = document.getElementById("finderFilterInput");
+    const filter = filterInput ? filterInput.value || "" : "";
+    renderFinderResults(todayISO, twoWeeksISO, filter);
+  }
+}
+
 // ===== TIMESHEET RENDERING =====
 function renderTimesheets() {
   const container = document.getElementById('timesheetsContainer');
@@ -7006,7 +7033,11 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   if(bBtn) bBtn.addEventListener("click", ()=>{ showBookingsOverlay=!showBookingsOverlay; updateViews(); });
   if(aBtn) aBtn.addEventListener("click", ()=>{ showAvailabilityOverlay=!showAvailabilityOverlay; updateViews(); });
 
-  if(fBtn) fBtn.addEventListener("click", ()=>{ finderOpen=!finderOpen; updateViews(); });
+  if(fBtn) fBtn.addEventListener("click", ()=>{
+    finderOpen=!finderOpen;
+    if(finderOpen) initializeFinder();
+    updateViews();
+  });
 
   const runBtn = document.getElementById("finderRunBtn");
   const clrBtn = document.getElementById("finderClearBtn");
@@ -7104,6 +7135,9 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
 
   updateViews();
+
+  // If finder was open on page load, initialize it with default dates
+  if(finderOpen) initializeFinder();
 });
 
 /** -----------------------
