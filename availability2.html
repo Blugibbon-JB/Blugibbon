@@ -9065,6 +9065,8 @@ function openEventEditor(payload){
           // Extract ClickUp URL from response if available
           let clickupUrl = null;
           if(clickupResult){
+            console.log("Make.com Order Response:", clickupResult);
+
             // Handle case where response data is wrapped in a 'message' string field
             let responseData = clickupResult;
             if(clickupResult.message && typeof clickupResult.message === "string"){
@@ -9087,7 +9089,26 @@ function openEventEditor(payload){
                 clickupUrl = responseData.url;
               } else if(responseData.taskUrl){
                 clickupUrl = responseData.taskUrl;
+              } else if(responseData.data && responseData.data.url){
+                clickupUrl = responseData.data.url;
+              } else if(responseData.clickup_url){
+                clickupUrl = responseData.clickup_url;
+              } else if(responseData.task_url){
+                clickupUrl = responseData.task_url;
               }
+
+              // Last resort: search entire response string for ClickUp URL
+              if(!clickupUrl && typeof responseData === 'object'){
+                const jsonStr = JSON.stringify(responseData);
+                const urlMatch = jsonStr.match(/https?:\/\/app\.clickup\.com\/t\/[a-zA-Z0-9]+/);
+                if(urlMatch){
+                  clickupUrl = urlMatch[0];
+                }
+              }
+            }
+
+            if(!clickupUrl){
+              console.warn("Could not extract ClickUp URL from response:", clickupResult);
             }
 
           }
@@ -9247,6 +9268,8 @@ function openEventEditor(payload){
           // Extract ClickUp URL from response (same logic as placement)
           let clickupUrl = null;
           if(clickupResult){
+            console.log("Make.com CV Sent Response:", clickupResult);
+
             let responseData = clickupResult;
             if(clickupResult.message && typeof clickupResult.message === "string"){
               try {
@@ -9268,7 +9291,26 @@ function openEventEditor(payload){
                 clickupUrl = responseData.url;
               } else if(responseData.taskUrl){
                 clickupUrl = responseData.taskUrl;
+              } else if(responseData.data && responseData.data.url){
+                clickupUrl = responseData.data.url;
+              } else if(responseData.clickup_url){
+                clickupUrl = responseData.clickup_url;
+              } else if(responseData.task_url){
+                clickupUrl = responseData.task_url;
               }
+
+              // Last resort: search entire response string for ClickUp URL
+              if(!clickupUrl && typeof responseData === 'object'){
+                const jsonStr = JSON.stringify(responseData);
+                const urlMatch = jsonStr.match(/https?:\/\/app\.clickup\.com\/t\/[a-zA-Z0-9]+/);
+                if(urlMatch){
+                  clickupUrl = urlMatch[0];
+                }
+              }
+            }
+
+            if(!clickupUrl){
+              console.warn("Could not extract ClickUp URL from response:", clickupResult);
             }
           }
 
