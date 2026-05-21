@@ -2526,6 +2526,9 @@ button.moreBtn[aria-expanded="true"]{
       <button id="modalCloseBtn">Close</button>
     </div>
     <div class="modalBody" id="modalBody"></div>
+    <div id="modalStatusArea" style="display:none; padding:12px 16px; background:#f0f7ff; border-top:1px solid #e7e7e7; border-bottom:1px solid #e7e7e7; text-align:center;">
+      <div id="modalStatusMessage" style="font-size:14px; font-weight:600; margin:0;"></div>
+    </div>
     <div class="modalFooter" id="modalFooter"></div>
   </div>
 </div>
@@ -7463,6 +7466,11 @@ function closeModal(){
   modalBackdrop.style.display = "none";
   modalBody.innerHTML="";
   modalFooter.innerHTML="";
+  const modalStatusArea = document.getElementById("modalStatusArea");
+  if(modalStatusArea){
+    modalStatusArea.style.display = "none";
+    modalStatusArea.innerHTML = "";
+  }
   if(modalKeyHandler){ document.removeEventListener("keydown", modalKeyHandler); modalKeyHandler = null; }
 }
 
@@ -9132,16 +9140,24 @@ function openEventEditor(payload){
           }
 
           if(clickupUrl){
-            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">Order created in ClickUp</a>`;
-            console.log("✓✓ Link HTML set on statusChip - click the link at the top to open ClickUp task");
+            // Display link in modal status area
+            const modalStatusArea = document.getElementById("modalStatusArea");
+            const modalStatusMessage = document.getElementById("modalStatusMessage");
+            if(modalStatusArea && modalStatusMessage){
+              modalStatusMessage.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer; font-size: 16px;">Order created in ClickUp - Click here to open</a>`;
+              modalStatusArea.style.display = "block";
+              console.log("✓✓ Link displayed in modal status area");
+            }
 
-            // Keep the link visible - don't auto-close the modal if there's a URL
-            // Just refresh and let user see the link
+            // Also set on global status chip
+            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">Order created in ClickUp</a>`;
+
+            // Save and refresh
             saveEvents(events);
             renderCalendar();
 
-            // Close modal after 3 seconds instead of 1.5 to give user time to see and click
-            setTimeout(()=>{ closeModal(); calendar.unselect(); }, 3000);
+            // Close modal after 4 seconds to give user time to see and click
+            setTimeout(()=>{ closeModal(); calendar.unselect(); }, 4000);
           } else {
             statusChip.textContent = "✓ Order created in ClickUp";
             // Close modal after 1.5 seconds if no URL
@@ -9357,16 +9373,24 @@ function openEventEditor(payload){
           }
 
           if(clickupUrl){
-            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">CV Sent task created in ClickUp</a>`;
-            console.log("✓✓ Link HTML set on statusChip - click the link at the top to open ClickUp task");
+            // Display link in modal status area
+            const modalStatusArea = document.getElementById("modalStatusArea");
+            const modalStatusMessage = document.getElementById("modalStatusMessage");
+            if(modalStatusArea && modalStatusMessage){
+              modalStatusMessage.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer; font-size: 16px;">CV Sent task created in ClickUp - Click here to open</a>`;
+              modalStatusArea.style.display = "block";
+              console.log("✓✓ Link displayed in modal status area");
+            }
 
-            // Keep the link visible - don't auto-close the modal if there's a URL
-            // Just refresh and let user see the link
+            // Also set on global status chip
+            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">CV Sent task created in ClickUp</a>`;
+
+            // Save and refresh
             saveEvents(events);
             renderCalendar();
 
-            // Close modal after 3 seconds instead of 1.5 to give user time to see and click
-            setTimeout(()=>{ closeModal(); calendar.unselect(); }, 3000);
+            // Close modal after 4 seconds to give user time to see and click
+            setTimeout(()=>{ closeModal(); calendar.unselect(); }, 4000);
           } else {
             statusChip.textContent = "✓ CV Sent task created in ClickUp";
             // Close modal after 1.5 seconds if no URL
