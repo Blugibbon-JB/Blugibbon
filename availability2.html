@@ -9132,17 +9132,23 @@ function openEventEditor(payload){
           }
 
           if(clickupUrl){
-            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline;">Order created in ClickUp</a>`;
+            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">Order created in ClickUp</a>`;
+            console.log("✓✓ Link HTML set on statusChip - click the link at the top to open ClickUp task");
+
+            // Keep the link visible - don't auto-close the modal if there's a URL
+            // Just refresh and let user see the link
+            saveEvents(events);
+            renderCalendar();
+
+            // Close modal after 3 seconds instead of 1.5 to give user time to see and click
+            setTimeout(()=>{ closeModal(); calendar.unselect(); }, 3000);
           } else {
             statusChip.textContent = "✓ Order created in ClickUp";
+            // Close modal after 1.5 seconds if no URL
+            saveEvents(events);
+            renderCalendar();
+            setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
           }
-
-          // Save event and refresh calendar before closing modal
-          saveEvents(events);
-          renderCalendar();
-
-          // Close modal after 1.5 seconds
-          setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
         } catch(err){
           console.error("Error creating order:", err);
           statusChip.textContent = "❌ Error creating order: " + (err.message || "Unknown error");
@@ -9351,17 +9357,23 @@ function openEventEditor(payload){
           }
 
           if(clickupUrl){
-            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline;">CV Sent task created in ClickUp</a>`;
+            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">CV Sent task created in ClickUp</a>`;
+            console.log("✓✓ Link HTML set on statusChip - click the link at the top to open ClickUp task");
+
+            // Keep the link visible - don't auto-close the modal if there's a URL
+            // Just refresh and let user see the link
+            saveEvents(events);
+            renderCalendar();
+
+            // Close modal after 3 seconds instead of 1.5 to give user time to see and click
+            setTimeout(()=>{ closeModal(); calendar.unselect(); }, 3000);
           } else {
             statusChip.textContent = "✓ CV Sent task created in ClickUp";
+            // Close modal after 1.5 seconds if no URL
+            saveEvents(events);
+            renderCalendar();
+            setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
           }
-
-          // Save event and refresh calendar before closing modal
-          saveEvents(events);
-          renderCalendar();
-
-          // Close modal after 1.5 seconds
-          setTimeout(()=>{ closeModal(); calendar.unselect(); }, 1500);
         } catch(err){
           console.error("Error creating CV Sent task:", err);
           statusChip.textContent = "❌ Error creating CV Sent task: " + (err.message || "Unknown error");
