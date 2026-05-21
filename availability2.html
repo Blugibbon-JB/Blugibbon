@@ -9140,17 +9140,16 @@ function openEventEditor(payload){
           }
 
           if(clickupUrl){
-            // Display link in modal status area
-            const modalStatusArea = document.getElementById("modalStatusArea");
-            const modalStatusMessage = document.getElementById("modalStatusMessage");
-            if(modalStatusArea && modalStatusMessage){
-              modalStatusMessage.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer; font-size: 16px;">Order created in ClickUp - Click here to open</a>`;
-              modalStatusArea.style.display = "block";
-              console.log("✓✓ Link displayed in modal status area");
+            // Display link in visible status mirror (the topbar element)
+            const bgStatusMirror = document.getElementById("bgStatusMirror");
+            if(bgStatusMirror){
+              bgStatusMirror.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">Order created in ClickUp</a>`;
+              bgStatusMirror.title = `Order created in ClickUp - ${clickupUrl}`;
+              console.log("✓✓ Link displayed in visible topbar status");
             }
 
-            // Also set on global status chip
-            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">Order created in ClickUp</a>`;
+            // Also set text on hidden statusChip for backward compatibility
+            statusChip.textContent = "✓ Order created in ClickUp";
 
             // Save and refresh
             saveEvents(events);
@@ -9160,6 +9159,8 @@ function openEventEditor(payload){
             setTimeout(()=>{ closeModal(); calendar.unselect(); }, 4000);
           } else {
             statusChip.textContent = "✓ Order created in ClickUp";
+            const bgStatusMirror = document.getElementById("bgStatusMirror");
+            if(bgStatusMirror) bgStatusMirror.textContent = "✓ Order created in ClickUp";
             // Close modal after 1.5 seconds if no URL
             saveEvents(events);
             renderCalendar();
@@ -9373,17 +9374,16 @@ function openEventEditor(payload){
           }
 
           if(clickupUrl){
-            // Display link in modal status area
-            const modalStatusArea = document.getElementById("modalStatusArea");
-            const modalStatusMessage = document.getElementById("modalStatusMessage");
-            if(modalStatusArea && modalStatusMessage){
-              modalStatusMessage.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer; font-size: 16px;">CV Sent task created in ClickUp - Click here to open</a>`;
-              modalStatusArea.style.display = "block";
-              console.log("✓✓ Link displayed in modal status area");
+            // Display link in visible status mirror (the topbar element)
+            const bgStatusMirror = document.getElementById("bgStatusMirror");
+            if(bgStatusMirror){
+              bgStatusMirror.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">CV Sent task created in ClickUp</a>`;
+              bgStatusMirror.title = `CV Sent task created in ClickUp - ${clickupUrl}`;
+              console.log("✓✓ Link displayed in visible topbar status");
             }
 
-            // Also set on global status chip
-            statusChip.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">CV Sent task created in ClickUp</a>`;
+            // Also set text on hidden statusChip for backward compatibility
+            statusChip.textContent = "✓ CV Sent task created in ClickUp";
 
             // Save and refresh
             saveEvents(events);
@@ -9393,6 +9393,8 @@ function openEventEditor(payload){
             setTimeout(()=>{ closeModal(); calendar.unselect(); }, 4000);
           } else {
             statusChip.textContent = "✓ CV Sent task created in ClickUp";
+            const bgStatusMirror = document.getElementById("bgStatusMirror");
+            if(bgStatusMirror) bgStatusMirror.textContent = "✓ CV Sent task created in ClickUp";
             // Close modal after 1.5 seconds if no URL
             saveEvents(events);
             renderCalendar();
