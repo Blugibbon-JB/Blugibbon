@@ -9143,8 +9143,8 @@ function openEventEditor(payload){
             // Display link in visible status mirror (the topbar element)
             const bgStatusMirror = document.getElementById("bgStatusMirror");
             if(bgStatusMirror){
-              bgStatusMirror.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">Order created in ClickUp</a>`;
-              bgStatusMirror.title = `Order created in ClickUp - ${clickupUrl}`;
+              bgStatusMirror.innerHTML = `<a href="${clickupUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer; padding: 4px 8px; margin: -4px -8px;">✓ Order created in ClickUp</a>`;
+              bgStatusMirror.title = "";
               console.log("✓✓ Link displayed in visible topbar status");
             }
 
@@ -9377,8 +9377,8 @@ function openEventEditor(payload){
             // Display link in visible status mirror (the topbar element)
             const bgStatusMirror = document.getElementById("bgStatusMirror");
             if(bgStatusMirror){
-              bgStatusMirror.innerHTML = `✓ <a href="${clickupUrl}" target="_blank" style="color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer;">CV Sent task created in ClickUp</a>`;
-              bgStatusMirror.title = `CV Sent task created in ClickUp - ${clickupUrl}`;
+              bgStatusMirror.innerHTML = `<a href="${clickupUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer; padding: 4px 8px; margin: -4px -8px;">✓ CV Sent task created in ClickUp</a>`;
+              bgStatusMirror.title = "";
               console.log("✓✓ Link displayed in visible topbar status");
             }
 
