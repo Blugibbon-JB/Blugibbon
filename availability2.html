@@ -2228,6 +2228,7 @@ button.moreBtn[aria-expanded="true"]{
       Undo
     </button>
     <span id="bgStatusMirror" class="chip" title="Status">No data loaded</span>
+    <a id="bgStatusLink" href="" target="_blank" style="display: none; color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer; margin-left: 12px; font-size: 14px;">Open in ClickUp →</a>
   </div>
 
   <!-- Bookings context -->
@@ -9140,12 +9141,18 @@ function openEventEditor(payload){
           }
 
           if(clickupUrl){
-            // Display link in visible status mirror (the topbar element)
+            // Display status text in visible status mirror
             const bgStatusMirror = document.getElementById("bgStatusMirror");
             if(bgStatusMirror){
-              bgStatusMirror.innerHTML = `<a href="${clickupUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer; padding: 4px 8px; margin: -4px -8px;">✓ Order created in ClickUp</a>`;
-              bgStatusMirror.title = "";
-              console.log("✓✓ Link displayed in visible topbar status");
+              bgStatusMirror.textContent = "✓ Order created in ClickUp";
+            }
+
+            // Display clickable link next to status
+            const bgStatusLink = document.getElementById("bgStatusLink");
+            if(bgStatusLink){
+              bgStatusLink.href = clickupUrl;
+              bgStatusLink.style.display = "inline-block";
+              console.log("✓✓ Link displayed next to status");
             }
 
             // Also set text on hidden statusChip for backward compatibility
@@ -9161,6 +9168,8 @@ function openEventEditor(payload){
             statusChip.textContent = "✓ Order created in ClickUp";
             const bgStatusMirror = document.getElementById("bgStatusMirror");
             if(bgStatusMirror) bgStatusMirror.textContent = "✓ Order created in ClickUp";
+            const bgStatusLink = document.getElementById("bgStatusLink");
+            if(bgStatusLink) bgStatusLink.style.display = "none";
             // Close modal after 1.5 seconds if no URL
             saveEvents(events);
             renderCalendar();
@@ -9374,12 +9383,18 @@ function openEventEditor(payload){
           }
 
           if(clickupUrl){
-            // Display link in visible status mirror (the topbar element)
+            // Display status text in visible status mirror
             const bgStatusMirror = document.getElementById("bgStatusMirror");
             if(bgStatusMirror){
-              bgStatusMirror.innerHTML = `<a href="${clickupUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; color: #0066cc; font-weight: bold; text-decoration: underline; cursor: pointer; padding: 4px 8px; margin: -4px -8px;">✓ CV Sent task created in ClickUp</a>`;
-              bgStatusMirror.title = "";
-              console.log("✓✓ Link displayed in visible topbar status");
+              bgStatusMirror.textContent = "✓ CV Sent task created in ClickUp";
+            }
+
+            // Display clickable link next to status
+            const bgStatusLink = document.getElementById("bgStatusLink");
+            if(bgStatusLink){
+              bgStatusLink.href = clickupUrl;
+              bgStatusLink.style.display = "inline-block";
+              console.log("✓✓ Link displayed next to status");
             }
 
             // Also set text on hidden statusChip for backward compatibility
@@ -9395,6 +9410,8 @@ function openEventEditor(payload){
             statusChip.textContent = "✓ CV Sent task created in ClickUp";
             const bgStatusMirror = document.getElementById("bgStatusMirror");
             if(bgStatusMirror) bgStatusMirror.textContent = "✓ CV Sent task created in ClickUp";
+            const bgStatusLink = document.getElementById("bgStatusLink");
+            if(bgStatusLink) bgStatusLink.style.display = "none";
             // Close modal after 1.5 seconds if no URL
             saveEvents(events);
             renderCalendar();
