@@ -9065,50 +9065,68 @@ function openEventEditor(payload){
           // Extract ClickUp URL from response if available
           let clickupUrl = null;
           if(clickupResult){
-            console.log("Make.com Order Response:", clickupResult);
+            console.log("Make.com Order Response (full):", clickupResult);
+            console.log("Response type:", typeof clickupResult);
+            console.log("Response keys:", Object.keys(clickupResult || {}));
 
             // Handle case where response data is wrapped in a 'message' string field
             let responseData = clickupResult;
             if(clickupResult.message && typeof clickupResult.message === "string"){
+              console.log("Response message field (string):", clickupResult.message);
               try {
                 responseData = JSON.parse(clickupResult.message);
+                console.log("Parsed message as JSON:", responseData);
               } catch(e){
+                console.log("Could not parse message as JSON, trying regex...");
                 // Extract URL manually using regex (handles unquoted URLs in the string)
                 const urlMatch = clickupResult.message.match(/https?:\/\/app\.clickup\.com\/t\/[a-zA-Z0-9]+/);
                 if(urlMatch){
                   clickupUrl = urlMatch[0];
+                  console.log("Found URL in message string:", clickupUrl);
                 }
               }
             }
 
             // Check for URL in various possible response formats (if not already found)
             if(!clickupUrl){
+              console.log("Checking standard response fields...");
               if(responseData.LocationsArray && Array.isArray(responseData.LocationsArray) && responseData.LocationsArray.length > 0){
                 clickupUrl = responseData.LocationsArray[0].URL;
+                console.log("Found URL in LocationsArray:", clickupUrl);
               } else if(responseData.url){
                 clickupUrl = responseData.url;
+                console.log("Found URL in .url field:", clickupUrl);
               } else if(responseData.taskUrl){
                 clickupUrl = responseData.taskUrl;
+                console.log("Found URL in .taskUrl field:", clickupUrl);
               } else if(responseData.data && responseData.data.url){
                 clickupUrl = responseData.data.url;
+                console.log("Found URL in .data.url field:", clickupUrl);
               } else if(responseData.clickup_url){
                 clickupUrl = responseData.clickup_url;
+                console.log("Found URL in .clickup_url field:", clickupUrl);
               } else if(responseData.task_url){
                 clickupUrl = responseData.task_url;
+                console.log("Found URL in .task_url field:", clickupUrl);
               }
 
               // Last resort: search entire response string for ClickUp URL
               if(!clickupUrl && typeof responseData === 'object'){
+                console.log("Searching entire response JSON for ClickUp URL...");
                 const jsonStr = JSON.stringify(responseData);
                 const urlMatch = jsonStr.match(/https?:\/\/app\.clickup\.com\/t\/[a-zA-Z0-9]+/);
                 if(urlMatch){
                   clickupUrl = urlMatch[0];
+                  console.log("Found URL in JSON search:", clickupUrl);
                 }
               }
             }
 
             if(!clickupUrl){
               console.warn("Could not extract ClickUp URL from response:", clickupResult);
+              console.warn("Full response data:", JSON.stringify(responseData, null, 2));
+            } else {
+              console.log("✓ Successfully extracted URL:", clickupUrl);
             }
 
           }
@@ -9268,49 +9286,67 @@ function openEventEditor(payload){
           // Extract ClickUp URL from response (same logic as placement)
           let clickupUrl = null;
           if(clickupResult){
-            console.log("Make.com CV Sent Response:", clickupResult);
+            console.log("Make.com CV Sent Response (full):", clickupResult);
+            console.log("Response type:", typeof clickupResult);
+            console.log("Response keys:", Object.keys(clickupResult || {}));
 
             let responseData = clickupResult;
             if(clickupResult.message && typeof clickupResult.message === "string"){
+              console.log("Response message field (string):", clickupResult.message);
               try {
                 responseData = JSON.parse(clickupResult.message);
+                console.log("Parsed message as JSON:", responseData);
               } catch(e){
+                console.log("Could not parse message as JSON, trying regex...");
                 // Extract URL manually using regex
                 const urlMatch = clickupResult.message.match(/https?:\/\/app\.clickup\.com\/t\/[a-zA-Z0-9]+/);
                 if(urlMatch){
                   clickupUrl = urlMatch[0];
+                  console.log("Found URL in message string:", clickupUrl);
                 }
               }
             }
 
             // Check for URL in various possible response formats
             if(!clickupUrl){
+              console.log("Checking standard response fields...");
               if(responseData.LocationsArray && Array.isArray(responseData.LocationsArray) && responseData.LocationsArray.length > 0){
                 clickupUrl = responseData.LocationsArray[0].URL;
+                console.log("Found URL in LocationsArray:", clickupUrl);
               } else if(responseData.url){
                 clickupUrl = responseData.url;
+                console.log("Found URL in .url field:", clickupUrl);
               } else if(responseData.taskUrl){
                 clickupUrl = responseData.taskUrl;
+                console.log("Found URL in .taskUrl field:", clickupUrl);
               } else if(responseData.data && responseData.data.url){
                 clickupUrl = responseData.data.url;
+                console.log("Found URL in .data.url field:", clickupUrl);
               } else if(responseData.clickup_url){
                 clickupUrl = responseData.clickup_url;
+                console.log("Found URL in .clickup_url field:", clickupUrl);
               } else if(responseData.task_url){
                 clickupUrl = responseData.task_url;
+                console.log("Found URL in .task_url field:", clickupUrl);
               }
 
               // Last resort: search entire response string for ClickUp URL
               if(!clickupUrl && typeof responseData === 'object'){
+                console.log("Searching entire response JSON for ClickUp URL...");
                 const jsonStr = JSON.stringify(responseData);
                 const urlMatch = jsonStr.match(/https?:\/\/app\.clickup\.com\/t\/[a-zA-Z0-9]+/);
                 if(urlMatch){
                   clickupUrl = urlMatch[0];
+                  console.log("Found URL in JSON search:", clickupUrl);
                 }
               }
             }
 
             if(!clickupUrl){
               console.warn("Could not extract ClickUp URL from response:", clickupResult);
+              console.warn("Full response data:", JSON.stringify(responseData, null, 2));
+            } else {
+              console.log("✓ Successfully extracted URL:", clickupUrl);
             }
           }
 
