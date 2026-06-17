@@ -10810,7 +10810,7 @@ function parsePlacementsCSV(text, userColumns){
   // Parse placements CSV with columns:
   // BG Team Mate, Placement x BG Active Doctor (task IDs), Start Date, Due Date,
   // Margin Per Unit, Total Estimated Units, Total Placement Estimated Margin $,
-  // Pay Inc Super, Pay Exc Super, Site Name
+  // Pay Inc Super, Pay Exc Super, Site Name, Placement ID (custom field)
 
   const rows = parseCSV(text);
   if(rows.length < 2) return [];
@@ -10818,7 +10818,7 @@ function parsePlacementsCSV(text, userColumns){
   const header = rows[0].map(h => String(h||"").trim().replace(/^"|"$/g,""));
 
   // Use userColumns if provided (from parser helper), otherwise do auto-detection
-  let iDoctorList, iStart, iEnd, iSite, iMargin, iTotalUnits, iTotalMargin, iPayIncSuper, iPayExcSuper;
+  let iDoctorList, iStart, iEnd, iSite, iMargin, iTotalUnits, iTotalMargin, iPayIncSuper, iPayExcSuper, iPlacementId;
 
   if(userColumns){
     // Use user's selected column indices from parser helper
@@ -10832,6 +10832,7 @@ function parsePlacementsCSV(text, userColumns){
     iTotalMargin = userColumns.totalMargin !== undefined ? userColumns.totalMargin : -1;
     iPayIncSuper = userColumns.payIncSuper !== undefined ? userColumns.payIncSuper : -1;
     iPayExcSuper = userColumns.payExcSuper !== undefined ? userColumns.payExcSuper : -1;
+    iPlacementId = userColumns.placementId !== undefined ? userColumns.placementId : -1;
   } else {
     // Fallback to auto-detection
     const headerLower = header.map(h => h.toLowerCase());
@@ -10853,6 +10854,7 @@ function parsePlacementsCSV(text, userColumns){
     iTotalMargin = col("total placement estimated margin $ (formula)", "total placement estimated margin");
     iPayIncSuper = col("pay inc super (per unit) (currency)", "pay inc super");
     iPayExcSuper = col("pay exc super (per unit) (currency)", "pay exc super");
+    iPlacementId = col("placement id", "placement");
   }
 
   if(iDoctorList < 0 || iStart < 0 || iEnd < 0 || iSite < 0){
@@ -10902,6 +10904,9 @@ function parsePlacementsCSV(text, userColumns){
       }
     }
 
+    // Extract Placement ID from custom field (ClickUp generates IDs like "401148")
+    const placementId = iPlacementId >= 0 ? String(row[iPlacementId]||"").trim() : "";
+
     // Collect financial data for notes
     const notesLines = [];
     const financial = [
@@ -10922,6 +10927,7 @@ function parsePlacementsCSV(text, userColumns){
     out.push({
       taskIds, siteName, siteTaskId, startISO, endExISO,
       notes: notesLines.join("\n"),
+      placementId: placementId,
       marginPerUnit: parseFloat(row[iMargin]) || 0,
       totalEstimatedUnits: parseFloat(row[iTotalUnits]) || 0,
       totalPlacementEstimatedMargin: parseFloat(row[iTotalMargin]) || 0,
@@ -10988,6 +10994,7 @@ if(uploadPlacementsBtn && placementsCsvFile){
       let duplicates = 0;
       const errors = [];
       const seen = new Set();
+      const duplicateList = []; // Track placements with duplicate IDs
 
       for(const r of rows){
         // Match first task ID to doctor
@@ -11017,6 +11024,24 @@ if(uploadPlacementsBtn && placementsCsvFile){
         if(!matchedSite) {
           errors.push(`Row ${r.lineNum}: No site found for site task ID [${r.siteTaskId || 'none'}]`);
           continue;
+        }
+
+        // Check for duplicate Placement ID (if present in CSV)
+        let existingByPlacementId = null;
+        if(r.placementId) {
+          existingByPlacementId = events.find(e =>
+            e.placement_id && String(e.placement_id) === String(r.placementId)
+          );
+          if(existingByPlacementId) {
+            duplicateList.push({
+              row: r,
+              existingEvent: existingByPlacementId,
+              matchedDoc,
+              matchedSite,
+              matchedTaskId
+            });
+            continue; // Skip for now, will ask user later
+          }
         }
 
         // Deduplication key: start | end | location | doctor
@@ -11058,7 +11083,9 @@ if(uploadPlacementsBtn && placementsCsvFile){
           end: r.endExISO,
           source: "placements",
           type: "placement",
+          placement_id: r.placementId,
           placement_data: {
+            placement_id: r.placementId,
             doctor_id: String(matchedDoc.ahpra_id),
             doctor_name: matchedDoc.name,
             doctor_task_id: matchedTaskId,
@@ -11088,6 +11115,91 @@ if(uploadPlacementsBtn && placementsCsvFile){
           events.push(rec);
         }
         imported++;
+      }
+
+      // Handle duplicate Placement IDs - ask user what to do
+      if(duplicateList.length > 0) {
+        const handleDuplicates = async () => {
+          let skipCount = 0;
+          let updateCount = 0;
+
+          for(const dup of duplicateList) {
+            const r = dup.row;
+            const existing = dup.existingEvent;
+            const newStart = r.startISO;
+            const newEnd = r.endExISO;
+            const changed = existing.start !== newStart || existing.end !== newEnd || existing.location !== dup.matchedSite.name;
+
+            const msg = changed
+              ? `Placement ID ${r.placementId} already exists.\n\nExisting: ${existing.start} to ${existing.end} at ${existing.location}\n\nNew: ${newStart} to ${newEnd} at ${dup.matchedSite.name}\n\nUpdate with new dates/location?`
+              : `Placement ID ${r.placementId} already exists at same location and dates. Update or skip?`;
+
+            const shouldUpdate = confirm(msg);
+
+            if(shouldUpdate) {
+              // Update existing event with new data
+              const dayShifts = {};
+              const startDate = new Date(newStart + 'T00:00:00Z');
+              const endDate = new Date(newEnd + 'T00:00:00Z');
+              for (let d = new Date(startDate); d < endDate; ) {
+                const dateISO = d.toISOString().split('T')[0];
+                dayShifts[dateISO] = 'day';
+                d.setUTCDate(d.getUTCDate() + 1);
+              }
+
+              existing.start = newStart;
+              existing.end = newEnd;
+              existing.location = dup.matchedSite.name;
+              existing.notes = r.notes;
+              existing.placement_id = r.placementId;
+              existing.placement_data = {
+                placement_id: r.placementId,
+                doctor_id: String(dup.matchedDoc.ahpra_id),
+                doctor_name: dup.matchedDoc.name,
+                doctor_task_id: dup.matchedTaskId,
+                site_name: dup.matchedSite.name,
+                site_task_id: r.siteTaskId,
+                site_id: dup.matchedSite.id,
+                standard_rate: r.payIncSuper || 0,
+                night_rate: 0,
+                extra_rate_1: 0,
+                extra_rate_2: 0,
+                unit_type: 'daily',
+                day_shifts: dayShifts,
+                hours_per_shift: 8,
+                agency_fee_percent: 0,
+                margin_per_unit: r.marginPerUnit || 0,
+                total_estimated_units: r.totalEstimatedUnits || 0,
+                total_estimated_margin: r.totalPlacementEstimatedMargin || 0,
+                doctor_pay_inc_super: r.payIncSuper || 0,
+                doctor_pay_exc_super: r.payExcSuper || 0
+              };
+              updateCount++;
+              imported++;
+            } else {
+              skipCount++;
+            }
+          }
+
+          // Save and refresh after handling all duplicates
+          saveEvents(events);
+          renderDoctorList();
+          renderHeader();
+          renderCalendar();
+          updateUndoButton();
+
+          let msg = `Placements: ${imported} imported`;
+          if(updateCount > 0) msg += ` (${updateCount} updated by ID)`;
+          if(skipCount > 0) msg += ` (${skipCount} skipped)`;
+          if(duplicates > 0) msg += ` (${duplicates} duplicates skipped)`;
+          if(errors.length > 0) {
+            msg += `, ${errors.length} errors:\n` + errors.slice(0, 5).join("\n");
+          }
+          statusChip.textContent = msg;
+        };
+
+        await handleDuplicates();
+        return;
       }
 
       // Cleanup: Remove any duplicate events (by start, end, location, ahpra_id)
