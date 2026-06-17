@@ -10952,7 +10952,7 @@ if(uploadPlacementsBtn && placementsCsvFile){
     const text = await file.text();
 
     // Show parser helper before importing
-    showParserHelper(text, 'placements', (userColumns, headerRaw) => {
+    showParserHelper(text, 'placements', async (userColumns, headerRaw) => {
       try {
         const rows = parsePlacementsCSV(text, userColumns);
       if(!rows.length){
