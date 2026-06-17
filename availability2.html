@@ -3486,6 +3486,112 @@ function saveEvents(events){
   if(isOnline && firebase_user) syncToFirebase();
 }
 
+// ================== SMART MERGE FUNCTIONS (Preserve Manual Edits) ==================
+/**
+ * Add import metadata timestamps to records
+ * @param {Array} records - Doctors or events to timestamp
+ * @param {String} source - Source of data (e.g., "import", "manual")
+ */
+function addImportTimestamp(records, source = "import") {
+  const now = new Date().toISOString();
+  return records.map(record => ({
+    ...record,
+    lastModified: now,
+    lastModifiedBy: source,
+    importedAt: now
+  }));
+}
+
+/**
+ * Add timestamp to a single record when manually edited
+ */
+function addManualEditTimestamp(record) {
+  return {
+    ...record,
+    lastModified: new Date().toISOString(),
+    lastModifiedBy: "manual"
+  };
+}
+
+/**
+ * Merge two records based on lastModified timestamp
+ * Keeps the version that was edited more recently
+ */
+function mergeRecordByTimestamp(localRecord, importedRecord) {
+  if (!localRecord) {
+    return { ...importedRecord, lastModified: new Date().toISOString(), lastModifiedBy: "import", importedAt: new Date().toISOString() };
+  }
+
+  const localTime = new Date(localRecord.lastModified || 0);
+  const importTime = new Date(importedRecord.lastModified || 0);
+
+  // If local is newer or equal, keep it (manual edits take priority)
+  if (localTime >= importTime) {
+    return localRecord;
+  }
+
+  // If import is newer, use imported with updated metadata
+  return {
+    ...importedRecord,
+    lastModified: new Date().toISOString(),
+    lastModifiedBy: "import",
+    importedAt: new Date().toISOString()
+  };
+}
+
+/**
+ * Smart merge imported data with existing data
+ * Compares timestamps and keeps newer versions
+ */
+function smartMergeDoctors(importedDoctors, existingDoctors) {
+  const existingMap = new Map(existingDoctors.map(d => [String(d.ahpra_id), d]));
+  const stats = { new: 0, updated: 0, kept: 0, total: 0 };
+
+  importedDoctors.forEach(imported => {
+    const key = String(imported.id || imported.ahpra_id);
+    const existing = existingMap.get(key);
+
+    stats.total++;
+
+    if (!existing) {
+      // New doctor
+      const withTimestamp = addImportTimestamp([imported], "import")[0];
+      existingMap.set(key, withTimestamp);
+      stats.new++;
+    } else {
+      const localTime = new Date(existing.lastModified || 0);
+      const importTime = new Date(imported.lastModified || 0);
+
+      if (localTime >= importTime) {
+        // Keep local (it was edited more recently)
+        stats.kept++;
+      } else {
+        // Update with imported
+        const merged = mergeRecordByTimestamp(existing, imported);
+        existingMap.set(key, merged);
+        stats.updated++;
+      }
+    }
+  });
+
+  return {
+    doctors: Array.from(existingMap.values()),
+    stats: stats
+  };
+}
+
+/**
+ * Display import results to user
+ */
+function displayImportResults(stats) {
+  const message = `✅ Import complete\n` +
+    `📌 New: ${stats.new}, 🔄 Updated: ${stats.updated}, 📝 Local edits kept: ${stats.kept}`;
+
+  console.log("Import Statistics:", stats);
+  statusChip.textContent = `Import: ${stats.new} new, ${stats.updated} updated, ${stats.kept} local edits kept`;
+}
+// ================== END SMART MERGE FUNCTIONS ==================
+
 function sanitizeEventsForFirebase(eventsArray) {
   const removeUndefined = (obj) => {
     if (obj === null || obj === undefined) return null;
@@ -8962,7 +9068,10 @@ function openEventEditor(payload){
           notes,
           created_by: firebase_user?.email || "unknown",  // Email of user who created/edited
           start: blkStartISO,
-          end: blkEndISO
+          end: blkEndISO,
+          // TIMESTAMP: Track when this event was created/edited for smart merge on re-import
+          lastModified: new Date().toISOString(),
+          lastModifiedBy: 'manual'
         };
 
         // Enforce only one status per day: override any overlapping blocks for this doctor.
@@ -9036,6 +9145,9 @@ function openEventEditor(payload){
             events[eventIndex].location = location;
             events[eventIndex].notes = notes;
             events[eventIndex].site_id = siteId;
+            // UPDATE TIMESTAMP: Mark as manually edited
+            events[eventIndex].lastModified = new Date().toISOString();
+            events[eventIndex].lastModifiedBy = 'manual';
           }
 
           // Get doctor and site info
@@ -9547,10 +9659,20 @@ function openDoctorEditor(existing){
 
         if(isEdit){
           const idx = doctors.findIndex(d=>String(d.ahpra_id)===String(existing.ahpra_id));
-          if(idx>=0){ doctors[idx] = { ...doctors[idx], name, clickup_url, prefs, where, specialty, pgy, level, tags }; }
+          if(idx>=0){
+            // Add timestamp to mark as manually edited
+            doctors[idx] = addManualEditTimestamp({
+              ...doctors[idx],
+              name, clickup_url, prefs, where, specialty, pgy, level, tags
+            });
+          }
         } else {
           if(doctors.some(d=>String(d.ahpra_id)===String(ahpra))){ statusChip.textContent = "That AHPRA ID already exists."; return; }
-          doctors.push({ ahpra_id: ahpra, name, clickup_url, prefs, where, specialty, pgy, level, tags });
+          // Add timestamp to new doctor
+          doctors.push(addManualEditTimestamp({
+            ahpra_id: ahpra,
+            name, clickup_url, prefs, where, specialty, pgy, level, tags
+          }));
         }
 
         saveDoctors(doctors);
@@ -10099,27 +10221,23 @@ csvFile.addEventListener("change", async (ev)=>{
   try{
     const parsed = parseAvailabilityCSV(text);
 
-    pushUndo(replaceToggle.checked ? "Import (replace)" : "Import (merge)");
+    pushUndo(replaceToggle.checked ? "Import (replace)" : "Import (smart merge)");
 
     if(replaceToggle.checked){
-      doctors = parsed.doctors;
-      events = parsed.events;
+      // Destructive import: replace everything
+      doctors = addImportTimestamp(parsed.doctors, "import");
+      events = addImportTimestamp(parsed.events, "import");
       selectedDoctorId = doctors.length ? String(doctors[0].ahpra_id) : null;
     } else {
-      const existingMap = new Map(doctors.map(d=>[String(d.ahpra_id), d]));
-      for(const d of parsed.doctors){
-        const key = String(d.ahpra_id);
-        if(!existingMap.has(key)) existingMap.set(key, d);
-        else {
-          const ex = existingMap.get(key);
-          if(!ex.name && d.name) ex.name = d.name;
-          if(!ex.prefs && d.prefs) ex.prefs = d.prefs;
-          if(!ex.where && d.where) ex.where = d.where;
-          if((!ex.tags || !ex.tags.length) && d.tags?.length) ex.tags = d.tags;
-        }
-      }
-      doctors = Array.from(existingMap.values());
-      events = events.concat(parsed.events);
+      // SMART MERGE: Preserve manual edits using timestamps
+      const mergeResult = smartMergeDoctors(parsed.doctors, doctors);
+      doctors = mergeResult.doctors;
+      displayImportResults(mergeResult.stats);
+
+      // For events, add timestamps and merge
+      const importedWithTimestamps = addImportTimestamp(parsed.events, "import");
+      events = events.concat(importedWithTimestamps);
+
       if(!selectedDoctorId && doctors.length) selectedDoctorId = String(doctors[0].ahpra_id);
     }
 
@@ -10130,9 +10248,15 @@ csvFile.addEventListener("change", async (ev)=>{
     renderHeader();
     renderCalendar();
 
-    statusChip.textContent = `Loaded ${parsed.doctors.length} doctor(s) and ${parsed.events.length} block(s)`;
+    if(!replaceToggle.checked) {
+      // Already showed stats via displayImportResults
+      console.log("✅ Smart merge complete - manual edits preserved");
+    } else {
+      statusChip.textContent = `Loaded ${parsed.doctors.length} doctor(s) and ${parsed.events.length} block(s)`;
+    }
   } catch(e){
     statusChip.textContent = "Import error: " + e.message;
+    console.error("Import error:", e);
   }
   csvFile.value = "";
 });
@@ -12209,6 +12333,9 @@ function savePlacementAsDraft() {
         placementEvent.id = placementWorkflow.editingEventId;
         placementEvent.created_at = events[idx].created_at; // Preserve original creation time
         placementEvent.clickup_task_id = events[idx].clickup_task_id; // Preserve ClickUp ID if exists
+        // UPDATE TIMESTAMP: Mark as manually edited
+        placementEvent.lastModified = new Date().toISOString();
+        placementEvent.lastModifiedBy = 'manual';
         events[idx] = placementEvent;
       }
       placementWorkflow.editingEventId = null;
@@ -12268,6 +12395,9 @@ function savePlacementAndSendToClickUp() {
         placementEvent.id = placementWorkflow.editingEventId;
         placementEvent.created_at = events[idx].created_at; // Preserve original creation time
         placementEvent.clickup_task_id = events[idx].clickup_task_id; // Preserve ClickUp ID if exists
+        // UPDATE TIMESTAMP: Mark as manually edited
+        placementEvent.lastModified = new Date().toISOString();
+        placementEvent.lastModifiedBy = 'manual';
         events[idx] = placementEvent;
       }
       placementWorkflow.editingEventId = null;
@@ -12400,6 +12530,8 @@ Total Margin: $${formatNumber(totalMargin)}
   const state = placementWorkflow.state || 'NSW';
   const bgTeammate = document.getElementById('placementBgTeammate')?.value || '';
 
+  const now = new Date().toISOString();
+
   return {
     id: uid(),
     ahpra_id: placementWorkflow.selectedDoctor.ahpra_id,
@@ -12411,6 +12543,9 @@ Total Margin: $${formatNumber(totalMargin)}
     end: endDateExclusiveISO,
     source: 'placement',
     type: 'placement',
+    // TIMESTAMP: Track when this placement was created/edited for smart merge on re-import
+    lastModified: now,
+    lastModifiedBy: 'manual',
     placement_data: {
       doctor_id: placementWorkflow.selectedDoctor.ahpra_id,
       doctor_name: placementWorkflow.selectedDoctor.name,
