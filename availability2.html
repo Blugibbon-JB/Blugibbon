@@ -10014,6 +10014,27 @@ doctorSearch.addEventListener("input", ()=>{
 if(toggleAllBtn){
   toggleAllBtn.addEventListener("click", ()=>{
     showAllDoctors = !showAllDoctors;
+
+    // PERFORMANCE FIX: Auto-enable 14-day upcoming filter when entering all-doctors view
+    if(showAllDoctors && !upcomingOnly) {
+      upcomingOnly = true;
+      upcomingDays = "14";  // Limit to 14 days for performance (prevents crash with large datasets)
+
+      // Update the upcoming button UI
+      const upcomingBtn = document.getElementById("upcomingAvailBtn");
+      if(upcomingBtn) upcomingBtn.classList.add("primary");
+
+      console.log("✓ Performance: Auto-enabled 14-day upcoming filter for all-doctors view");
+    }
+
+    // Auto-disable upcoming filter when exiting all-doctors
+    if(!showAllDoctors && upcomingOnly) {
+      upcomingOnly = false;
+      const upcomingBtn = document.getElementById("upcomingAvailBtn");
+      if(upcomingBtn) upcomingBtn.classList.remove("primary");
+      console.log("✓ Disabled upcoming filter (exited all-doctors view)");
+    }
+
     refreshHighlight();
     toggleAllBtn.classList.toggle("primary", showAllDoctors);
     // When enabling all-doctors view, keep selection but disable create/clear actions.
@@ -10024,7 +10045,13 @@ if(toggleAllBtn){
     if(viewMode === 'timesheets') {
       renderTimesheets();
     }
-    statusChip.textContent = showAllDoctors ? "All doctors view enabled" : "All doctors view disabled";
+
+    // Update status message with performance info
+    if(showAllDoctors && upcomingOnly) {
+      statusChip.textContent = "All doctors view enabled (14-day upcoming only for performance)";
+    } else {
+      statusChip.textContent = showAllDoctors ? "All doctors view enabled" : "All doctors view disabled";
+    }
     updateActionButtons();
   });
 }
