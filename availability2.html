@@ -5186,6 +5186,18 @@ function deleteSelectedDoctors() {
       selectedDoctorId = null;
     }
 
+    // Sync to Firebase if available
+    if(firebase_user && firebase_db) {
+      firebase_db.ref(`users/${firebase_user.uid}/doctors`).set(doctors)
+        .catch(err => {
+          console.error("Firebase sync error:", err);
+        });
+      firebase_db.ref(`users/${firebase_user.uid}/events`).set(events)
+        .catch(err => {
+          console.error("Firebase sync error:", err);
+        });
+    }
+
     // Refresh calendar
     const eventList = events.map(e => ({
       id: e.id,
