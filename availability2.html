@@ -8809,8 +8809,13 @@ function renderCalendar(){
 
   // Render events
   for(const e of shown){
-    // Special handling for placement events: expand to daily view ONLY if day_shifts are defined
-    if(e.type === 'placement' && e.placement_data && e.placement_data.day_shifts && Object.keys(e.placement_data.day_shifts).length > 0) {
+    // Special handling for placement events: expand to daily view ONLY if:
+    // 1. It has day_shifts defined, AND
+    // 2. NOT in all-doctors mode (to avoid DOM explosion), AND
+    // 3. NOT in upcoming-only mode (to avoid DOM explosion)
+    const shouldExpandDaily = e.type === 'placement' && e.placement_data && e.placement_data.day_shifts && Object.keys(e.placement_data.day_shifts).length > 0 && !showAllDoctors && !upcomingOnly;
+
+    if(shouldExpandDaily) {
       expandPlacementToDailyEvents(e, docById);
     } else {
       // Regular event rendering (includes placements without day_shifts)
