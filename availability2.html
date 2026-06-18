@@ -4794,6 +4794,9 @@ function renderTimesheetsByDoctor(container, filteredTimesheets = null) {
 // Track selected placements for bulk operations
 let selectedPlacementIds = new Set();
 
+// Track selected doctors for bulk operations
+let selectedDoctorIds = new Set();
+
 function renderBookings() {
   const container = document.getElementById('bookingsContainer');
   if (!container) return;
@@ -5152,6 +5155,60 @@ function deleteSelectedPlacements() {
   } catch (e) {
     console.error('Delete failed:', e);
     alert(`Error deleting placements: ${e.message}`);
+  }
+}
+
+function deleteSelectedDoctors() {
+  if (selectedDoctorIds.size === 0) return;
+
+  try {
+    const doctorIdsToDelete = Array.from(selectedDoctorIds);
+    const initialDoctorCount = doctors.length;
+    const initialEventCount = events.length;
+
+    // Delete doctors
+    doctors = doctors.filter(d => !doctorIdsToDelete.includes(String(d.ahpra_id)));
+    const deletedDoctorCount = initialDoctorCount - doctors.length;
+
+    // Delete all events for these doctors
+    events = events.filter(e => !doctorIdsToDelete.includes(String(e.ahpra_id)));
+    const deletedEventCount = initialEventCount - events.length;
+
+    // Clear selection
+    selectedDoctorIds.clear();
+
+    // Save to localStorage
+    localStorage.setItem('doctors', JSON.stringify(doctors));
+    localStorage.setItem('events', JSON.stringify(events));
+
+    // Reset selected doctor if they were deleted
+    if(doctorIdsToDelete.includes(String(selectedDoctorId))) {
+      selectedDoctorId = null;
+    }
+
+    // Refresh calendar
+    const eventList = events.map(e => ({
+      id: e.id,
+      title: e.title || e.placement_data?.doctor_name || 'Event',
+      start: e.start,
+      end: e.end,
+      extendedProps: e
+    }));
+    calendar.removeAllEvents();
+    calendar.addEventSource(eventList);
+
+    // Re-render
+    renderDoctorList();
+    renderHeader();
+    renderCalendar();
+    updateActionButtons();
+
+    // Show confirmation message
+    console.log(`✓ Deleted ${deletedDoctorCount} doctor(s) and ${deletedEventCount} event(s)`);
+    alert(`✓ Deleted ${deletedDoctorCount} doctor(s) and ${deletedEventCount} associated event(s)`);
+  } catch (e) {
+    console.error('Delete failed:', e);
+    alert(`Error deleting doctors: ${e.message}`);
   }
 }
 
@@ -7670,6 +7727,7 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
       } catch(_){}
     }
     if(e.location) lines.push(`Where: ${e.location}`);
+    if(e.placement_data?.placement_id) lines.push(`Placement ID: ${e.placement_data.placement_id}`);
     if(e.notes) lines.push(`Notes: ${e.notes}`);
 
     const content = `<div class="t">${esc(title)}</div>` + lines.map(l=>`<div class="row">${esc(l)}</div>`).join("");
@@ -8017,31 +8075,89 @@ function renderDoctorList(){
 
   doctorList.innerHTML = "";
 
+  // Add toolbar with bulk doctor operations
+  const toolbar = document.createElement('div');
+  toolbar.style.cssText = 'display: flex; gap: 8px; margin-bottom: 12px; padding: 10px; background: #f5f5f5; border-radius: 6px; align-items: center; flex-wrap: wrap;';
+
+  const selectAllBtn = document.createElement('button');
+  selectAllBtn.textContent = 'Select All';
+  selectAllBtn.style.cssText = 'padding: 6px 10px; background: #e0e0e0; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;';
+  selectAllBtn.onclick = (e) => {
+    e.stopPropagation();
+    list.forEach(d => selectedDoctorIds.add(String(d.ahpra_id)));
+    renderDoctorList();
+  };
+
+  const deselectAllBtn = document.createElement('button');
+  deselectAllBtn.textContent = 'Deselect All';
+  deselectAllBtn.style.cssText = 'padding: 6px 10px; background: #e0e0e0; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;';
+  deselectAllBtn.onclick = (e) => {
+    e.stopPropagation();
+    selectedDoctorIds.clear();
+    renderDoctorList();
+  };
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.textContent = `Delete Selected (${selectedDoctorIds.size})`;
+  deleteBtn.style.cssText = `padding: 6px 10px; background: ${selectedDoctorIds.size > 0 ? '#ef4444' : '#ccc'}; color: white; border: none; border-radius: 4px; cursor: ${selectedDoctorIds.size > 0 ? 'pointer' : 'not-allowed'}; font-size: 12px; font-weight: 600;`;
+  deleteBtn.disabled = selectedDoctorIds.size === 0;
+  deleteBtn.onclick = (e) => {
+    e.stopPropagation();
+    if (selectedDoctorIds.size === 0) return;
+    if (confirm(`Delete ${selectedDoctorIds.size} doctor(s)? This will also delete all their events. This cannot be undone.`)) {
+      deleteSelectedDoctors();
+    }
+  };
+
+  toolbar.appendChild(selectAllBtn);
+  toolbar.appendChild(deselectAllBtn);
+  toolbar.appendChild(deleteBtn);
+  doctorList.appendChild(toolbar);
+
   for(const d of list){
     const countAll = events.filter(e=>String(e.ahpra_id)===String(d.ahpra_id)).length;
     const uCount = upcomingMeta ? (upcomingMeta.counts.get(String(d.ahpra_id))||0) : 0;
+    const isSelected = selectedDoctorIds.has(String(d.ahpra_id));
 
     const div = document.createElement("div");
     div.className = "docItem" + (String(d.ahpra_id)===String(selectedDoctorId) && !showAllDoctors ? " active" : "");
     div.innerHTML = `
-      <div class="docLeft">
-        <div class="docName">${esc(d.name || "(no name)")}</div>
-        <div class="docMeta">AHPRA ${esc(d.ahpra_id || "")}</div>
-        <div class="docMeta">${esc([d.specialty, d.prefs, d.pgy ? `PGY ${d.pgy}`:"", d.level].filter(Boolean).join(" • "))}</div>
-        <div class="docActions">
-          <button class="miniBtn viewEditBtn" type="button" title="View and edit this doctor's details">View &amp; Edit</button>
-          <button class="miniBtn moreBtn" type="button" aria-haspopup="menu" aria-expanded="false" title="More actions">More ▾</button>
-          ${
-            d.clickup_url
-              ? `<a class="btn-clickup" href="${esc(d.clickup_url)}" target="_blank" rel="noopener noreferrer">Open in ClickUp</a>`
-              : ``
-          }
+      <div class="docLeft" style="display: flex; align-items: center; gap: 10px; flex: 1;">
+        <input type="checkbox" class="docCheckbox" ${isSelected ? 'checked' : ''} style="cursor: pointer; width: 18px; height: 18px;" />
+        <div style="flex: 1;">
+          <div class="docName">${esc(d.name || "(no name)")}</div>
+          <div class="docMeta">AHPRA ${esc(d.ahpra_id || "")}</div>
+          <div class="docMeta">${esc([d.specialty, d.prefs, d.pgy ? `PGY ${d.pgy}`:"", d.level].filter(Boolean).join(" • "))}</div>
+          <div class="docActions">
+            <button class="miniBtn viewEditBtn" type="button" title="View and edit this doctor's details">View &amp; Edit</button>
+            <button class="miniBtn moreBtn" type="button" aria-haspopup="menu" aria-expanded="false" title="More actions">More ▾</button>
+            ${
+              d.clickup_url
+                ? `<a class="btn-clickup" href="${esc(d.clickup_url)}" target="_blank" rel="noopener noreferrer">Open in ClickUp</a>`
+                : ``
+            }
+          </div>
         </div>
       </div>
       <div class="docRight">
         <span class="badge">${upcomingMeta ? `${uCount} day(s)` : `${countAll} block(s)`}</span>
       </div>
     `;
+
+    // Checkbox for bulk selection
+    const checkbox = div.querySelector(".docCheckbox");
+    if(checkbox){
+      checkbox.addEventListener("click", (ev)=>{
+        ev.stopPropagation();
+        const docId = String(d.ahpra_id);
+        if(checkbox.checked) {
+          selectedDoctorIds.add(docId);
+        } else {
+          selectedDoctorIds.delete(docId);
+        }
+        renderDoctorList();
+      });
+    }
 
     // View & Edit button
     const viewEditBtn = div.querySelector(".viewEditBtn");
@@ -8062,6 +8178,9 @@ function renderDoctorList(){
     }
 
     div.addEventListener("click", ()=>{
+      // Don't select doctor if checkbox is being used (bulk selection mode)
+      if(selectedDoctorIds.size > 0) return;
+
       // selecting a doctor exits all-doctors and upcoming modes (existing behavior)
       upcomingOnly = false;
       if(upcomingAvailBtn) upcomingAvailBtn.classList.remove("primary");
@@ -9909,7 +10028,8 @@ function showParserHelper(csvText, csvType, onConfirm, onCancel) {
       { key: 'units', label: 'Total Estimated Units', aliases: ['total estimated units'], required: false },
       { key: 'totalMargin', label: 'Total Placement Estimated Margin', aliases: ['total placement estimated margin'], required: false },
       { key: 'payIncSuper', label: 'Pay Inc Super', aliases: ['pay inc super'], required: false },
-      { key: 'payExcSuper', label: 'Pay Exc Super', aliases: ['pay exc super'], required: false }
+      { key: 'payExcSuper', label: 'Pay Exc Super', aliases: ['pay exc super'], required: false },
+      { key: 'placementId', label: 'Placement ID', aliases: ['placement id', 'placement'], required: true }
     ];
 
     detectedColumns = {
@@ -9922,7 +10042,8 @@ function showParserHelper(csvText, csvType, onConfirm, onCancel) {
       units: findCol(headerNorm, 'units') >= 0 ? findCol(headerNorm, 'units') : -1,
       totalMargin: findCol(headerNorm, 'total', 'margin') >= 0 ? findCol(headerNorm, 'total', 'margin') : -1,
       payIncSuper: findCol(headerNorm, 'pay', 'inc') >= 0 ? findCol(headerNorm, 'pay', 'inc') : -1,
-      payExcSuper: findCol(headerNorm, 'pay', 'exc') >= 0 ? findCol(headerNorm, 'pay', 'exc') : -1
+      payExcSuper: findCol(headerNorm, 'pay', 'exc') >= 0 ? findCol(headerNorm, 'pay', 'exc') : -1,
+      placementId: findCol(headerNorm, 'placement', 'id') >= 0 ? findCol(headerNorm, 'placement', 'id') : -1
     };
   }
 
