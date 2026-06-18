@@ -7719,7 +7719,7 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
     const tip = document.getElementById("fcTooltip");
     const e = arg.event.extendedProps || {};
     const title = arg.event.title || e.status || "Status";
-    const isPlacement = arg.event.extendedProps?.placement_data ? true : false;
+    const isPlacement = e.placement_id ? true : false;
 
     const lines = [];
     // Always show doctor name for placements, only when showAllDoctors for other events
@@ -7741,7 +7741,7 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
       } catch(_){}
     }
     if(e.location) lines.push(`Where: ${e.location}`);
-    if(e.placement_data?.placement_id) lines.push(`Placement ID: ${e.placement_data.placement_id}`);
+    if(e.placement_id) lines.push(`Placement ID: ${e.placement_id}`);
     if(e.notes) lines.push(`Notes: ${e.notes}`);
 
     const content = `<div class="t">${esc(title)}</div>` + lines.map(l=>`<div class="row">${esc(l)}</div>`).join("");
@@ -8818,6 +8818,16 @@ function renderCalendar(){
         ? sitesCache[e.site_id].name
         : (e.location || "");
 
+      // For calendar display, create lightweight event (no placement_data to reduce memory)
+      const lightweightExtendedProps = {
+        status: e.status,
+        notes: e.notes,
+        location: displayLocation,
+        doctor_name: (docById.get(String(e.ahpra_id))?.name || String(e.ahpra_id)),
+        placement_id: e.placement_id || e.placement_data?.placement_id,
+        event_id: e.id // Store the full event ID for loading full data if needed
+      };
+
       calendar.addEvent({
         id: e.id,
         title: (showAllDoctors
@@ -8835,7 +8845,7 @@ function renderCalendar(){
         backgroundColor: STATUS_COLOR[e.status] || "#111",
         borderColor: STATUS_COLOR[e.status] || "#111",
         textColor: "#fff",
-        extendedProps: { status: e.status, notes: e.notes, location: displayLocation, doctor_name: (docById.get(String(e.ahpra_id))?.name || String(e.ahpra_id)), placement_data: e.placement_data }
+        extendedProps: lightweightExtendedProps
       });
     }
   }
