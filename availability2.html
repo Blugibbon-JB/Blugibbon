@@ -7719,9 +7719,11 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
     const tip = document.getElementById("fcTooltip");
     const e = arg.event.extendedProps || {};
     const title = arg.event.title || e.status || "Status";
+    const isPlacement = arg.event.extendedProps?.placement_data ? true : false;
 
     const lines = [];
-    if(e.doctor_name && showAllDoctors) lines.push(`Doctor: ${e.doctor_name}`);
+    // Always show doctor name for placements, only when showAllDoctors for other events
+    if(e.doctor_name && (showAllDoctors || isPlacement)) lines.push(`Doctor: ${e.doctor_name}`);
     if(e.status) lines.push(`Status: ${e.status}`);
     if(arg.event.startStr) {
       // startStr might be ISO; show AU format via helper if available
@@ -11459,6 +11461,7 @@ function openPlacementEditor(placementEvent) {
   // Set workflow state from placement data
   placementWorkflow.selectedDoctor = doctor;
   placementWorkflow.selectedSite = site;
+  placementWorkflow.placementId = placementEvent.placement_id || pd.placement_id || '';
   placementWorkflow.unitType = pd.unit_type || 'daily';
   placementWorkflow.standardRate = pd.standard_rate || 0;
   placementWorkflow.nightRate = pd.night_rate || 0;
@@ -12412,6 +12415,7 @@ function proceedToPlacementDetails() {
 
     // Generate summary
     const summary = `
+      ${placementWorkflow.placementId ? `<div><strong>Placement ID:</strong> ${placementWorkflow.placementId}</div>` : ''}
       <div><strong>Doctor:</strong> ${placementWorkflow.selectedDoctor.name}</div>
       <div><strong>Site:</strong> ${placementWorkflow.selectedSite.name}</div>
       <div><strong>Date Range:</strong> ${formatISODate(startDate)} to ${formatISODate(endDate)}</div>
