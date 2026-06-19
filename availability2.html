@@ -11205,7 +11205,7 @@ if(uploadPlacementsBtn && placementsCsvFile){
               matchedSite,
               matchedTaskId
             });
-            continue; // Skip for now, will ask user later
+            continue; // Skip entirely - do not check secondary matches
           }
         }
 
@@ -11218,8 +11218,9 @@ if(uploadPlacementsBtn && placementsCsvFile){
         }
         seen.add(dedupeKey);
 
-        // Check if event already exists at this site and dates
-        const existingIdx = events.findIndex(e =>
+        // Check if event already exists at this site and dates (only for non-Placement-ID rows)
+        // This prevents overwriting placements that have been manually edited
+        const existingIdx = r.placementId ? -1 : events.findIndex(e =>
           e.start === r.startISO &&
           e.end === r.endExISO &&
           e.location === matchedSite.name &&
