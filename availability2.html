@@ -5132,6 +5132,14 @@ function deleteSelectedPlacements() {
     // Save to localStorage
     localStorage.setItem('events', JSON.stringify(events));
 
+    // Sync to Firebase if available
+    if(firebase_user && firebase_db) {
+      firebase_db.ref(`users/${firebase_user.uid}/events`).set(events)
+        .catch(err => {
+          console.error("Firebase sync error:", err);
+        });
+    }
+
     // Regenerate timesheets
     generateTimesheets();
 
