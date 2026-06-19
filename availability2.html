@@ -5132,11 +5132,15 @@ function deleteSelectedPlacements() {
     // Save to localStorage
     localStorage.setItem('events', JSON.stringify(events));
 
-    // Sync to Firebase if available
+    // Sync to Firebase if available (wait for it to complete)
     if(firebase_user && firebase_db) {
       firebase_db.ref(`users/${firebase_user.uid}/events`).set(events)
+        .then(() => {
+          console.log("✓ Placements deletion synced to Firebase");
+        })
         .catch(err => {
           console.error("Firebase sync error:", err);
+          alert("Warning: Could not sync deletion to Firebase");
         });
     }
 
@@ -11188,9 +11192,12 @@ if(uploadPlacementsBtn && placementsCsvFile){
         let existingByPlacementId = null;
         if(r.placementId) {
           existingByPlacementId = events.find(e =>
-            e.placement_id && String(e.placement_id) === String(r.placementId)
+            (e.type === 'placement' || e.source === 'placements') &&
+            e.placement_id &&
+            String(e.placement_id).trim() === String(r.placementId).trim()
           );
           if(existingByPlacementId) {
+            console.log(`Found existing placement with ID ${r.placementId}:`, existingByPlacementId);
             duplicateList.push({
               row: r,
               existingEvent: existingByPlacementId,
