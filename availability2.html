@@ -11282,92 +11282,22 @@ if(uploadPlacementsBtn && placementsCsvFile){
         imported++;
       }
 
-      // Handle duplicate Placement IDs - ask user what to do with ALL at once
+      // Handle duplicate Placement IDs - ask user once if they want to continue
       if(duplicateList.length > 0) {
-        const handleDuplicates = async () => {
-          let skipCount = 0;
-          let updateCount = 0;
+        const shouldContinue = confirm(
+          `Found ${duplicateList.length} placement(s) with duplicate IDs that already exist.\n\n` +
+          `Click OK to import the remaining placements (duplicates will be ignored)\n` +
+          `Click Cancel to cancel the import`
+        );
 
-          // Ask user once for batch action
-          const action = confirm(
-            `Found ${duplicateList.length} placement(s) with duplicate IDs.\n\n` +
-            `Click OK to UPDATE ALL with new data from CSV\n` +
-            `Click Cancel to SKIP ALL\n\n` +
-            `(Or you can manually delete old placements first and re-import)`
-          );
+        if(!shouldContinue) {
+          // User cancelled - don't import anything
+          statusChip.textContent = `Import cancelled. ${duplicateList.length} placements skipped due to duplicate IDs.`;
+          return;
+        }
 
-          for(const dup of duplicateList) {
-            const r = dup.row;
-            const existing = dup.existingEvent;
-            const newStart = r.startISO;
-            const newEnd = r.endExISO;
-
-            const shouldUpdate = action; // Use the single user choice for ALL
-
-            if(shouldUpdate) {
-              // Update existing event with new data
-              const dayShifts = {};
-              const startDate = new Date(newStart + 'T00:00:00Z');
-              const endDate = new Date(newEnd + 'T00:00:00Z');
-              for (let d = new Date(startDate); d < endDate; ) {
-                const dateISO = d.toISOString().split('T')[0];
-                dayShifts[dateISO] = 'day';
-                d.setUTCDate(d.getUTCDate() + 1);
-              }
-
-              existing.start = newStart;
-              existing.end = newEnd;
-              existing.location = dup.matchedSite.name;
-              existing.notes = r.notes;
-              existing.placement_id = r.placementId;
-              existing.placement_data = {
-                placement_id: r.placementId,
-                doctor_id: String(dup.matchedDoc.ahpra_id),
-                doctor_name: dup.matchedDoc.name,
-                doctor_task_id: dup.matchedTaskId,
-                site_name: dup.matchedSite.name,
-                site_task_id: r.siteTaskId,
-                site_id: dup.matchedSite.id,
-                standard_rate: r.payIncSuper || 0,
-                night_rate: 0,
-                extra_rate_1: 0,
-                extra_rate_2: 0,
-                unit_type: 'daily',
-                day_shifts: dayShifts,
-                hours_per_shift: 8,
-                agency_fee_percent: 0,
-                margin_per_unit: r.marginPerUnit || 0,
-                total_estimated_units: r.totalEstimatedUnits || 0,
-                total_estimated_margin: r.totalPlacementEstimatedMargin || 0,
-                doctor_pay_inc_super: r.payIncSuper || 0,
-                doctor_pay_exc_super: r.payExcSuper || 0
-              };
-              updateCount++;
-              imported++;
-            } else {
-              skipCount++;
-            }
-          }
-
-          // Save and refresh after handling all duplicates
-          saveEvents(events);
-          renderDoctorList();
-          renderHeader();
-          renderCalendar();
-          updateUndoButton();
-
-          let msg = `Placements: ${imported} imported`;
-          if(updateCount > 0) msg += ` (${updateCount} updated by ID)`;
-          if(skipCount > 0) msg += ` (${skipCount} skipped)`;
-          if(duplicates > 0) msg += ` (${duplicates} duplicates skipped)`;
-          if(errors.length > 0) {
-            msg += `, ${errors.length} errors:\n` + errors.slice(0, 5).join("\n");
-          }
-          statusChip.textContent = msg;
-        };
-
-        await handleDuplicates();
-        return;
+        // If OK, duplicates stay in duplicateList but we don't import them
+        // Only the non-duplicate placements (already in events array) will be imported
       }
 
       // Cleanup: Remove any duplicate events (by start, end, location, ahpra_id)
