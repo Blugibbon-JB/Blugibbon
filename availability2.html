@@ -9219,6 +9219,21 @@ function openEventEditor(payload){
 
         const newId = (mode === "edit" && payload.id && k===0) ? payload.id : uid();
 
+        // Check if this event overlaps with a placement that has a placement_id
+        // If so, preserve the placement_id so the availability event is protected during import
+        let preservedPlacementId = null;
+        for(const e of events) {
+          if(e.placement_id && (e.type === 'placement' || e.source === 'placements')) {
+            const eStart = String(e.start);
+            const eEndEx = String(e.end);
+            // Check for overlap: event starts before this block ends AND event ends after this block starts
+            if(eStart < blkEndISO && eEndEx > blkStartISO) {
+              preservedPlacementId = e.placement_id;
+              break; // Use the first overlapping placement's ID
+            }
+          }
+        }
+
         const newEvent = {
           id: newId,
           ahpra_id: String(payload.ahpra_id),
@@ -9233,7 +9248,8 @@ function openEventEditor(payload){
           end: blkEndISO,
           // TIMESTAMP: Track when this event was created/edited for smart merge on re-import
           lastModified: new Date().toISOString(),
-          lastModifiedBy: 'manual'
+          lastModifiedBy: 'manual',
+          placement_id: preservedPlacementId  // Preserve placement_id if overlapping with a placement
         };
 
         // Enforce only one status per day: override any overlapping blocks for this doctor.
