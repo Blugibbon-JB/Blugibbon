@@ -11158,6 +11158,14 @@ if(uploadPlacementsBtn && placementsCsvFile){
       const seen = new Set();
       const duplicateList = []; // Track placements with duplicate IDs
 
+      // Build set of all existing Placement IDs in calendar
+      const existingPlacementIds = new Set();
+      for(const e of events) {
+        if(e.placement_id && (e.type === 'placement' || e.source === 'placements')) {
+          existingPlacementIds.add(String(e.placement_id).trim());
+        }
+      }
+
       for(const r of rows){
         // Match first task ID to doctor
         let matchedDoc = null;
@@ -11189,23 +11197,19 @@ if(uploadPlacementsBtn && placementsCsvFile){
         }
 
         // Check for duplicate Placement ID (if present in CSV)
-        let existingByPlacementId = null;
+        // If ANY event has this placement ID, skip it entirely - don't touch anything
         if(r.placementId) {
-          existingByPlacementId = events.find(e =>
-            (e.type === 'placement' || e.source === 'placements') &&
-            e.placement_id &&
-            String(e.placement_id).trim() === String(r.placementId).trim()
-          );
-          if(existingByPlacementId) {
-            console.log(`Found existing placement with ID ${r.placementId}:`, existingByPlacementId);
+          const trimmedId = String(r.placementId).trim();
+          if(existingPlacementIds.has(trimmedId)) {
+            console.log(`Found existing placement with ID ${trimmedId} - skipping import`);
             duplicateList.push({
               row: r,
-              existingEvent: existingByPlacementId,
               matchedDoc,
               matchedSite,
               matchedTaskId
             });
-            continue; // Skip entirely - do not check secondary matches
+            duplicates++;
+            continue; // Skip entirely - don't touch any events with this ID
           }
         }
 
