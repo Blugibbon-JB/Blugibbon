@@ -7441,7 +7441,8 @@ function clearSelectedRange(){
         ...e,
         id: uid(),
         start: evStart,
-        end: selStartISO
+        end: selStartISO,
+        placement_id: e.placement_id  // Preserve placement_id when splitting
       });
     }
     // Right part: [max(evStart, selEndISO), evEndEx)
@@ -7450,7 +7451,8 @@ function clearSelectedRange(){
         ...e,
         id: uid(),
         start: selEndISO,
-        end: evEndEx
+        end: evEndEx,
+        placement_id: e.placement_id  // Preserve placement_id when splitting
       });
     }
     // If fully covered, nothing is added (effectively deleted)
