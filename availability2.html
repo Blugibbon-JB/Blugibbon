@@ -11282,24 +11282,27 @@ if(uploadPlacementsBtn && placementsCsvFile){
         imported++;
       }
 
-      // Handle duplicate Placement IDs - ask user what to do
+      // Handle duplicate Placement IDs - ask user what to do with ALL at once
       if(duplicateList.length > 0) {
         const handleDuplicates = async () => {
           let skipCount = 0;
           let updateCount = 0;
+
+          // Ask user once for batch action
+          const action = confirm(
+            `Found ${duplicateList.length} placement(s) with duplicate IDs.\n\n` +
+            `Click OK to UPDATE ALL with new data from CSV\n` +
+            `Click Cancel to SKIP ALL\n\n` +
+            `(Or you can manually delete old placements first and re-import)`
+          );
 
           for(const dup of duplicateList) {
             const r = dup.row;
             const existing = dup.existingEvent;
             const newStart = r.startISO;
             const newEnd = r.endExISO;
-            const changed = existing.start !== newStart || existing.end !== newEnd || existing.location !== dup.matchedSite.name;
 
-            const msg = changed
-              ? `Placement ID ${r.placementId} already exists.\n\nExisting: ${existing.start} to ${existing.end} at ${existing.location}\n\nNew: ${newStart} to ${newEnd} at ${dup.matchedSite.name}\n\nUpdate with new dates/location?`
-              : `Placement ID ${r.placementId} already exists at same location and dates. Update or skip?`;
-
-            const shouldUpdate = confirm(msg);
+            const shouldUpdate = action; // Use the single user choice for ALL
 
             if(shouldUpdate) {
               // Update existing event with new data
