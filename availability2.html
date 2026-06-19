@@ -11300,11 +11300,25 @@ if(uploadPlacementsBtn && placementsCsvFile){
         // Only the non-duplicate placements (already in events array) will be imported
       }
 
-      // Cleanup: Remove any duplicate events (by start, end, location, ahpra_id)
+      // Cleanup: Remove any duplicate events (by Placement ID first, then by start/end/location/doctor)
+      const placementIdsToKeep = new Set();
       const eventKeysToKeep = new Set();
       const cleanedEvents = [];
       let cleanupCount = 0;
+
       for(const e of events){
+        // First check: if it's a placement with an ID, only keep first occurrence
+        if(e.placement_id && (e.type === 'placement' || e.source === 'placements')) {
+          const placementId = String(e.placement_id).trim();
+          if(placementIdsToKeep.has(placementId)) {
+            cleanupCount++;
+            duplicates++;
+            continue; // Skip this duplicate placement
+          }
+          placementIdsToKeep.add(placementId);
+        }
+
+        // Second check: by start, end, location, ahpra_id
         const key = `${e.start}|${e.end}|${e.location}|${e.ahpra_id}`;
         if(!eventKeysToKeep.has(key)){
           eventKeysToKeep.add(key);
