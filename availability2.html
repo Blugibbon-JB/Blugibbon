@@ -7439,9 +7439,10 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       persistDoctorFilters();
       refreshHighlight();
       renderDoctorList();
+      // Apply tag filter to calendar - shows events for all doctors with this tag
+      applyTagFilterToCalendar(tagFilterEl.value);
       if(viewMode==="heatmap") renderHeatmap();
       if(viewMode==="strips") renderStrips();
-      if(showAllDoctors) renderCalendar();
     });
   }
   if(clearFiltersBtn){
@@ -9065,9 +9066,12 @@ function renderCalendar(){
         event_id: e.id // Store the full event ID for loading full data if needed
       };
 
+      // Show doctor name in title if showing multiple doctors (all-doctors view or tag-filtered view)
+      const showDoctorNameInTitle = showAllDoctors || (tagFilteredDoctorIds && tagFilteredDoctorIds.length > 0);
+
       calendar.addEvent({
         id: e.id,
-        title: (showAllDoctors
+        title: (showDoctorNameInTitle
           ? (()=>{
               const dd = docById.get(String(e.ahpra_id)) || {};
               const nm = (dd.name || dd.ahpra_id || "Doctor");
