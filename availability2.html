@@ -4260,6 +4260,7 @@ function weekStartsForMonth(){
 
 // Tag-based calendar filtering
 let tagFilteredDoctorIds = null; // null = no tag filter, array = list of doctor IDs to show
+let searchFilteredDoctorIds = null; // null = no search filter, array = list of doctor IDs matching search
 
 function applyTagFilterToCalendar(selectedTag) {
   if(selectedTag === '__all__' || !selectedTag) {
@@ -4272,8 +4273,9 @@ function applyTagFilterToCalendar(selectedTag) {
 
   // Tag is selected - get all doctors with this tag
   const doctorsWithTag = doctors.filter(d => {
-    const tags = (d.tags || '').split(',').map(t => t.trim().toLowerCase());
-    return tags.includes(selectedTag.toLowerCase());
+    // Tags are stored as an array, not a comma-separated string
+    const tags = Array.isArray(d.tags) ? d.tags : (d.tags || '').split(',').map(t => t.trim());
+    return tags.some(t => String(t).toLowerCase() === String(selectedTag).toLowerCase());
   });
 
   // Store the filtered doctor IDs
@@ -8279,6 +8281,13 @@ function renderDoctorList(){
     .slice()
     .sort((a,b)=>doctorLabel(a).localeCompare(doctorLabel(b)));
 
+  // Track which doctors match the keyword search (if any search is active)
+  if(q) {
+    searchFilteredDoctorIds = list.map(d => String(d.ahpra_id));
+  } else {
+    searchFilteredDoctorIds = null; // Clear search filter if no search
+  }
+
   // If in upcoming mode, show ONLY doctors with upcoming availability and sort by most available first.
   if(upcomingMeta){
     list = list
@@ -8985,13 +8994,16 @@ function renderCalendar(){
   const d = getSelectedDoctor();
   const docById = new Map(doctors.map(x=>[String(x.ahpra_id), x]));
 
-  // Determine which events to show based on filters (tag filter takes precedence over individual doctor)
+  // Determine which events to show based on filters (tag filter + search filter override individual doctor selection)
   let shown;
   if(showAllDoctors) {
     shown = events;
   } else if(tagFilteredDoctorIds && tagFilteredDoctorIds.length > 0) {
     // Tag filter is active - show only doctors with this tag
     shown = events.filter(e => tagFilteredDoctorIds.includes(String(e.ahpra_id)));
+  } else if(searchFilteredDoctorIds && searchFilteredDoctorIds.length > 0) {
+    // Keyword search is active - show only doctors matching the search
+    shown = events.filter(e => searchFilteredDoctorIds.includes(String(e.ahpra_id)));
   } else if(d) {
     // Individual doctor is selected - show only that doctor
     shown = events.filter(e => String(e.ahpra_id) === String(d.ahpra_id));
@@ -10571,7 +10583,8 @@ doctorSearch.addEventListener("input", ()=>{
   renderDoctorList();
   if(viewMode==="heatmap") renderHeatmap();
   if(viewMode==="strips") renderStrips();
-  if(showAllDoctors) renderCalendar();
+  // Re-render calendar when search changes (affects both all-doctors and single-doctor views)
+  renderCalendar();
 });
 
 if(toggleAllBtn){
