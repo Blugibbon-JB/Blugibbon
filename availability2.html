@@ -3479,11 +3479,12 @@ const STORAGE_KEY_EVENTS  = "blugibbon_roster_events_v1";
 let isOnline = false;
 let syncInProgress = false;
 
-// Remove duplicate doctors with same AHPRA ID, keeping the most recently modified one
+// Detect and fix doctor data corruption
 function deduplicateDoctors(list){
   if(!Array.isArray(list)) return [];
 
-  const seen = new Map(); // ahpra_id -> {index, lastModified}
+  // Check 1: Remove duplicate AHPRA IDs, keeping the most recently modified one
+  const seenAhpra = new Map(); // ahpra_id -> {index, lastModified}
   const toRemove = new Set();
 
   for(let i = 0; i < list.length; i++){
@@ -3491,20 +3492,54 @@ function deduplicateDoctors(list){
     const ahpra = String(d.ahpra_id || "");
     if(!ahpra) continue;
 
-    if(seen.has(ahpra)){
-      const prev = seen.get(ahpra);
+    if(seenAhpra.has(ahpra)){
+      const prev = seenAhpra.get(ahpra);
       // Keep the most recently modified one
       const prevMod = new Date(list[prev.index].lastModified || 0).getTime();
       const currMod = new Date(d.lastModified || 0).getTime();
       const dupIdx = currMod > prevMod ? prev.index : i;
       toRemove.add(dupIdx);
-      console.warn(`Duplicate doctor AHPRA ID ${ahpra}. Removing corrupted copy (index ${dupIdx})`);
+      console.warn(`Duplicate AHPRA ID ${ahpra}. Removing corrupted copy at index ${dupIdx}`);
     } else {
-      seen.set(ahpra, {index: i, lastModified: d.lastModified});
+      seenAhpra.set(ahpra, {index: i, lastModified: d.lastModified});
     }
   }
 
-  // Remove duplicates in reverse order to maintain indices
+  // Check 2: Detect same name with different AHPRA IDs (data corruption indicator)
+  const nameToAhpras = new Map();
+  for(let i = 0; i < list.length; i++){
+    if(toRemove.has(i)) continue; // skip already marked for removal
+    const d = list[i];
+    const name = String(d.name || "").trim();
+    const ahpra = String(d.ahpra_id || "");
+    if(!name || !ahpra) continue;
+
+    if(!nameToAhpras.has(name)) nameToAhpras.set(name, []);
+    nameToAhpras.get(name).push({index: i, ahpra, lastModified: d.lastModified});
+  }
+
+  // If same name has multiple AHPRA IDs, this is corruption - keep only one
+  for(const [name, records] of nameToAhpras){
+    if(records.length > 1){
+      console.error(`CORRUPTION DETECTED: Name "${name}" has multiple AHPRA IDs:`, records.map(r => r.ahpra));
+      // Keep the one with the LONGEST/MOST LEGITIMATE AHPRA ID (starts with MED0)
+      records.sort((a, b) => {
+        const aIsValid = String(a.ahpra).startsWith('MED0');
+        const bIsValid = String(b.ahpra).startsWith('MED0');
+        if(aIsValid !== bIsValid) return bIsValid ? 1 : -1; // Prefer valid ones
+        // If both valid, keep most recently modified
+        return new Date(b.lastModified || 0).getTime() - new Date(a.lastModified || 0).getTime();
+      });
+
+      // Remove all but the first one
+      for(let i = 1; i < records.length; i++){
+        toRemove.add(records[i].index);
+        console.warn(`Removing corrupted record: "${name}" with AHPRA ${records[i].ahpra} at index ${records[i].index}`);
+      }
+    }
+  }
+
+  // Remove marked duplicates in reverse order to maintain indices
   for(let i = list.length - 1; i >= 0; i--){
     if(toRemove.has(i)) list.splice(i, 1);
   }
@@ -9985,9 +10020,19 @@ function openDoctorEditor(existing){
         closeModal();
       } else if(action === "saveDoc"){
         const errorMsg = document.getElementById("docErrorMsg");
-        const ahpra = (document.getElementById("docId").value||"").trim();
-        const name = (document.getElementById("docName").value||"").trim();
-        const clickup_url = (document.getElementById("docClickUp").value||"").trim();
+        const docIdElem = document.getElementById("docId");
+        const docNameElem = document.getElementById("docName");
+        const docClickUpElem = document.getElementById("docClickUp");
+
+        if(!docIdElem || !docNameElem || !docClickUpElem){
+          console.error('Missing form elements:', {docId: !!docIdElem, docName: !!docNameElem, docClickUp: !!docClickUpElem});
+          if(errorMsg) errorMsg.textContent = "ERROR: Form elements missing. Modal may be corrupted.";
+          return;
+        }
+
+        const ahpra = (docIdElem.value||"").trim();
+        const name = (docNameElem.value||"").trim();
+        const clickup_url = (docClickUpElem.value||"").trim();
 
         // Clear previous error
         errorMsg.style.display = "none";
@@ -10008,12 +10053,13 @@ function openDoctorEditor(existing){
           errorMsg.style.display = "block";
           return;
         }
-        const prefs = (document.getElementById("docPrefs").value||"").trim();
-        const where = (document.getElementById("docWhere").value||"").trim();
-        const specialty = (document.getElementById("docSpec").value||"").trim();
-        const pgy = (document.getElementById("docPgy").value||"").trim();
-        const level = (document.getElementById("docLevel").value||"").trim();
-        const tags = (document.getElementById("docTags").value||"").split(",").map(s=>s.trim()).filter(Boolean);
+        const prefs = (document.getElementById("docPrefs")?.value||"").trim();
+        const where = (document.getElementById("docWhere")?.value||"").trim();
+        const specialty = (document.getElementById("docSpec")?.value||"").trim();
+        const pgy = (document.getElementById("docPgy")?.value||"").trim();
+        const level = (document.getElementById("docLevel")?.value||"Senior").trim();
+        const tagsElem = document.getElementById("docTags");
+        const tags = (tagsElem?.value||"").split(",").map(s=>s.trim()).filter(Boolean);
 
         pushUndo(isEdit ? "Edit doctor" : "Add doctor");
 
@@ -10024,10 +10070,19 @@ function openDoctorEditor(existing){
             const original = doctors[idx];
             const isDifferentDoctor = original.name && existing.name && original.name !== existing.name;
             if(isDifferentDoctor){
-              console.error('MISMATCH: Found doctor has different name', {found: original.name, expected: existing.name});
-              alert(`ERROR: Found doctor name "${original.name}" does not match "${existing.name}". This indicates data corruption. Save aborted.`);
+              console.error('MISMATCH: Found doctor has different name', {found: original.name, expected: existing.name, ahpra: existing.ahpra_id});
+              alert(`ERROR: Found doctor name "${original.name}" does not match the editor "${existing.name}". Data corruption detected. Save aborted. Please refresh and try again.`);
               return;
             }
+
+            // Extra safety: check if this AHPRA ID appears with a different name elsewhere
+            const duplicateNames = doctors.filter(d => String(d.ahpra_id) !== String(existing.ahpra_id) && d.name === existing.name);
+            if(duplicateNames.length > 0){
+              console.error('CORRUPTION: Name exists with different AHPRA IDs', {name: existing.name, ahpras: [existing.ahpra_id, ...duplicateNames.map(d => d.ahpra_id)]});
+              alert(`ERROR: The name "${existing.name}" exists with multiple AHPRA IDs. Data corruption detected. Save aborted.`);
+              return;
+            }
+
             // Add timestamp to mark as manually edited
             doctors[idx] = addManualEditTimestamp({
               ...doctors[idx],
@@ -10036,6 +10091,16 @@ function openDoctorEditor(existing){
           }
         } else {
           if(doctors.some(d=>String(d.ahpra_id)===String(ahpra))){ statusChip.textContent = "That AHPRA ID already exists."; return; }
+
+          // Prevent creating a duplicate name with different AHPRA ID
+          const existingWithSameName = doctors.find(d => d.name === name && String(d.ahpra_id) !== String(ahpra));
+          if(existingWithSameName){
+            statusChip.textContent = `ERROR: Name "${name}" already exists with AHPRA ID ${existingWithSameName.ahpra_id}. Cannot create duplicate.`;
+            if(errorMsg) errorMsg.textContent = statusChip.textContent;
+            if(errorMsg) errorMsg.style.display = "block";
+            return;
+          }
+
           // Add timestamp to new doctor
           doctors.push(addManualEditTimestamp({
             ahpra_id: ahpra,
