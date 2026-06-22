@@ -3479,7 +3479,48 @@ const STORAGE_KEY_EVENTS  = "blugibbon_roster_events_v1";
 let isOnline = false;
 let syncInProgress = false;
 
-function loadDoctors(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY_DOCTORS) || "[]") || []; } catch(e){ return []; } }
+// Remove duplicate doctors with same AHPRA ID, keeping the most recently modified one
+function deduplicateDoctors(list){
+  if(!Array.isArray(list)) return [];
+
+  const seen = new Map(); // ahpra_id -> {index, lastModified}
+  const toRemove = new Set();
+
+  for(let i = 0; i < list.length; i++){
+    const d = list[i];
+    const ahpra = String(d.ahpra_id || "");
+    if(!ahpra) continue;
+
+    if(seen.has(ahpra)){
+      const prev = seen.get(ahpra);
+      // Keep the most recently modified one
+      const prevMod = new Date(list[prev.index].lastModified || 0).getTime();
+      const currMod = new Date(d.lastModified || 0).getTime();
+      const dupIdx = currMod > prevMod ? prev.index : i;
+      toRemove.add(dupIdx);
+      console.warn(`Duplicate doctor AHPRA ID ${ahpra}. Removing corrupted copy (index ${dupIdx})`);
+    } else {
+      seen.set(ahpra, {index: i, lastModified: d.lastModified});
+    }
+  }
+
+  // Remove duplicates in reverse order to maintain indices
+  for(let i = list.length - 1; i >= 0; i--){
+    if(toRemove.has(i)) list.splice(i, 1);
+  }
+
+  return list;
+}
+
+function loadDoctors(){
+  try {
+    let list = JSON.parse(localStorage.getItem(STORAGE_KEY_DOCTORS) || "[]") || [];
+    return deduplicateDoctors(list);
+  } catch(e){
+    console.error('loadDoctors error:', e);
+    return [];
+  }
+}
 function loadEvents(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY_EVENTS) || "[]") || []; } catch(e){ return []; } }
 function saveDoctors(doctors){
   try {
@@ -4205,6 +4246,15 @@ function applyTagFilterToCalendar(selectedTag) {
 
   // Clear individual doctor selection (tag filter takes precedence)
   selectedDoctorId = null;
+
+  // Debug log
+  console.log(`Tag filter applied: ${selectedTag}, Doctors: ${tagFilteredDoctorIds.join(', ')}, Total events for these doctors: ${events.filter(e => tagFilteredDoctorIds.includes(String(e.ahpra_id))).length}`);
+
+  // Make sure calendar view is active
+  if(viewMode !== 'calendar') {
+    viewMode = 'calendar';
+    updateViews();
+  }
 
   // Re-render calendar with tag filter applied
   renderCalendar();
@@ -9851,6 +9901,17 @@ function openEventEditor(payload){
 
 function openDoctorEditor(existing){
   const isEdit = !!existing;
+
+  // Integrity check: if editing, verify no duplicate AHPRA IDs exist
+  if(isEdit && existing.ahpra_id){
+    const duplicates = doctors.filter(d => String(d.ahpra_id) === String(existing.ahpra_id));
+    if(duplicates.length > 1){
+      console.error('DATA CORRUPTION: Multiple doctors with same AHPRA ID', existing.ahpra_id, duplicates);
+      alert(`ERROR: Found ${duplicates.length} doctors with AHPRA ID ${existing.ahpra_id}. This indicates data corruption. Please refresh and check your data.`);
+      return;
+    }
+  }
+
   modalTitle.textContent = isEdit ? "Edit doctor" : "Add doctor";
 
   modalBody.innerHTML = `
@@ -9959,6 +10020,14 @@ function openDoctorEditor(existing){
         if(isEdit){
           const idx = doctors.findIndex(d=>String(d.ahpra_id)===String(existing.ahpra_id));
           if(idx>=0){
+            // Verify we found the right doctor by checking name consistency
+            const original = doctors[idx];
+            const isDifferentDoctor = original.name && existing.name && original.name !== existing.name;
+            if(isDifferentDoctor){
+              console.error('MISMATCH: Found doctor has different name', {found: original.name, expected: existing.name});
+              alert(`ERROR: Found doctor name "${original.name}" does not match "${existing.name}". This indicates data corruption. Save aborted.`);
+              return;
+            }
             // Add timestamp to mark as manually edited
             doctors[idx] = addManualEditTimestamp({
               ...doctors[idx],
@@ -13867,7 +13936,8 @@ async function syncFromFirebase() {
     const cloudDoctors = snapshot[0].val() || [];
     const cloudEvents = snapshot[1].val() || [];
 
-    doctors = cloudDoctors;
+    // Deduplicate doctors (integrity check for corruption)
+    doctors = deduplicateDoctors(cloudDoctors);
     events = sanitizeEventsForFirebase(cloudEvents); // Remove any undefined properties from loaded events
     placements = []; // Clear old placements - they're now in events
 
