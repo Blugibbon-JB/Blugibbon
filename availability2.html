@@ -12787,6 +12787,7 @@ Total Margin: $${formatNumber(totalMargin)}
     end: endDateExclusiveISO,
     source: 'placement',
     type: 'placement',
+    placement_id: placementWorkflow.placementId,  // Preserve Placement ID when editing
     // TIMESTAMP: Track when this placement was created/edited for smart merge on re-import
     lastModified: now,
     lastModifiedBy: 'manual',
