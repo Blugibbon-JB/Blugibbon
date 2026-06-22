@@ -10011,6 +10011,11 @@ function openDoctorEditor(existing){
   // default Level selection
   try{ document.getElementById("docLevel").value = (existing?.level || "Senior"); } catch(e) {}
 
+  // Remove previous listener to avoid duplicate handlers
+  if(modalFooter._doctorEditorListener) {
+    modalFooter.removeEventListener('click', modalFooter._doctorEditorListener);
+  }
+
   // Use event delegation on modalFooter to avoid issues with dynamically created buttons
   const handleFooterClick = (e) => {
     try {
@@ -10161,6 +10166,7 @@ function openDoctorEditor(existing){
 
   // Remove old listener if it exists, add new one
   modalFooter.removeEventListener("click", handleFooterClick);
+  modalFooter._doctorEditorListener = handleFooterClick;
   modalFooter.addEventListener("click", handleFooterClick);
 
   // Keyboard shortcut: Ctrl+Enter (Windows/Linux) or Cmd+Enter (Mac) to Save
