@@ -2105,6 +2105,10 @@ button.moreBtn[aria-expanded="true"]{
         // Push selection back to original filters
         var orig = document.getElementById(id==='bgDoctorsWhere'?'whereFilter':'tagFilter');
         if (orig){ orig.value = el.value; orig.dispatchEvent(new Event('change',{bubbles:true})); }
+        // If tag changed, filter calendar accordingly
+        if(id === 'bgDoctorsTag') {
+          applyTagFilterToCalendar(el.value);
+        }
         setTimeout(renderDoctorsDirectory, 50);
       });
     });
@@ -4168,6 +4172,53 @@ function weekStartsForMonth(){
     if(weeks.length>8) break;
   }
   return weeks;
+}
+
+// Tag-based calendar filtering
+let tagFilteredDoctorIds = null; // null = no tag filter, array = list of doctor IDs to show
+
+function applyTagFilterToCalendar(selectedTag) {
+  if(selectedTag === '__all__' || !selectedTag) {
+    // No tag selected - clear tag filter (show nothing unless individual doctor clicked)
+    tagFilteredDoctorIds = null;
+    selectedDoctorId = null; // Also clear individual doctor selection
+    renderCalendar();
+    return;
+  }
+
+  // Tag is selected - get all doctors with this tag
+  const doctorsWithTag = doctors.filter(d => {
+    const tags = (d.tags || '').split(',').map(t => t.trim().toLowerCase());
+    return tags.includes(selectedTag.toLowerCase());
+  });
+
+  // Store the filtered doctor IDs
+  tagFilteredDoctorIds = doctorsWithTag.map(d => String(d.ahpra_id));
+
+  // Clear individual doctor selection (tag filter takes precedence)
+  selectedDoctorId = null;
+
+  // Re-render calendar with tag filter applied
+  renderCalendar();
+}
+
+function shouldShowDoctorOnCalendar(ahpraId) {
+  // If an individual doctor is selected, show only that doctor
+  if(selectedDoctorId && String(selectedDoctorId) === String(ahpraId)) {
+    return true;
+  }
+
+  // If tag filter is active, show only doctors in that tag
+  if(tagFilteredDoctorIds && tagFilteredDoctorIds.length > 0) {
+    return tagFilteredDoctorIds.includes(String(ahpraId));
+  }
+
+  // If neither tag nor individual doctor is selected, show all (default behavior)
+  if(!selectedDoctorId && !tagFilteredDoctorIds) {
+    return false; // Don't show any doctors unless filtered
+  }
+
+  return false;
 }
 
 function renderHeatmap(){
@@ -8214,6 +8265,8 @@ function renderDoctorList(){
       if(upcomingAvailBtn) upcomingAvailBtn.classList.remove("primary");
       showAllDoctors = false;
       if(toggleAllBtn) toggleAllBtn.classList.remove("primary");
+      // Clear tag filter when selecting individual doctor
+      tagFilteredDoctorIds = null;
       selectedDoctorId = String(d.ahpra_id);
       renderHeader();
       renderDoctorList();
@@ -8792,7 +8845,21 @@ function importJSONBackup(file){
 function renderCalendar(){
   const d = getSelectedDoctor();
   const docById = new Map(doctors.map(x=>[String(x.ahpra_id), x]));
-  let shown = showAllDoctors ? events : (d ? events.filter(e => String(e.ahpra_id) === String(d.ahpra_id)) : []);
+
+  // Determine which events to show based on filters (tag filter takes precedence over individual doctor)
+  let shown;
+  if(showAllDoctors) {
+    shown = events;
+  } else if(tagFilteredDoctorIds && tagFilteredDoctorIds.length > 0) {
+    // Tag filter is active - show only doctors with this tag
+    shown = events.filter(e => tagFilteredDoctorIds.includes(String(e.ahpra_id)));
+  } else if(d) {
+    // Individual doctor is selected - show only that doctor
+    shown = events.filter(e => String(e.ahpra_id) === String(d.ahpra_id));
+  } else {
+    // No filter selected - show nothing
+    shown = [];
+  }
 
   if(showAllDoctors && upcomingOnly){
     const days = Math.max(1, parseInt(upcomingDays, 10) || 30);
