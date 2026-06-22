@@ -9111,7 +9111,9 @@ function expandPlacementToDailyEvents(placement, docById) {
     const shiftType = dayShifts[dateISO];
 
     const displayLocation = placement.location || pd.site_name || "";
-    const doctorName = showAllDoctors ? ((docById.get(String(placement.ahpra_id))?.name || String(placement.ahpra_id)) + ": ") : "";
+    // Show doctor name if showing multiple doctors (all-doctors view or tag-filtered view)
+    const showDoctorName = showAllDoctors || (tagFilteredDoctorIds && tagFilteredDoctorIds.length > 0);
+    const doctorName = showDoctorName ? ((docById.get(String(placement.ahpra_id))?.name || String(placement.ahpra_id)) + ": ") : "";
 
     let backgroundColor, borderColor, emoji, dayLabel, rate;
 
