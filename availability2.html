@@ -2332,6 +2332,14 @@ button.moreBtn[aria-expanded="true"]{
   </div>
 
   <div id="calendarWrap">
+    <div style="display:flex; gap:8px; align-items:center; padding:12px; background:#f8f8f8; border-bottom:1px solid #ddd; flex-wrap:wrap;">
+      <div style="font-size:12px; color:#666; font-weight:500;">Jump to date range:</div>
+      <input id="calendarRangeStart" type="date" style="padding:6px 8px; font-size:12px; border:1px solid #ddd; border-radius:4px;" title="Start date"/>
+      <span style="color:#999;">to</span>
+      <input id="calendarRangeEnd" type="date" style="padding:6px 8px; font-size:12px; border:1px solid #ddd; border-radius:4px;" title="End date"/>
+      <button id="calendarRangeGoBtn" type="button" style="padding:6px 12px; font-size:12px; background:#2196F3; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:500;">Go</button>
+      <button id="calendarRangeClearBtn" type="button" style="padding:6px 12px; font-size:12px; background:#e0e0e0; color:#333; border:none; border-radius:4px; cursor:pointer;">Clear</button>
+    </div>
     <div id="calendar"></div>
   </div>
 
@@ -7839,6 +7847,52 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
   }
 });
 calendar.render();
+
+// ---- Calendar date range picker ----
+const calendarRangeStart = document.getElementById('calendarRangeStart');
+const calendarRangeEnd = document.getElementById('calendarRangeEnd');
+const calendarRangeGoBtn = document.getElementById('calendarRangeGoBtn');
+const calendarRangeClearBtn = document.getElementById('calendarRangeClearBtn');
+
+if(calendarRangeGoBtn) {
+  calendarRangeGoBtn.addEventListener('click', function(){
+    const startVal = calendarRangeStart?.value;
+    const endVal = calendarRangeEnd?.value;
+
+    if(!startVal || !endVal) {
+      alert('Please enter both start and end dates');
+      return;
+    }
+
+    // Parse the ISO date strings
+    const startDate = new Date(startVal + 'T00:00:00Z');
+    const endDate = new Date(endVal + 'T00:00:00Z');
+
+    if(startDate >= endDate) {
+      alert('Start date must be before end date');
+      return;
+    }
+
+    // Navigate calendar to start date and set view to month
+    calendar.gotoDate(startDate);
+
+    // Show a status message
+    try {
+      const s = formatDateAU(startDate);
+      const e = formatDateAU(endDate);
+      statusChip.textContent = `Showing: ${s} → ${e}`;
+    } catch(e) {}
+  });
+}
+
+if(calendarRangeClearBtn) {
+  calendarRangeClearBtn.addEventListener('click', function(){
+    if(calendarRangeStart) calendarRangeStart.value = '';
+    if(calendarRangeEnd) calendarRangeEnd.value = '';
+    statusChip.textContent = '';
+  });
+}
+
 // ---- Heatmap navigation + mode ----
 const hmPrev  = document.getElementById("hmPrev");
 const hmNext  = document.getElementById("hmNext");
