@@ -8414,11 +8414,8 @@ function renderDoctorList(){
       if(upcomingAvailBtn) upcomingAvailBtn.classList.remove("primary");
       showAllDoctors = false;
       if(toggleAllBtn) toggleAllBtn.classList.remove("primary");
-      // Clear tag filter and search filter when selecting individual doctor
+      // Clear tag filter when selecting individual doctor (but keep search active)
       tagFilteredDoctorIds = null;
-      searchFilteredDoctorIds = null;
-      // Also clear the search box so it doesn't re-apply the filter
-      if(doctorSearch) doctorSearch.value = "";
       selectedDoctorId = String(d.ahpra_id);
       renderHeader();
       renderDoctorList();
@@ -8998,19 +8995,20 @@ function renderCalendar(){
   const d = getSelectedDoctor();
   const docById = new Map(doctors.map(x=>[String(x.ahpra_id), x]));
 
-  // Determine which events to show based on filters (tag filter + search filter override individual doctor selection)
+  // Determine which events to show based on filters
+  // Priority: individual doctor > tag filter > search filter
   let shown;
   if(showAllDoctors) {
     shown = events;
+  } else if(d) {
+    // Individual doctor is selected (takes precedence) - show only that doctor
+    shown = events.filter(e => String(e.ahpra_id) === String(d.ahpra_id));
   } else if(tagFilteredDoctorIds && tagFilteredDoctorIds.length > 0) {
     // Tag filter is active - show only doctors with this tag
     shown = events.filter(e => tagFilteredDoctorIds.includes(String(e.ahpra_id)));
   } else if(searchFilteredDoctorIds && searchFilteredDoctorIds.length > 0) {
     // Keyword search is active - show only doctors matching the search
     shown = events.filter(e => searchFilteredDoctorIds.includes(String(e.ahpra_id)));
-  } else if(d) {
-    // Individual doctor is selected - show only that doctor
-    shown = events.filter(e => String(e.ahpra_id) === String(d.ahpra_id));
   } else {
     // No filter selected - show nothing
     shown = [];
