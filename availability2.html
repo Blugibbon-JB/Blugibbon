@@ -8414,8 +8414,11 @@ function renderDoctorList(){
       if(upcomingAvailBtn) upcomingAvailBtn.classList.remove("primary");
       showAllDoctors = false;
       if(toggleAllBtn) toggleAllBtn.classList.remove("primary");
-      // Clear tag filter when selecting individual doctor
+      // Clear tag filter and search filter when selecting individual doctor
       tagFilteredDoctorIds = null;
+      searchFilteredDoctorIds = null;
+      // Also clear the search box so it doesn't re-apply the filter
+      if(doctorSearch) doctorSearch.value = "";
       selectedDoctorId = String(d.ahpra_id);
       renderHeader();
       renderDoctorList();
