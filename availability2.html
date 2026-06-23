@@ -10585,13 +10585,21 @@ function exportCSV(){
   URL.revokeObjectURL(a.href);
 }
 
+// Debounce search to avoid lag from too many re-renders
+let searchDebounceTimer = null;
 doctorSearch.addEventListener("input", ()=>{
-  refreshHighlight();
-  renderDoctorList();
-  if(viewMode==="heatmap") renderHeatmap();
-  if(viewMode==="strips") renderStrips();
-  // Re-render calendar when search changes (affects both all-doctors and single-doctor views)
-  renderCalendar();
+  // Clear previous timer
+  if(searchDebounceTimer) clearTimeout(searchDebounceTimer);
+
+  // Set new timer - only render after user stops typing for 300ms
+  searchDebounceTimer = setTimeout(()=>{
+    refreshHighlight();
+    renderDoctorList();
+    if(viewMode==="heatmap") renderHeatmap();
+    if(viewMode==="strips") renderStrips();
+    // Re-render calendar when search changes (affects both all-doctors and single-doctor views)
+    renderCalendar();
+  }, 300);
 });
 
 if(toggleAllBtn){
