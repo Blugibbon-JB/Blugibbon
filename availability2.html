@@ -14224,6 +14224,7 @@ function createSiteManually() {
   <div class="bg-qa-date" id="bgQaDate">—</div>
   <div class="bg-qa-actions">
     <button type="button" class="bg-qa-btn bg-qa-primary" id="bgQaAdd">Add availability / booking</button>
+    <button type="button" class="bg-qa-btn bg-qa-secondary" id="bgQaAddEvent" style="color:#059669; border-color:#a7f3d0; background:#ecfdf5;">+ Add event</button>
     <button type="button" class="bg-qa-btn bg-qa-secondary" id="bgQaClear">Clear selected range</button>
     <button type="button" class="bg-qa-btn bg-qa-secondary" id="bgQaClearBlock" style="color:#dc2626; border-color:#fecaca; background:#fee2e2;">Clear entire block</button>
   </div>
@@ -14303,6 +14304,7 @@ function createSiteManually() {
   var qa = document.getElementById('bgQuickAdd');
   var qaDate = document.getElementById('bgQaDate');
   var qaAdd = document.getElementById('bgQaAdd');
+  var qaAddEvent = document.getElementById('bgQaAddEvent');
   var qaClear = document.getElementById('bgQaClear');
   var qaClearBlock = document.getElementById('bgQaClearBlock');
   var qaCancel = document.getElementById('bgQaCancel');
@@ -14403,6 +14405,49 @@ function createSiteManually() {
       alert('Error opening status editor: ' + e.message);
     }
   });
+
+  // Add Event button - adds without overriding existing events
+  if(qaAddEvent) {
+    qaAddEvent.addEventListener('click', function(){
+      if(!currentSel) { close(); return; }
+      // Store the selection before closing, since close() nullifies it
+      var selStart = currentSel.start;
+      var selEnd = currentSel.end;
+
+      var docId = (typeof selectedDoctorId !== 'undefined' && selectedDoctorId) ? selectedDoctorId : null;
+      // Fall back to the first available doctor if none is selected, so the modal still opens.
+      if(!docId){
+        try {
+          var docs = (typeof doctors !== 'undefined' && Array.isArray(doctors)) ? doctors : [];
+          if(docs.length){ docId = String(docs[0].ahpra_id); }
+        } catch(_){}
+      }
+      if(!docId){
+        try { if(typeof bgToast === 'function') bgToast('Add a doctor first to add an event.', 'warn'); }
+        catch(_){ alert('Please add a doctor first.'); }
+        close();
+        return;
+      }
+      close();
+      try {
+        if(typeof openEventEditor !== 'function') {
+          console.error('openEventEditor is not defined');
+          alert('Error: openEventEditor function not found');
+          return;
+        }
+        openEventEditor({
+          mode: 'add',
+          id: null,
+          ahpra_id: docId,
+          start: selStart,
+          end: selEnd
+        });
+      } catch(e){
+        console.error('openEventEditor failed:', e);
+        alert('Error opening event editor: ' + e.message);
+      }
+    });
+  }
 
   qaClear.addEventListener('click', function(){
     if(!currentSel) { close(); return; }
