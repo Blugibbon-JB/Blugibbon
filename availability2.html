@@ -2165,6 +2165,7 @@ button.moreBtn[aria-expanded="true"]{
   <button id="editDoctorBtn">Edit doctor</button>
   <button id="removeDoctorBtn">Remove doctor</button>
   <button id="createBtn">Create availability / leave</button>
+  <button id="addEventBtn">+ Add event</button>
   <button id="clearSelectedBtn">Clear selected range</button>
   <button id="deleteSelectedBtn">Delete selected events</button>
   <button id="undoBtn">Undo</button>
@@ -9218,7 +9219,7 @@ function openEventEditor(payload){
   }
   if(!start || !end) { console.error('openEventEditor: invalid dates', { start, end }); return; }
 
-  modalTitle.textContent = (mode === "create") ? "Add status block" : "Edit status block";
+  modalTitle.textContent = (mode === "edit") ? "Edit status block" : "Add status block";
 
   const statusOptions = STATUS.map(s => `<option value="${esc(s.key)}">${esc(s.key)}</option>`).join("");
   const startStr = formatDateAU(start);
@@ -9477,8 +9478,15 @@ function openEventEditor(payload){
           placement_id: preservedPlacementId  // Preserve placement_id if overlapping with a placement
         };
 
-        // Enforce only one status per day: override any overlapping blocks for this doctor.
-        applyRangeOverride(String(payload.ahpra_id), blkStartISO, blkEndISO, newEvent, (mode === "edit" && k===0 ? payload.id : null));
+        // For "add" mode: just add the event without deleting existing ones
+        // For "create" and "edit" modes: override overlapping blocks
+        if(mode === "add"){
+          // Just add the new event without deleting overlapping events
+          events.push(newEvent);
+        } else {
+          // Enforce only one status per day: override any overlapping blocks for this doctor.
+          applyRangeOverride(String(payload.ahpra_id), blkStartISO, blkEndISO, newEvent, (mode === "edit" && k===0 ? payload.id : null));
+        }
       }
 
       saveEvents(events);
@@ -13987,6 +13995,28 @@ createBtn.addEventListener("click", ()=>{
     end: normalizeToUTCDate(lastSelection.end)
   });
 });
+
+// Add Event button - adds a new event without deleting existing ones
+const addEventBtn = document.getElementById("addEventBtn");
+if(addEventBtn) {
+  addEventBtn.addEventListener("click", ()=>{
+    if(!selectedDoctorId){
+      statusChip.textContent = "Select a doctor first";
+      return;
+    }
+    if(!lastSelection || !lastSelection.start || !lastSelection.end){
+      statusChip.textContent = "Select a date range on the calendar first";
+      return;
+    }
+    openEventEditor({
+      mode: "add",
+      id: null,
+      ahpra_id: selectedDoctorId,
+      start: normalizeToUTCDate(lastSelection.start),
+      end: normalizeToUTCDate(lastSelection.end)
+    });
+  });
+}
 
 
 document.getElementById("doctorHeader").addEventListener("dblclick", ()=>{
