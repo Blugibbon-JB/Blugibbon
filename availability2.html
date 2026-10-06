@@ -7858,6 +7858,10 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
     const evId = info.event.id;
     const parentPlacementId = info.event.extendedProps?.parent_placement_id;
 
+    // ClickUp-synced records are read-only here (ClickUp is the source of truth)
+    const cuRec = events.find(e => e.id === (parentPlacementId || evId));
+    if(cuRec && cuRec.source === 'clickup'){ showClickUpSyncedNotice(cuRec); return; }
+
     // Handle daily events expanded from placements
     if(parentPlacementId) {
       const rec = events.find(e => e.id === parentPlacementId);
@@ -9073,7 +9077,7 @@ function renderCalendar(){
 
       calendar.addEvent({
         id: e.id,
-        title: (showDoctorNameInTitle
+        title: (e.source === 'clickup' ? '🔗 ' : '') + (showDoctorNameInTitle
           ? (()=>{
               const dd = docById.get(String(e.ahpra_id)) || {};
               const nm = (dd.name || dd.ahpra_id || "Doctor");
@@ -10037,6 +10041,16 @@ function openDoctorEditor(existing){
 
   // default Level selection
   try{ document.getElementById("docLevel").value = (existing?.level || "Senior"); } catch(e) {}
+
+  // ClickUp-synced doctor: lock only the Med Reg # (it's what links this doctor to ClickUp)
+  if(isEdit && existing?.source === 'clickup'){
+    const idEl = document.getElementById("docId");
+    if(idEl){ idEl.disabled = true; idEl.title = "Synced from ClickUp – the Med Reg # links this doctor to ClickUp"; }
+    const note = document.createElement('div');
+    note.className = 'field full';
+    note.innerHTML = '<div class="hint" style="background:#eef6ff;border:1px solid #b6d4fe;border-radius:6px;padding:8px;">🔗 This doctor is synced from ClickUp. The Med Reg # can\'t be changed here; everything else can be edited.</div>';
+    modalBody.prepend(note);
+  }
 
   // Remove previous listener to avoid duplicate handlers
   if(modalFooter._doctorEditorListener) {
@@ -14731,6 +14745,231 @@ function createSiteManually() {
 
   paintButton();
 })();
+</script>
+
+<script>
+/* Read-only notice for ClickUp-synced calendar records */
+function showClickUpSyncedNotice(rec){
+  const url = rec.clickup_task_id ? buildClickUpUrl(rec.clickup_task_id) : "";
+  modalTitle.textContent = "Synced from ClickUp";
+  modalBody.innerHTML = `
+    <div class="field full">
+      <div><b>${esc(rec.title || rec.status || "Booking")}</b></div>
+      <div class="hint" style="margin-top:6px;">${esc(String(rec.start||"").slice(0,10))} → ${esc(String(rec.end||"").slice(0,10))}</div>
+      <p style="margin-top:12px;">This booking comes from a ClickUp placement. To change the dates or cancel it, update the placement in ClickUp. The calendar updates automatically.</p>
+    </div>`;
+  modalFooter.innerHTML = `
+    <div></div>
+    <div style="display:flex; gap:8px;">
+      ${url ? `<a class="btn-clickup" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Open in ClickUp</a>` : ""}
+      <button class="ghost" type="button" onclick="closeModal()">Close</button>
+    </div>`;
+  openModal();
+}
+</script>
+<script>
+/* ===== LIVE SYNC + MERGE-ON-SAVE (added 2026-10-07) =====
+ * 1. Live listener: pulls changes made elsewhere (e.g. Make/ClickUp automations)
+ *    into the open page, without interrupting an open editor.
+ * 2. Merge-on-save: every write of users/{uid}/doctors|events becomes a Firebase
+ *    transaction that merges this tab's changes with what is on the server,
+ *    instead of overwriting the whole list.
+ * 3. ClickUp-synced BOOKINGS (events with source === 'clickup') always keep the
+ *    server version (ClickUp is the source of truth). Doctors stay fully editable;
+ *    when both sides changed a doctor, changes are merged field by field.
+ */
+(function(){
+  'use strict';
+
+
+  // ---------- pure helpers (exported for tests) ----------
+  function sortKeys(v){
+    if(Array.isArray(v)) return v.map(sortKeys);
+    if(v && typeof v === 'object'){
+      const o = {};
+      Object.keys(v).sort().forEach(k => { if(v[k] !== undefined) o[k] = sortKeys(v[k]); });
+      return o;
+    }
+    return v;
+  }
+  const stable = v => JSON.stringify(sortKeys(v === undefined ? null : v));
+  const asArr = v => Array.isArray(v) ? v.filter(x => x != null)
+                   : (v && typeof v === 'object' ? Object.values(v).filter(x => x != null) : []);
+  const isCU = r => !!(r && r.source === 'clickup');
+  function keyOf(kind, r){
+    if(!r || typeof r !== 'object') return null;
+    if(kind === 'doctors') return (r.ahpra_id != null && String(r.ahpra_id) !== '') ? 'a:' + String(r.ahpra_id) : null;
+    return r.id != null && String(r.id) !== '' ? 'e:' + String(r.id) : null;
+  }
+  function toBase(kind, arr){
+    const m = new Map();
+    // r is a private deep copy: in-place edits to live records must not change the base
+    asArr(arr).forEach(r => { const k = keyOf(kind, r); if(k){ const st = stable(r); m.set(k, { s: st, r: JSON.parse(st) }); } });
+    return m;
+  }
+
+  // Both this tab and the server changed the same doctor: server values, overlaid with
+  // every field this tab changed (or removed) since it last saw the server.
+  function mergeFields(local, remote, base){
+    const out = Object.assign({}, remote);
+    new Set([...Object.keys(local || {}), ...Object.keys(base.r || {})]).forEach(f => {
+      if(stable(local[f]) === stable(base.r[f])) return;      // this tab didn't change it
+      if(local[f] === undefined) delete out[f]; else out[f] = local[f];
+    });
+    return out;
+  }
+
+  /**
+   * Three-way merge.
+   *  local  = what this tab wants to save
+   *  remote = what is on the server right now
+   *  base   = last server state this tab saw (Map) — null if unknown
+   */
+  function merge(kind, localIn, remoteIn, base){
+    const local = asArr(localIn), remote = asArr(remoteIn);
+    const remoteMap = new Map();
+    remote.forEach(r => { const k = keyOf(kind, r); if(k) remoteMap.set(k, r); });
+    const out = [], seen = new Set();
+
+    for(const item of local){
+      const k = keyOf(kind, item);
+      if(!k){ out.push(item); continue; }
+      if(seen.has(k)) continue;            // never write duplicate keys
+      seen.add(k);
+      const R = remoteMap.get(k);
+      const B = base ? base.get(k) : undefined;
+
+      if(kind === 'events' && (isCU(R) || (!R && B && isCU(B.r)))){   // ClickUp booking
+        if(R) out.push(R);                          // server version always (dropped if ClickUp removed it)
+        continue;
+      }
+      if(B && stable(item) === B.s){                // this tab didn't touch it
+        if(R) out.push(R);                          // take server version (or server delete)
+        continue;
+      }
+      if(kind === 'doctors' && R && B && stable(R) !== B.s){   // both sides changed this doctor
+        out.push(mergeFields(item, R, B));
+        continue;
+      }
+      out.push(item);                               // this tab added/changed it
+    }
+
+    for(const R of remote){
+      const k = keyOf(kind, R);
+      if(!k || seen.has(k)) continue;
+      seen.add(k);
+      const B = base ? base.get(k) : undefined;
+      if(kind === 'events' && isCU(R)){ out.push(R); continue; }   // ClickUp bookings can't be deleted from the calendar
+      if(B){                                         // this tab knew it and removed it
+        if(stable(R) !== B.s) out.push(R);          // …but someone changed it since — keep it
+        continue;
+      }
+      out.push(R);                                   // new on server, this tab never saw it
+    }
+    return out;
+  }
+
+  const api = { merge, toBase, stable, keyOf, isCU };
+  if(typeof window !== 'undefined') window.__bgLiveSync = api;
+  if(typeof module !== 'undefined' && module.exports) module.exports = api;
+  if(typeof window === 'undefined' || typeof firebase === 'undefined' || !firebase.database) return;
+
+  // ---------- runtime ----------
+  // base = the server state this tab's in-memory arrays were last synced to.
+  // Only moves when the tab actually adopts server data (tryApply) — never just because
+  // the server changed — so a held-back update can't be mistaken for a local edit.
+  const base = { doctors: null, events: null };
+  const pendingRemote = { doctors: null, events: null };
+  let inFlight = 0;
+  let attachedUid = null, refs = null;
+
+  function myPath(kind){ return firebase_user ? `users/${firebase_user.uid}/${kind}` : null; }
+  function pathOf(ref){
+    try { return decodeURIComponent(ref.toString().replace(ref.root.toString(), '')).replace(/^\/+|\/+$/g, ''); }
+    catch(e){ return ''; }
+  }
+  function kindForRef(ref){
+    if(!firebase_user) return null;
+    const p = pathOf(ref);
+    if(p === myPath('doctors')) return 'doctors';
+    if(p === myPath('events')) return 'events';
+    return null;
+  }
+  const masterOn = () => document.body.classList.contains('bg-master-on');
+  function editorOpen(){
+    return Array.from(document.querySelectorAll('.modalBackdrop'))
+      .some(el => getComputedStyle(el).display !== 'none');
+  }
+
+  // --- merge-on-save: wrap Reference.set for this user's doctors/events ---
+  const P = firebase.database.Reference.prototype;
+  const origSet = P.set;
+  P.set = function(value, onComplete){
+    const kind = kindForRef(this);
+    if(!kind || !Array.isArray(value)) return origSet.apply(this, arguments);
+    const localSnapshot = value.slice();
+    inFlight++;
+    return this.transaction(current => merge(kind, localSnapshot, current, base[kind]), undefined, false)
+      .then(res => {
+        // adopt the merged result through the normal apply path (moves base when applied)
+        if(res && res.committed && res.snapshot){ pendingRemote[kind] = asArr(res.snapshot.val()); setTimeout(tryApply, 0); }
+        if(typeof onComplete === 'function') onComplete(null);
+        return undefined;
+      })
+      .catch(err => { if(typeof onComplete === 'function') onComplete(err); throw err; })
+      .finally(() => { inFlight--; });
+  };
+
+  // --- live listener ---
+  function onRemote(kind, snap){
+    pendingRemote[kind] = asArr(snap.val());
+    tryApply();
+  }
+  function tryApply(){
+    if(!pendingRemote.doctors && !pendingRemote.events) return;
+    if(inFlight > 0 || masterOn() || editorOpen()) return;   // retried by the interval below
+    let changed = false;
+    if(pendingRemote.doctors){
+      const next = deduplicateDoctors(pendingRemote.doctors);
+      base.doctors = toBase('doctors', pendingRemote.doctors);
+      pendingRemote.doctors = null;
+      if(stable(next) !== stable(doctors)){
+        doctors = window.__bgDoctors = next; changed = true;
+        try { localStorage.setItem(STORAGE_KEY_DOCTORS, JSON.stringify(doctors)); } catch(e){}
+      }
+    }
+    if(pendingRemote.events){
+      const next = sanitizeEventsForFirebase(pendingRemote.events);
+      base.events = toBase('events', pendingRemote.events);
+      pendingRemote.events = null;
+      if(stable(next) !== stable(events)){
+        events = window.__bgEvents = next; changed = true;
+        try { localStorage.setItem(STORAGE_KEY_EVENTS, JSON.stringify(events)); } catch(e){}
+      }
+    }
+    if(!changed) return;
+    if(selectedDoctorId && !doctors.some(d => String(d.ahpra_id) === String(selectedDoctorId))) selectedDoctorId = null;
+    try { updateFilterDropdowns(); } catch(e){}
+    try { renderDoctorList(); renderHeader(); } catch(e){ console.warn('live sync render', e); }
+    try { if(typeof updateViews === 'function') updateViews(); else renderCalendar(); } catch(e){ try{ renderCalendar(); }catch(_){} }
+  }
+  function attach(){
+    const uid = firebase_user && firebase_db ? firebase_user.uid : null;
+    if(uid === attachedUid) return;
+    if(refs){ refs.forEach(([r, h]) => r.off('value', h)); refs = null; }
+    base.doctors = base.events = null;
+    attachedUid = uid;
+    if(!uid) return;
+    refs = ['doctors','events'].map(kind => {
+      const r = firebase_db.ref(`users/${uid}/${kind}`);
+      const h = snap => onRemote(kind, snap);
+      r.on('value', h, err => console.warn('live sync listener', kind, err));
+      return [r, h];
+    });
+  }
+  setInterval(() => { try { attach(); tryApply(); } catch(e){ console.warn('live sync', e); } }, 1500);
+})();
+
 </script>
 
 </body>
