@@ -4071,6 +4071,8 @@ function normTxt(s){
 }
 
 function doctorMatchesFilters(d){
+  // Removed from this calendar by the ClickUp sync (inactive / unassigned): keep history, hide from lists
+  if(d && d.hidden) return false;
   // Where filter
   if(doctorWhereFilter !== "__all__"){
     if(normTxt(d.where) !== normTxt(doctorWhereFilter)) return false;
@@ -4274,6 +4276,7 @@ function applyTagFilterToCalendar(selectedTag) {
 
   // Tag is selected - get all doctors with this tag
   const doctorsWithTag = doctors.filter(d => {
+    if(d.hidden) return false;
     // Tags are stored as an array, not a comma-separated string
     const tags = Array.isArray(d.tags) ? d.tags : (d.tags || '').split(',').map(t => t.trim());
     return tags.some(t => String(t).toLowerCase() === String(selectedTag).toLowerCase());
@@ -4627,7 +4630,7 @@ function renderFinderResults(startISO, endISOInclusive, filterQuery=""){
 
   const endEx = addDaysISO(endISOInclusive, 1);
 
-  const scored = doctors.map(d=>{
+  const scored = doctors.filter(d => !d.hidden).map(d=>{
     let avail=0, booked=0, other=0, total=0;
     let day = startISO;
     while(day < endEx){
