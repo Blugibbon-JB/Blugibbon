@@ -14489,5 +14489,249 @@ function createSiteManually() {
 })();
 </script>
 
+
+<!-- ===== MASTER VIEW: admin, read-only view of every recruiter's calendar (added Oct 2026) ===== -->
+<style>
+  #bgMasterBtn{ display:none; }
+  #bgMasterBtn.on{ background:#b42318; color:#fff; border-color:#b42318; }
+  #bgMasterBanner{ display:none; align-items:center; gap:12px; flex-wrap:wrap; padding:8px 14px;
+    background:#fff4e5; border-bottom:2px solid #f59e0b; color:#7c2d12; font-size:13px; }
+  body.bg-master-on #bgMasterBanner{ display:flex; }
+  #bgMasterBanner b{ font-weight:700; }
+  #bgMasterBanner select{ padding:4px 6px; font-size:13px; max-width:100%; }
+  #bgMasterBanner .mv-blocked{ color:#b42318; font-weight:600; }
+  #bgMasterBanner .mv-spacer{ flex:1; }
+  body.bg-master-on .docCheckbox,
+  body.bg-master-on .moreBtn{ display:none !important; }
+</style>
+<script>
+/* MASTER VIEW
+   Admin accounts (MASTER_ADMINS) can load every recruiter's calendar into one VIEW-ONLY session.
+   Needs the Firebase rule on /users that gives these accounts read access.
+   While it is on, every Firebase write and every local save of doctors / events / undo is blocked,
+   so the combined data can never be written back into anyone's calendar, yours included.
+   Leaving master view puts your own calendar back exactly as it was. */
+(function(){
+  const MASTER_ADMINS = ['josh@blugibbon.com.au'];
+  const LOCKED_KEYS = new Set([STORAGE_KEY_DOCTORS, STORAGE_KEY_EVENTS, UNDO_KEY, 'doctors', 'events']);
+  const MUTATING_BUTTONS = ['editDoctorBtn','removeDoctorBtn','createBtn','addEventBtn','clearSelectedBtn',
+    'deleteSelectedBtn','undoBtn','pasteAvailBtn','makePlacementBtn','uploadClickUpBtn','uploadSitesBtn',
+    'uploadTimesheetsBtn','uploadPlacementsBtn','uploadBtn','importJsonBtn','createSiteBtn'];
+
+  let on = false, busy = false, saved = null, merged = null, owners = {}, ownerFilter = '__all__', blocked = 0;
+  window.bgMasterViewOn = () => on;
+
+  const isAdmin = () => !!(firebase_user && firebase_user.email &&
+    MASTER_ADMINS.includes(String(firebase_user.email).toLowerCase()) && firebase_user.emailVerified !== false);
+  const esc2 = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const arr = x => Array.isArray(x) ? x : Object.values(x || {});
+  const nameFromEmail = e => { const n = String(e || '').split('@')[0].split(/[._]/)[0]; return n ? n[0].toUpperCase() + n.slice(1) : ''; };
+
+  // ---------- write guards (only active while master view is on) ----------
+  function noteBlocked(){
+    blocked++;
+    const el = document.getElementById('bgMasterBlocked');
+    if(el) el.textContent = `${blocked} change${blocked === 1 ? '' : 's'} blocked – view only, nothing was saved`;
+  }
+  const _setItem = Storage.prototype.setItem, _removeItem = Storage.prototype.removeItem, _clear = Storage.prototype.clear;
+  Storage.prototype.setItem = function(k, v){ if(on && LOCKED_KEYS.has(k)){ noteBlocked(); return; } return _setItem.call(this, k, v); };
+  Storage.prototype.removeItem = function(k){ if(on && LOCKED_KEYS.has(k)){ noteBlocked(); return; } return _removeItem.call(this, k); };
+  Storage.prototype.clear = function(){ if(on){ noteBlocked(); return; } return _clear.call(this); };
+
+  let refsPatched = false;
+  function patchFirebaseWrites(){
+    if(refsPatched || typeof firebase === 'undefined' || !firebase.database || !firebase.database.Reference) return;
+    const P = firebase.database.Reference.prototype;
+    ['set','update','remove','push','transaction','setWithPriority','setPriority'].forEach(fn => {
+      const orig = P[fn];
+      if(typeof orig !== 'function') return;
+      P[fn] = function(...args){
+        if(on){ noteBlocked(); return Promise.resolve(); }   // swallow: never write while viewing everyone's data
+        return orig.apply(this, args);
+      };
+    });
+    refsPatched = true;
+  }
+  patchFirebaseWrites();
+
+  const _syncTo = syncToFirebase;
+  syncToFirebase = async function(){ if(on){ noteBlocked(); return; } return _syncTo.apply(this, arguments); };
+  const _syncFrom = syncFromFirebase;
+  syncFromFirebase = async function(){ if(on) exitMaster(false); return _syncFrom.apply(this, arguments); };
+
+  const _updateActionButtons = updateActionButtons;
+  updateActionButtons = function(){ const r = _updateActionButtons.apply(this, arguments); if(on) lockButtons(); return r; };
+  const _updateUndoButton = updateUndoButton;
+  updateUndoButton = function(){ const r = _updateUndoButton.apply(this, arguments); if(on) lockButtons(); return r; };
+  const _updateAuthUI = updateAuthUI;
+  updateAuthUI = function(){
+    const r = _updateAuthUI.apply(this, arguments);
+    if(on && !isAdmin()) exitMaster(true);
+    paintButton();
+    return r;
+  };
+
+  function lockButtons(){
+    MUTATING_BUTTONS.forEach(id => { const b = document.getElementById(id); if(b){ b.disabled = true; b.style.opacity = '0.5'; } });
+  }
+
+  // ---------- UI ----------
+  const btn = document.createElement('button');
+  btn.id = 'bgMasterBtn';
+  btn.type = 'button';
+  btn.title = "Admin only: view every recruiter's calendar (read-only)";
+  btn.addEventListener('click', () => on ? exitMaster(true) : enterMaster());
+  const auth = document.getElementById('authSection');
+  if(auth) auth.insertBefore(btn, auth.firstChild);
+
+  const banner = document.createElement('div');
+  banner.id = 'bgMasterBanner';
+  banner.innerHTML = `<span>👁 <b>MASTER VIEW</b> – every recruiter's calendar, <b>read-only</b>. Nothing you change here is saved.</span>
+    <label>Recruiter: <select id="bgMasterOwner"></select></label>
+    <span id="bgMasterCounts"></span>
+    <span class="mv-spacer"></span>
+    <span id="bgMasterBlocked" class="mv-blocked"></span>
+    <button type="button" id="bgMasterExit">Exit master view</button>`;
+  const main = document.getElementById('main');
+  if(main && main.parentNode) main.parentNode.insertBefore(banner, main); else document.body.prepend(banner);
+  banner.querySelector('#bgMasterExit').addEventListener('click', () => exitMaster(true));
+  banner.querySelector('#bgMasterOwner').addEventListener('change', e => { ownerFilter = e.target.value; applyFilter(); });
+
+  function paintButton(){
+    btn.style.display = (isAdmin() || on) ? 'inline-flex' : 'none';
+    btn.disabled = busy;
+    btn.classList.toggle('on', on);
+    btn.textContent = busy ? 'Loading all calendars…' : on ? 'Exit master view' : 'All calendars (view only)';
+  }
+
+  function say(msg){ try{ statusChip.textContent = msg; }catch(e){} }
+
+  // ---------- data ----------
+  function buildMerged(all){
+    const docMap = new Map(), evs = [], usedIds = new Set();
+    owners = {};
+    for(const [uid, u] of Object.entries(all || {})){
+      if(!u) continue;
+      // recruiter behind this calendar = most frequent created_by on its events
+      const cnt = {};
+      arr(u.events).forEach(e => { if(e && e.created_by && e.created_by !== 'unknown') cnt[e.created_by] = (cnt[e.created_by] || 0) + 1; });
+      const email = (Object.entries(cnt).sort((a, b) => b[1] - a[1])[0] || [''])[0];
+      owners[uid] = { uid, email, label: nameFromEmail(email) || ('Recruiter ' + uid.slice(0, 6)), nDocs: 0, nEvents: 0 };
+
+      for(const d of arr(u.doctors)){
+        if(!d) continue;
+        const key = String(d.ahpra_id || '').trim() || ('name:' + String(d.name || '').trim().toLowerCase());
+        if(key === 'name:') continue;
+        owners[uid].nDocs++;
+        const prev = docMap.get(key);
+        if(!prev){ docMap.set(key, Object.assign({}, d, { _owners: [uid] })); continue; }
+        const own = prev._owners.includes(uid) ? prev._owners : prev._owners.concat(uid);
+        const newer = new Date(d.lastModified || 0).getTime() > new Date(prev.lastModified || 0).getTime();
+        docMap.set(key, Object.assign({}, newer ? d : prev, { _owners: own }));
+      }
+      for(const e of arr(u.events)){
+        if(!e) continue;
+        const c = Object.assign({}, e, { _owner: uid });
+        if(c.id != null){
+          let id = String(c.id), n = 1;
+          while(usedIds.has(id)) id = String(c.id) + '~' + (n++);
+          if(id !== String(c.id)) c.id = id;          // only renamed when two calendars share an id
+          usedIds.add(id);
+        }
+        evs.push(c);
+        owners[uid].nEvents++;
+      }
+    }
+    return { doctors: [...docMap.values()], events: evs };
+  }
+
+  function fillOwnerSelect(){
+    const sel = document.getElementById('bgMasterOwner');
+    const list = Object.values(owners).sort((a, b) => a.label.localeCompare(b.label));
+    sel.innerHTML = `<option value="__all__">All recruiters (${list.length})</option>` +
+      list.map(o => `<option value="${esc2(o.uid)}" title="${esc2(o.email || o.uid)}">${esc2(o.label)} – ${o.nDocs} doctors, ${o.nEvents} entries</option>`).join('');
+    sel.value = ownerFilter;
+  }
+
+  function applyFilter(){
+    if(!merged) return;
+    let ds = merged.doctors, es = merged.events;
+    if(ownerFilter !== '__all__'){
+      es = es.filter(e => e._owner === ownerFilter);
+      ds = ds.filter(d => d._owners.includes(ownerFilter));
+    }
+    doctors = ds; events = es; placements = [];
+    if(selectedDoctorId && !doctors.some(d => String(d.ahpra_id) === String(selectedDoctorId))) selectedDoctorId = null;
+    selectedDoctorIds.clear();
+    document.getElementById('bgMasterCounts').textContent = `${doctors.length} doctors · ${events.length} calendar entries`;
+    rerender();
+  }
+
+  function rerender(){
+    try{ updateFilterDropdowns(); }catch(e){ console.warn(e); }
+    try{ renderDoctorList(); renderHeader(); updateViews(); }catch(e){ console.warn('Master view render', e); }
+    try{ updateUndoButton(); }catch(e){}
+    try{ if(toggleAllBtn) toggleAllBtn.classList.toggle('primary', showAllDoctors); }catch(e){}
+  }
+
+  // ---------- enter / exit ----------
+  async function enterMaster(){
+    if(on || busy) return;
+    if(!isAdmin()){ say('Master view is only available to admin accounts.'); return; }
+    busy = true; paintButton(); say('Loading every recruiter\'s calendar (read-only)…');
+    try{
+      patchFirebaseWrites();
+      const snap = await firebase_db.ref('users').once('value');
+      const built = buildMerged(snap.val());
+      saved = {
+        doctors, events, placements, selectedDoctorId, showAllDoctors,
+        undo: undoStack.slice(),
+        buttons: MUTATING_BUTTONS.map(id => { const b = document.getElementById(id); return b ? [id, b.disabled, b.style.opacity] : null; }).filter(Boolean)
+      };
+      merged = built;
+      ownerFilter = '__all__'; blocked = 0;
+      document.getElementById('bgMasterBlocked').textContent = '';
+      on = true;
+      undoStack = [];
+      document.body.classList.add('bg-master-on');
+      try{ calendar.setOption('selectable', false); }catch(e){}
+      lockButtons();
+      fillOwnerSelect();
+      applyFilter();
+      say(`Master view: ${Object.keys(owners).length} calendars, ${merged.doctors.length} doctors (read-only)`);
+    }catch(err){
+      const denied = /permission/i.test(String((err && (err.code || err.message)) || ''));
+      say(denied ? 'Master view: permission denied – the /users read rule does not include this account.'
+                 : 'Master view could not load: ' + (err && err.message || err));
+      console.error('Master view', err);
+    }finally{
+      busy = false; paintButton();
+    }
+  }
+
+  function exitMaster(restore){
+    if(!on) return;
+    on = false;
+    document.body.classList.remove('bg-master-on');
+    try{ calendar.setOption('selectable', true); }catch(e){}
+    if(saved){
+      saved.buttons.forEach(([id, dis, op]) => { const b = document.getElementById(id); if(b){ b.disabled = dis; b.style.opacity = op; } });
+      undoStack = saved.undo;
+      if(restore){
+        doctors = saved.doctors; events = saved.events; placements = saved.placements;
+        selectedDoctorId = saved.selectedDoctorId; showAllDoctors = saved.showAllDoctors;
+        selectedDoctorIds.clear();
+        rerender();
+        say('Back to your own calendar.');
+      }
+    }
+    saved = null; merged = null; owners = {}; ownerFilter = '__all__';
+    paintButton();
+  }
+
+  paintButton();
+})();
+</script>
+
 </body>
 </html>
