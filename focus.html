@@ -73,10 +73,15 @@ button{font-family:inherit;cursor:pointer;color:inherit}
 .chips{display:flex;flex-wrap:wrap;gap:4px}
 .chips.w{gap:6px}
 .chip{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;border:1px solid transparent;cursor:pointer}
-a.chip:hover{border-color:currentColor;text-decoration:none}
+.chip{display:inline-flex;align-items:center;gap:2px;padding-right:3px}
+.chip:hover{border-color:currentColor}
+.chip .cn{color:inherit;text-decoration:none} .chip a.cn:hover{text-decoration:underline}
+.cx{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:2px;border:0;border-radius:999px;background:transparent;color:inherit;opacity:.45;padding:0;flex:none}
+.cx:hover{opacity:1;background:rgba(16,24,40,.1)}
 .chip.g,.chip.g:hover{background:#e4f4ec;color:#15603f} .chip.a,.chip.a:hover{background:#fbf1e0;color:#8a560c} .chip.p,.chip.p:hover{background:#efeafb;color:#4b2f92}
-.chip.wide{display:flex;flex-direction:column;border-radius:10px;padding:5px 10px;white-space:normal}
-.chip.wide span{font-weight:400}
+.chip.wide{border-radius:10px;padding:5px 4px 5px 10px;white-space:normal;align-items:flex-start}
+.chip.wide .cn{display:flex;flex-direction:column}
+.chip.wide .ctip{font-weight:400}
 .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nm .x{font-weight:400;color:#5b6475}
 a.nl{color:inherit} a.nl:hover{color:#1f62d6}
@@ -206,6 +211,7 @@ const Focus = (() => {
   const span = (a, b) => a === b ? nice(a) : `${nice(a)} – ${nice(b)}`;
   const arr = x => Array.isArray(x) ? x : Object.values(x || {});
   const key = s => String(s || '').trim().toUpperCase();
+  const safeKey = s => String(s || '').replace(/[.#$\[\]\/]/g, '_');
   const sydToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
   // classify one calendar entry
@@ -266,6 +272,7 @@ const Focus = (() => {
         const live = [], near = [];
         for (const m of arr(j.docs)) {
           const dk = key(m.k), doc = docs[dk];
+          if (opts.removed && opts.removed.has(jk + '|' + safeKey(dk))) continue;   // taken off this job by a recruiter (availability untouched)
           if (doc && doc.hidden) continue;
           const c = dates.filter(d => freeOn(dk, d)).length;
           const row = { k: dk, name: (doc && doc.name) || m.name, level: (doc && doc.level) || m.lv || '', cu: (doc && doc.cu) || m.cu || '', c, n: dates.length,
@@ -336,7 +343,7 @@ const Focus = (() => {
     const currentBookingFor = k => (evBy[k] || []).filter(x => x.k === 'booked' && x.s <= today && x.e > today).map(x => addDays(x.e, -1)).sort().pop() || '';
     return { today, win, jobs, nearJobs, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
   }
-  return { build, addDays, nice, short, span, ranges, sydToday, key };
+  return { build, safeKey, addDays, nice, short, span, ranges, sydToday, key };
 })();
 if (typeof module !== 'undefined') module.exports = Focus;
 </script><script>
@@ -434,6 +441,16 @@ if (typeof firebase !== 'undefined') (function () {
       err => statusView(`<b>Couldn't read the calendar</b>${esc(err.code || err.message)}`));
   }
   const hiddenNow = new Set();        // hidden the instant you click, before Firebase answers
+  const removedNow = new Set(), unremovedNow = new Set();   // instant feedback before Firebase answers
+  function removedSet() {
+    const out = new Set();
+    for (const node of Object.values(data)) {
+      for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) for (const dk of Object.keys((rec && rec.removed) || {})) out.add(jk + '|' + dk);
+      for (const [jk, ds] of Object.entries((node && node.focus && node.focus.removed) || {})) for (const dk of Object.keys(ds || {})) out.add(jk + '|' + dk);
+    }
+    removedNow.forEach(k => out.add(k)); unremovedNow.forEach(k => out.delete(k));
+    return out;
+  }
   function dismissedMap() {
     const out = {};
     for (const node of Object.values(data)) for (const k of Object.keys((node && node.focus && node.focus.dismissed) || {})) out[k] = 1;
@@ -449,7 +466,7 @@ if (typeof firebase !== 'undefined') (function () {
   // ---------- view models ----------
   function build() {
     const today = N.sydToday();
-    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, contacted: contactedMap(), dismissed: dismissedMap() });
+    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, contacted: contactedMap(), dismissed: dismissedMap(), removed: removedSet() });
     const pops = {}; let pi = 0;
     const jobVM = (x, near) => {
       const j = x.j, { site, role } = shortTitle(j.title), docs = near ? x.near : x.live, n = x.dates.length;
@@ -530,10 +547,10 @@ if (typeof firebase !== 'undefined') (function () {
     if (e.altKey || needs) { e.preventDefault(); mailSetup(needs ? a.dataset.mail : ''); }
   }, true);
   setInterval(() => document.querySelectorAll('[data-ago]').forEach(el => { try { el.lastChild.textContent = ago(JSON.parse(el.dataset.ago)); } catch (e) {} }), 60000);
-  const chipHTML = (c, wide) => {
-    const inner = `${c.mark}${esc(c.name)}${wide ? `<span>${esc(c.tip)}</span>` : ''}`;
-    const attrs = `class="chip ${c.cls}${wide ? ' wide' : ''}" ${c.pid ? `data-pop="${c.pid}"` : `title="${esc(c.tip)}"`}`;
-    return c.cu ? `<a ${attrs} href="${esc(c.cu)}" target="_blank" rel="noopener">${inner}</a>` : `<span ${attrs}>${inner}</span>`;
+  const chipHTML = (c, wide, x) => {
+    const inner = `${c.mark}${esc(c.name)}${wide ? `<span class="ctip">${esc(c.tip)}</span>` : ''}`;
+    const nm = c.cu ? `<a class="cn" href="${esc(c.cu)}" target="_blank" rel="noopener">${inner}</a>` : `<span class="cn">${inner}</span>`;
+    return `<span class="chip ${c.cls}${wide ? ' wide' : ''}" ${c.pid ? `data-pop="${c.pid}"` : `title="${esc(c.tip)}"`}>${nm}<button class="cx" title="Remove ${esc(c.name)} from this job (keeps their availability)" data-rm="${esc(c.k)}" data-jk="${esc(x.jk)}" data-uid="${esc(x.uid)}" data-nm="${esc(c.name)}" data-site="${esc(x.site)}">${I.x(11)}</button></span>`;
   };
   const actBtns = (x, big) => `<button class="ib ok${big ? ' big' : ''}" title="Accept – create order" data-act="accepted" data-jk="${esc(x.jk)}">${I.check(18)}</button>
       <button class="ib${big ? ' big' : ''}" title="Not suitable" data-act="notsuitable" data-jk="${esc(x.jk)}">${I.x(18)}</button>`;
@@ -541,7 +558,7 @@ if (typeof firebase !== 'undefined') (function () {
       <div class="jtop"><div><div class="site">${esc(x.site)} <span class="st">${esc(x.st)}</span></div>${x.role ? `<div class="role">${esc(x.role)}</div>` : ''}</div>
         <div class="acts">${actBtns(x)}</div></div>
       <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span>${addedHTML(x)}${mailHTML(x)}</div>
-      <div class="chips">${x.chips.map(c => chipHTML(c, false)).join('')}</div></div>`;
+      <div class="chips">${x.chips.map(c => chipHTML(c, false, x)).join('')}</div></div>`;
   const contactBtn = (a, wide) => {
     const on = !!a.contacted, tip = on ? `Contacted ${day(a.contacted)} – click to undo` : 'Mark as contacted (hides for 7 days)';
     return wide ? `<button class="cbtn${on ? ' on' : ''}" title="${esc(tip)}" data-contact="${esc(a.a.k)}" data-on="${on ? '1' : ''}">${I.check(14)}${on ? 'Contacted ' + esc(day(a.contacted)) : 'Mark contacted'}</button>`
@@ -591,7 +608,7 @@ if (typeof firebase !== 'undefined') (function () {
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
       <div class="c13">${esc(x.dates)}<div class="s2">${x.n} day${x.n === 1 ? '' : 's'}</div></div>
       <div class="c13">${esc(x.rate)}<div class="s2">${esc(x.st)}</div></div>
-      <div class="chips w">${x.chips.map(c => chipHTML(c, true)).join('')}</div>
+      <div class="chips w">${x.chips.map(c => chipHTML(c, true, x)).join('')}</div>
       <div class="acts">${actBtns(x, true)}</div></div>`;
   const exFree = a => `<div class="tr${a.contacted ? ' dim' : ''}">
       <div style="min-width:0"><div class="site">${nameLink(a.d)}</div><div class="c13m">${esc(dot(lvShort(a.d.level), a.d.spec))}</div></div>
@@ -691,14 +708,28 @@ if (typeof firebase !== 'undefined') (function () {
       hiddenNow.delete(jk); render();
     });
   }
+  async function removeDoc(jk, dk, uid, name, site) {
+    const s = N.safeKey(dk), k = jk + '|' + s, rec = { by: user.email, at: new Date().toISOString() };
+    unremovedNow.delete(k); removedNow.add(k); render();
+    let where = '';
+    try { await db.ref(`users/${uid}/jobmatches/${jk}/removed/${s}`).set(rec); where = 'job'; }          // deleted with the job when it finishes
+    catch (e) { try { await db.ref(`users/${user.uid}/focus/removed/${jk}/${s}`).set(rec); where = 'own'; } catch (e2) { console.warn(e2); } }
+    toast(`${name} removed from ${site}`, async () => {
+      removedNow.delete(k); unremovedNow.add(k); render();
+      try { await db.ref(`users/${uid}/jobmatches/${jk}/removed/${s}`).remove(); } catch (e) {}
+      try { await db.ref(`users/${user.uid}/focus/removed/${jk}/${s}`).remove(); } catch (e) {}
+      unremovedNow.delete(k);
+    });
+  }
   async function setContacted(k, on, name) {
     const key = k.replace(/[.#$\[\]\/]/g, '_');
     try { await db.ref(`users/${user.uid}/focus/contacted/${key}`).set(on ? N.sydToday() : null); } catch (e) { console.warn(e); }
     if (on) toast(`${name} marked contacted`, () => setContacted(k, false));
   }
   document.addEventListener('click', e => {
-    const t = e.target.closest('[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
-    if (t.dataset.act) answer(t.dataset.jk, t.dataset.act);
+    const t = e.target.closest('[data-rm],[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
+    if (t.dataset.rm) { e.preventDefault(); hidePop(); removeDoc(t.dataset.jk, t.dataset.rm, t.dataset.uid, t.dataset.nm, t.dataset.site); }
+    else if (t.dataset.act) answer(t.dataset.jk, t.dataset.act);
     else if (t.dataset.contact != null) { const a = V && V.lists.free.find(y => y.a.k === t.dataset.contact); setContacted(t.dataset.contact, !t.dataset.on, a ? a.d.name : 'Doctor'); }
     else if (t.dataset.open) openEx(t.dataset.open);
     else if (t.dataset.close != null) closeEx();
