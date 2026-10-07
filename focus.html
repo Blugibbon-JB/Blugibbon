@@ -4,81 +4,161 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Doctor Focus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-database-compat.js"></script>
 <style>
-:root{
-  --bg:#F7F8FA; --card:#FFFFFF; --line:#ECEEF1; --text:#1F2937; --muted:#6B7280; --faint:#9CA3AF; --soft:#F3F4F6; --hover:#F9FAFB;
-  --blue:#2563EB; --green:#047857; --green-soft:#ECFDF5; --amber:#B45309; --amber-soft:#FFF7E6; --purple:#6D28D9; --purple-soft:#F3F0FF; --red:#B91C1C;
-}
-@media (prefers-color-scheme: dark){
-  :root{ --bg:#111827; --card:#1A2232; --line:#2A3446; --text:#F3F4F6; --muted:#A3AAB8; --faint:#6B7486; --soft:#243044; --hover:#1F293B;
-    --blue:#60A5FA; --green:#34D399; --green-soft:#12322A; --amber:#FBBF24; --amber-soft:#3A2E12; --purple:#A78BFA; --purple-soft:#2B2547; --red:#F87171; }
-}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-a{color:inherit;text-decoration:none} a:hover{text-decoration:underline}
-button{font:inherit;cursor:pointer;color:inherit}
-header{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 14px 0}
-.top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.top h1{font-size:14px;margin:0;font-weight:650}
-.who{color:var(--faint);font-size:12px}
-.spacer{flex:1}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--card)}
-.seg button{border:0;background:transparent;color:var(--muted);padding:3px 8px;font-size:11.5px}
-.seg button.on{background:var(--text);color:var(--bg)}
-.tabs{display:flex;gap:2px;margin-top:10px;border-bottom:1px solid var(--line);overflow-x:auto}
-.tab{border:0;background:none;padding:7px 10px 8px;color:var(--muted);font-size:12.5px;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
-.tab b{font-size:13px;margin-right:4px;color:var(--text)}
-.tab.on{color:var(--text);border-bottom-color:var(--c,var(--blue));font-weight:600}
-.tab.on b{color:var(--c)}
-.tab .zero{color:var(--faint)}
-.wrap{padding:6px 14px 30px;max-width:1000px;margin:0 auto}
-.hint{color:var(--faint);font-size:11.5px;margin:6px 2px 6px}
-.list{background:var(--card);border:1px solid var(--line);border-radius:9px;overflow:hidden}
-.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:8px 12px;border-top:1px solid var(--line)}
-.row:first-child{border-top:0}
-.row:hover{background:var(--hover)}
-.row.done{opacity:.45}
-.t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sub{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
-.chip{font-size:11.5px;padding:1px 7px;border-radius:999px;background:var(--soft);white-space:nowrap}
-.chip.all{background:var(--green-soft);color:var(--green)}
-.chip.some{background:var(--amber-soft);color:var(--amber)}
-.chip.close{background:var(--purple-soft);color:var(--purple)}
-.chip.more{background:none;color:var(--faint);padding-left:2px}
-.right{display:flex;align-items:center;gap:6px;justify-content:flex-end}
-.badge{font-size:11.5px;color:var(--muted);white-space:nowrap}
-.ic{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--card);display:inline-flex;align-items:center;justify-content:center;font-size:13px;padding:0}
-.ic:hover{border-color:var(--muted)}
-.ic.ok{background:#047857;border-color:#047857;color:#fff}
-.ic.on{background:var(--green-soft);border-color:var(--green);color:var(--green)}
-.empty{color:var(--muted);padding:18px 12px;text-align:center}
-.more-btn{display:block;width:100%;border:0;border-top:1px solid var(--line);background:none;padding:7px;color:var(--blue);font-size:12px}
-.status{padding:30px 14px;text-align:center;color:var(--muted)}
-.signin{margin-top:10px;background:var(--blue);color:#fff;border:0;border-radius:7px;padding:8px 16px;font-size:14px}
-.calLink{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--blue);color:var(--blue);background:var(--card);border-radius:6px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap}
-.calLink:hover{background:var(--blue);color:#fff;text-decoration:none}
-.foot{color:var(--faint);font-size:11px;margin-top:10px;text-align:right}
-.foot a{color:var(--blue)}
-@media (max-width:520px){ .row{grid-template-columns:1fr} .right{justify-content:flex-start} }
+html,body{margin:0;height:100%;background:#f8f9fc}
+body{font:14px/1.4 'Archivo',system-ui,-apple-system,"Segoe UI",sans-serif;color:#1b2230}
+a{color:#1f62d6;text-decoration:none} a:hover{color:#174aa3;text-decoration:underline}
+button{font-family:inherit;cursor:pointer;color:inherit}
+:focus-visible{outline:2px solid #1f62d6;outline-offset:2px}
+.app{height:100vh;display:flex;flex-direction:column;background:radial-gradient(1200px 500px at 0% 0%,#f1f5fc 0%,transparent 60%),linear-gradient(180deg,#fafbfd,#f5f7fa)}
+.hd{flex:none;display:flex;align-items:center;gap:12px 20px;padding:10px 24px;min-height:60px;background:rgba(255,255,255,.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 1px 0 #e8ecf2,0 6px 20px -10px rgba(16,24,40,.12);flex-wrap:wrap;position:relative;z-index:2}
+.brand{display:flex;align-items:baseline;gap:10px;font-weight:800;font-size:17px}
+.brand .bg{letter-spacing:.06em;color:#1f62d6} .brand .df{letter-spacing:-.01em}
+.meta{font-size:13px;color:#5b6475}
+.sp{flex:1}
+.seg{display:flex;gap:2px;padding:3px;background:#eef1f6;border-radius:10px}
+.seg button{border:0;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600;background:transparent;color:#5b6475}
+.seg button.on{background:#fff;color:#1b2230;box-shadow:0 1px 3px rgba(16,24,40,.12)}
+.calBtn{display:flex;align-items:center;gap:8px;padding:7px 12px;background:linear-gradient(135deg,#3b82f6,#1f5ccc);border-radius:9px;color:#fff;font-size:13px;font-weight:600;box-shadow:0 4px 12px -4px rgba(31,98,214,.55)}
+.calBtn:hover{background:linear-gradient(135deg,#2f6fe0,#174aa3);color:#fff;text-decoration:none}
+.grid{flex:1;min-height:0;overflow:auto;padding:20px 24px;display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));grid-auto-rows:minmax(340px,1fr)}
+.card{display:flex;flex-direction:column;min-height:0;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(16,24,40,.03);background:linear-gradient(180deg,var(--t70) 0%,var(--t30) 45%,rgba(255,255,255,.6) 100%)}
+.cHead{all:unset;box-sizing:border-box;cursor:pointer;display:block;padding:18px 20px 14px}
+.cHead:hover{background:rgba(255,255,255,.45)} .cHead:focus-visible,.cFoot:focus-visible{outline:2px solid #1f62d6;outline-offset:-2px}
+.lrow{display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.lab{font-size:12px;font-weight:800;letter-spacing:.08em}
+.crow{display:flex;align-items:baseline;gap:12px;margin-top:6px}
+.cnt{font-size:38px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.hint{font-size:13px;color:#5b6475}
+.cBody{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.jrow{display:flex;flex-direction:column;gap:8px;padding:12px 14px;margin:2px 8px;border-radius:12px}
+.drow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px;margin:2px 8px;border-radius:12px}
+.jrow:hover,.drow:hover{background:#f4f6fa}
+.dim{opacity:.45}
+.jtop{display:flex;align-items:flex-start;gap:10px} .jtop>div:first-child{flex:1;min-width:0}
+.site{font-weight:600;text-wrap:pretty}
+.st{font-size:11px;font-weight:800;letter-spacing:.06em;color:#8a93a3}
+.role{font-size:13px;color:#3b4252}
+.acts{display:flex;gap:4px;flex:none}
+.ib{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0;border:1px solid #dde2ea;background:transparent;color:#1b2230;flex:none}
+.ib:hover{background:#eef1f6;color:#1b2230;text-decoration:none}
+.ib.ok{border:0;background:linear-gradient(180deg,#27a06b,#1c8155);color:#fff;box-shadow:0 2px 6px -2px rgba(31,138,91,.5)}
+.ib.ok:hover{background:#15603f}
+.ib.big{width:32px;height:32px;border-radius:9px}
+.ib.ct:hover{background:transparent;border-color:#1f62d6}
+.ib.ct.on{background:#e8effc;border-color:#1f62d6;color:#174aa3}
+.jmeta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px}
+.jmeta .d{display:flex;align-items:center;gap:5px;color:#3b4252}
+.rate{font-weight:800}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chips.w{gap:6px}
+.chip{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;border:1px solid transparent;cursor:pointer}
+a.chip:hover{border-color:currentColor;text-decoration:none}
+.chip.g,.chip.g:hover{background:#e4f4ec;color:#15603f} .chip.a,.chip.a:hover{background:#fbf1e0;color:#8a560c} .chip.p,.chip.p:hover{background:#efeafb;color:#4b2f92}
+.chip.wide{display:flex;flex-direction:column;border-radius:10px;padding:5px 10px;white-space:normal}
+.chip.wide span{font-weight:400}
+.nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm .x{font-weight:400;color:#5b6475}
+a.nl{color:inherit} a.nl:hover{color:#1f62d6}
+.sub{font-size:12px;color:#5b6475;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rt{display:flex;align-items:center;gap:10px}
+.lb{font-size:12px;color:#8a93a3;white-space:nowrap}
+.pill{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:#fbf1e0;color:#8a560c;white-space:nowrap}
+.cFoot{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;padding:11px 20px;border-top:1px solid rgba(16,24,40,.05);font-size:13px;font-weight:600;color:#1f62d6}
+.cFoot:hover{background:#f4f6fa}
+.empty{padding:16px 20px;color:#5b6475}
+/* full-screen view */
+.ex{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;background:radial-gradient(1200px 500px at 0% 0%,#f1f5fc 0%,transparent 60%),linear-gradient(180deg,#fafbfd,#f5f7fa)}
+.exTop{flex:none;display:flex;align-items:center;gap:16px;padding:0 24px;height:60px;background:rgba(255,255,255,.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 1px 0 #e8ecf2,0 6px 20px -10px rgba(16,24,40,.12);overflow-x:auto;scrollbar-width:none}
+.back{display:flex;align-items:center;gap:8px;border:1px solid #dde2ea;border-radius:9px;background:#fff;padding:6px 12px;font-size:13px;font-weight:600;color:#1b2230;flex:none}
+.back:hover{background:#eef1f6}
+.tabs{display:flex;gap:4px;align-self:stretch}
+.tab{display:flex;align-items:center;gap:8px;border:0;background:transparent;padding:0 12px;font-size:13px;font-weight:600;color:#5b6475;border-bottom:3px solid transparent;white-space:nowrap}
+.tab:hover{background:#f4f6fa} .tab.on{color:#1b2230;border-bottom-color:var(--c)}
+.tab .dot{width:8px;height:8px} .tab .n{color:#8a93a3}
+.esc{font-size:12px;color:#8a93a3;white-space:nowrap}
+.exHead{flex:none;display:flex;align-items:flex-end;gap:24px;padding:24px 24px 16px;flex-wrap:wrap}
+.exHead>div{flex:1;min-width:280px}
+.exHead .dot{width:12px;height:12px}
+.exHead .crow{gap:14px}
+.exHead .cnt{font-size:52px}
+.exHint{font-size:15px;color:#5b6475;text-wrap:pretty}
+.flt{display:flex;align-items:center;gap:8px;border:1px solid #dde2ea;border-radius:10px;background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:0 12px;height:40px;width:300px;max-width:100%;color:#8a93a3}
+.flt input{flex:1;border:0;outline:0;background:transparent;font:inherit;font-size:13px;color:#1b2230;min-width:0}
+.exBody{flex:1;min-height:0;overflow:auto;padding:0 24px 32px}
+.tbl{background:#fff;border:1px solid rgba(16,24,40,.06);border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04),0 12px 32px -14px rgba(16,24,40,.14);min-width:860px}
+.th,.tr{display:grid;gap:16px;grid-template-columns:var(--cols)}
+.th{padding:10px 20px;font-size:11px;font-weight:800;letter-spacing:.08em;color:#5b6475;border-bottom:1px solid #eef1f6}
+.tr{padding:14px 20px;border-bottom:1px solid #eef1f6;align-items:center}
+.tr:last-child{border-bottom:0}
+.tr.job{align-items:start}
+.tr:hover{background:#f4f6fa}
+.c13{font-size:13px} .c13m{font-size:13px;color:#5b6475;text-wrap:pretty} .s2{font-size:12px;color:#8a93a3}
+.tr .acts{justify-content:flex-end}
+.cbtn{display:flex;align-items:center;gap:6px;justify-self:end;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid #dde2ea;background:transparent;color:#1b2230;white-space:nowrap}
+.cbtn:hover{border-color:#1f62d6}
+.cbtn.on{background:#e8effc;border-color:#1f62d6;color:#174aa3}
+/* hover card + toast */
+.pop{position:fixed;z-index:70;width:280px;pointer-events:none;background:#fff;border:1px solid #e3e8ef;border-radius:14px;overflow:hidden;box-shadow:0 18px 40px -12px rgba(16,24,40,.25);font-size:13px}
+.pop .ph{padding:12px 14px 10px;background:linear-gradient(180deg,#e4f4ec,#fff)}
+.pop .pn{font-weight:800;font-size:15px}
+.pop .pl{color:#5b6475}
+.pop .pg{display:grid;grid-template-columns:112px minmax(0,1fr);gap:6px 10px;padding:10px 14px 12px;border-top:1px solid #eef1f6}
+.pop .pk{font-size:11px;font-weight:800;letter-spacing:.06em;color:#8a93a3;padding-top:1px}
+.pop .pf{padding:8px 14px;border-top:1px solid #eef1f6;font-size:12px;color:#5b6475}
+.toast{position:fixed;left:24px;bottom:24px;z-index:60;display:flex;align-items:center;gap:16px;padding:12px 16px;background:#1b2230;color:#fff;border-radius:12px;font-size:13px;box-shadow:0 18px 40px -12px rgba(16,24,40,.4)}
+.toast button{border:0;background:transparent;color:#8fb4f5;font-weight:800;font-size:13px;padding:0}
+/* loading / sign-in */
+.stWrap{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
+.stCard{background:#fff;border-radius:16px;padding:28px 32px;text-align:center;max-width:420px;color:#5b6475;border:1px solid rgba(16,24,40,.06);box-shadow:0 1px 2px rgba(16,24,40,.04),0 12px 32px -14px rgba(16,24,40,.14)}
+.stCard b{display:block;color:#1b2230;font-size:17px;font-weight:800;margin-bottom:6px}
+.primary{margin-top:16px;border:0;padding:9px 16px;border-radius:9px;background:linear-gradient(135deg,#3b82f6,#1f5ccc);color:#fff;font-weight:600;font-size:14px;box-shadow:0 4px 12px -4px rgba(31,98,214,.55)}
+.primary:hover{background:linear-gradient(135deg,#2f6fe0,#174aa3)}
+[hidden]{display:none!important}
+@media (max-width:560px){ .hd{padding:10px 16px} .grid{padding:16px;gap:16px} .exHead,.exBody{padding-left:16px;padding-right:16px} .exTop{padding:0 16px} .toast{left:16px;right:16px;bottom:16px} }
 </style>
 </head>
 <body>
-<header id="hdr" hidden>
-  <div class="top">
-    <h1>🎯 Doctor focus</h1>
-    <span class="who" id="who"></span>
-    <span class="spacer"></span>
-    <a class="calLink" href="https://blugibbon-jb.github.io/Blugibbon/availability2.html" target="_blank" rel="noopener" title="Open the availability calendar">📅 Calendar ↗</a>
-    <span class="seg" id="winSeg" title="How far ahead to look"><button data-w="14">2 wks</button><button data-w="28" class="on">4 wks</button><button data-w="56">8 wks</button></span>
-    <span class="seg" id="scopeSeg" hidden><button data-s="mine" class="on">Mine</button><button data-s="all">Everyone</button></span>
+<div class="app">
+  <header class="hd" id="hdr" hidden>
+    <div class="brand"><span class="bg">BLUGIBBON</span><span class="df">Doctor focus</span></div>
+    <span class="meta" id="meta"></span>
+    <span class="sp"></span>
+    <div class="seg" id="winSeg" title="How far ahead to look"><button data-w="14">2 wks</button><button data-w="28">4 wks</button><button data-w="56">8 wks</button></div>
+    <div class="seg" id="scopeSeg" hidden><button data-s="mine">Mine</button><button data-s="all">Everyone</button></div>
+    <a class="calBtn" href="https://blugibbon-jb.github.io/Blugibbon/availability2.html" target="_blank" rel="noopener" title="Open the availability calendar">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>Calendar</a>
+  </header>
+  <main class="grid" id="grid" hidden></main>
+  <div class="stWrap" id="status"><div class="stCard">Loading…</div></div>
+</div>
+<div class="ex" id="ex" hidden>
+  <div class="exTop">
+    <button class="back" data-close>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>All cards</button>
+    <nav class="tabs" id="exTabs"></nav>
+    <span class="sp"></span>
+    <span class="esc">Esc to close</span>
   </div>
-  <div class="tabs" id="tabs"></div>
-</header>
-<div class="wrap" id="app"><div class="status">Loading…</div></div>
+  <div class="exHead">
+    <div id="exTitle"></div>
+    <label class="flt">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="exQ" placeholder="Filter by name, site, specialty" autocomplete="off">
+    </label>
+  </div>
+  <div class="exBody"><div class="tbl" id="exTbl"></div></div>
+</div>
+<div class="pop" id="pop" hidden></div>
+<div class="toast" id="toast" hidden><span id="toastMsg"></span><button id="toastUndo">Undo</button></div>
 <script>
 /* ===================== pure logic (testable) ===================== */
 const Focus = (() => {
@@ -118,7 +198,8 @@ const Focus = (() => {
     for (const { uid, node } of nodes) {
       for (const d of arr(node && node.doctors)) {
         if (!d) continue; const k = key(d.ahpra_id || d.name); if (!k) continue;
-        const o = docs[k] || (docs[k] = { k, name: String(d.name || '').trim() || k, level: '', spec: '', cu: '', hidden: true, uids: [] });
+        const o = docs[k] || (docs[k] = { k, name: String(d.name || '').trim() || k, level: '', spec: '', cu: '', base: '', hidden: true, uids: [] });
+        o.base = o.base || String(d.where || '').trim();   // calendar 'Where' = where they want to work
         if (!d.hidden) o.hidden = false;
         o.level = o.level || d.level || '';
         if (!o.spec) { const parts = [...new Set(String([d.specialty, d.prefs].filter(Boolean).join(',')).split(/[,;]+/).map(x => x.trim()).filter(Boolean))]; o.spec = parts.slice(0, 2).join(', ') + (parts.length > 2 ? ' +' + (parts.length - 2) : ''); } o.cu = o.cu || d.clickup_url || '';
@@ -208,14 +289,16 @@ const Focus = (() => {
     // not-yet-contacted first, then soonest availability, then most days
     avail.sort((a, b) => (a.contacted ? 1 : 0) - (b.contacted ? 1 : 0) || a.days[0].localeCompare(b.days[0]) || b.days.length - a.days.length);
 
-    return { today, win, jobs, nearJobs, avail, finishing, docsCount: Object.values(docs).filter(d => !d.hidden).length };
+    // helpers for the doctor hover card
+    const freeDaysFor = k => { const out = []; for (let d = today; d < until; d = addDays(d, 1)) if (freeOn(k, d)) out.push(d); return out; };
+    const lastBookedFor = k => (evBy[k] || []).filter(x => x.k === 'booked' && x.e <= today).map(x => addDays(x.e, -1)).sort().pop() || '';
+    const currentBookingFor = k => (evBy[k] || []).filter(x => x.k === 'booked' && x.s <= today && x.e > today).map(x => addDays(x.e, -1)).sort().pop() || '';
+    return { today, win, jobs, nearJobs, avail, finishing, docs, freeDaysFor, lastBookedFor, currentBookingFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
   }
   return { build, addDays, nice, short, span, ranges, sydToday, key };
 })();
 if (typeof module !== 'undefined') module.exports = Focus;
-</script>
-
-<script>
+</script><script>
 /* ===================== UI ===================== */
 if (typeof firebase !== 'undefined') (function () {
   firebase.initializeApp({
@@ -227,21 +310,61 @@ if (typeof firebase !== 'undefined') (function () {
   });
   const auth = firebase.auth(), db = firebase.database();
   const ADMINS = ['josh@blugibbon.com.au'];
-  const CAL_URL = 'https://blugibbon-jb.github.io/Blugibbon/availability2.html';
   const N = Focus, $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const arr = v => Array.isArray(v) ? v : Object.values(v || {});
-  const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
-  let user = null, scope = store.get('focus.scope', 'mine'), win = Number(store.get('focus.win', '28')) || 28, tab = store.get('focus.tab', '');
-  let data = {}, ref = null, showAll = false;
+  const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} } };
+  const IDS = ['match', 'close', 'free', 'end'];
+  let user = null, scope = store.get('focus.scope', 'mine'), win = Number(store.get('focus.win', '28')) || 28;
+  let open = store.get('focus.open', ''); if (!IDS.includes(open)) open = null;
+  let data = {}, ref = null, loaded = false, V = null, q = '';
 
+  // ---------- icons (Lucide) ----------
+  const svg = (w, inner, sw) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw || 2}" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+  const I = {
+    cal: w => svg(w, '<rect width="18" height="18" x="3" y="4"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>'),
+    max: w => svg(w, '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/>'),
+    right: w => svg(w, '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'),
+    check: w => svg(w, '<path d="M20 6 9 17l-5-5"/>', 2.5),
+    x: w => svg(w, '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', 2.5),
+    mail: w => svg(w, '<rect width="20" height="16" x="2" y="4"/><path d="m22 7-10 6L2 7"/>')
+  };
+
+  // ---------- card meta ----------
+  const META = {
+    match: { label: 'MATCHED', tab: 'Matched', c: '#1f8a5b', t: '#e4f4ec', hint: () => 'Inbox jobs your doctors can cover', exHint: 'Inbox jobs your doctors can cover. ✓ free every day, ◐ free most days.', empty: 'Nothing waiting right now.' },
+    close: { label: 'CLOSE MATCHES', tab: 'Close', c: '#6b45c9', t: '#eee8fc', hint: () => 'Worth a call – one level off or near the dates', exHint: 'Worth a call – level one step off, or free just around the dates.', empty: 'Nothing waiting right now.' },
+    free: { label: 'FREE, NO JOB', tab: 'Free, no job', c: '#1f62d6', t: '#e5eefd', hint: () => `Free in the next ${win / 7} weeks with nothing booked – market them`, exHint: 'Free with nothing booked or matched. Mark as contacted to hide for 7 days.', empty: 'Everyone free is booked or matched.' },
+    end: { label: 'FINISHING SOON', tab: 'Finishing', c: '#c27a12', t: '#fcf0dd', hint: () => 'Bookings ending in 2 weeks with nothing lined up', exHint: 'Bookings ending in the next 2 weeks with nothing lined up after.', empty: 'No gaps coming up.' }
+  };
+
+  // ---------- formatting helpers ----------
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dm = d => { const t = new Date(d + 'T00:00:00Z'); return [t.getUTCDate(), MON[t.getUTCMonth()]]; };
+  function range(a, b) { const [d1, m1] = dm(a), [d2, m2] = dm(b); return a === b ? `${d1} ${m1}` : m1 === m2 ? `${d1}–${d2} ${m1}` : `${d1} ${m1} – ${d2} ${m2}`; }
+  const day = d => range(d, d);
+  const rgText = (rg, max) => rg.slice(0, max).map(r => range(r[0], r[1])).join(', ') + (rg.length > max ? ` +${rg.length - max}` : '');
+  const daysBetween = (a, b) => Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 864e5);
+  function shortTitle(t) {        // "Sydney Adventist Hospital – PGY4+ (Pager 21), PGY3+ … General Medicine" -> tidy
+    let [site, role] = String(t || '').split(' – ');
+    site = (site || '').replace(/\b(Hospital|Health Service|Health|District|Regional|Base|Memorial|Service|Campus)\b/g, '').replace(/\s{2,}/g, ' ').replace(/[\s,&-]+$/, '').trim();
+    role = (role || '').replace(/\(.*?\)/g, '').replace(/\s+,/g, ',').replace(/\s{2,}/g, ' ').trim();
+    if (role.length > 60) role = role.slice(0, 58).replace(/[\s,]+\S*$/, '') + '…';
+    return { site, role };
+  }
+  const rateShort = r => String(r || '').replace(/\s*\(.*$/, '').trim();
+  const lvShort = l => ({ 'Training Registrar': 'Trg Reg', Registrar: 'Reg', Specialist: 'Spec', Senior: 'Senior', Junior: 'Junior' }[l] || l || '');
+  const dot = (...xs) => xs.filter(Boolean).join(' · ');
+  const nameLink = d => d.cu ? `<a class="nl" href="${esc(d.cu)}" target="_blank" rel="noopener">${esc(d.name)}</a>` : esc(d.name);
+
+  // ---------- controls ----------
   const setSeg = (seg, attr, val) => seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset[attr] === String(val)));
   $('winSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; win = Number(b.dataset.w); store.set('focus.win', win); setSeg($('winSeg'), 'w', win); render(); };
   $('scopeSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; scope = b.dataset.s; store.set('focus.scope', scope); setSeg($('scopeSeg'), 's', scope); listen(); };
 
+  function statusView(html) { $('grid').hidden = true; $('status').hidden = false; $('status').innerHTML = `<div class="stCard">${html}</div>`; }
   function signInView(msg) {
-    $('hdr').hidden = true;
-    $('app').innerHTML = `<div class="status">${msg || 'Sign in with your Blugibbon Google account to see your doctors.'}<br><button class="signin" id="si">Sign in with Google</button></div>`;
+    $('hdr').hidden = true; closeEx(true);
+    statusView(`<b>Doctor focus</b>${msg || 'Sign in with your Blugibbon Google account to see your doctors.'}<br><button class="primary" id="si">Sign in with Google</button>`);
     $('si').onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(err => {
       if (/popup/.test(err.code || '')) auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider()); else signInView('Sign-in failed: ' + esc(err.message));
     });
@@ -250,7 +373,7 @@ if (typeof firebase !== 'undefined') (function () {
   auth.onAuthStateChanged(u => {
     user = u;
     if (!u) { if (ref) ref.off(); signInView(); return; }
-    $('hdr').hidden = false; $('who').textContent = (u.displayName || u.email).split(/[ -]/)[0];
+    $('hdr').hidden = false; $('hdr').title = 'Signed in as ' + (u.email || '');
     const admin = ADMINS.includes(String(u.email).toLowerCase());
     $('scopeSeg').hidden = !admin; if (!admin) scope = 'mine';
     setSeg($('scopeSeg'), 's', scope); setSeg($('winSeg'), 'w', win);
@@ -258,10 +381,10 @@ if (typeof firebase !== 'undefined') (function () {
   });
   function listen() {
     if (ref) ref.off();
-    $('app').innerHTML = '<div class="status">Loading…</div>';
+    loaded = false; statusView('Loading…');
     ref = scope === 'all' ? db.ref('users') : db.ref('users/' + user.uid);
-    ref.on('value', snap => { const v = snap.val() || {}; data = scope === 'all' ? v : { [user.uid]: v }; render(); },
-      err => { $('app').innerHTML = `<div class="status">Couldn't read the calendar (${esc(err.code || err.message)}).</div>`; });
+    ref.on('value', snap => { const v = snap.val() || {}; data = scope === 'all' ? v : { [user.uid]: v }; loaded = true; render(); },
+      err => statusView(`<b>Couldn't read the calendar</b>${esc(err.code || err.message)}`));
   }
   const hiddenNow = new Set();        // hidden the instant you click, before Firebase answers
   function dismissedMap() {
@@ -276,105 +399,207 @@ if (typeof firebase !== 'undefined') (function () {
     return out;
   }
 
-  // ---------- formatting helpers ----------
-  const first = n => String(n || '').replace(/\(.*?\)/g, '').trim().split(/\s+/)[0] || n;
-  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const dm = d => { const t = new Date(d + 'T00:00:00Z'); return [t.getUTCDate(), MON[t.getUTCMonth()]]; };
-  function range(a, b) { const [d1, m1] = dm(a), [d2, m2] = dm(b); return a === b ? `${d1} ${m1}` : m1 === m2 ? `${d1}–${d2} ${m1}` : `${d1} ${m1} – ${d2} ${m2}`; }
-  function shortTitle(t) {        // "Sydney Adventist Hospital – PGY4+ (Pager 21), PGY3+ … General Medicine" -> tidy
-    let [site, role] = String(t || '').split(' – ');
-    site = (site || '').replace(/\b(Hospital|Health Service|Health|District|Regional|Base|Memorial|Service|Campus)\b/g, '').replace(/\s{2,}/g, ' ').replace(/[\s,&-]+$/, '').trim();
-    role = (role || '').replace(/\(.*?\)/g, '').replace(/\s+,/g, ',').replace(/\s{2,}/g, ' ').trim();
-    if (role.length > 38) role = role.slice(0, 36).replace(/[\s,]+\S*$/, '') + '…';
-    return { site, role };
+  // ---------- view models ----------
+  function build() {
+    const today = N.sydToday();
+    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, contacted: contactedMap(), dismissed: dismissedMap() });
+    const pops = {}; let pi = 0;
+    const jobVM = (x, near) => {
+      const j = x.j, { site, role } = shortTitle(j.title), docs = near ? x.near : x.live, n = x.dates.length;
+      const chips = docs.map(r => {
+        const all = r.c === r.n, tip = near ? (r.why || 'Close match') : all ? `Free all ${r.n} days` : `Free ${r.c} of ${r.n} days`;
+        let pid = '';
+        if (!near) { pid = 'p' + (pi++); pops[pid] = { k: r.k, name: r.name, level: r.level, fit: tip, all }; }
+        return { ...r, cls: near ? 'p' : all ? 'g' : 'a', mark: near ? '' : all ? '✓ ' : '◐ ', tip, pid };
+      });
+      return { kind: near ? 'close' : 'match', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, st: j.state || '', n,
+        dates: range(x.dates[0], x.dates[n - 1]), rate: rateShort(j.rate) || 'Rate n/a', chips,
+        q: [j.title, site, role, j.state, rateShort(j.rate), ...docs.map(r => r.name + ' ' + (r.why || ''))].join(' ').toLowerCase() };
+    };
+    const match = F.jobs.filter(x => !x.state).map(x => jobVM(x, false));
+    const close = F.nearJobs.filter(x => !x.state).map(x => jobVM(x, true));
+    const free = F.avail.map(a => ({ kind: 'free', a, d: a.doc, ranges: rgText(a.rg, 2), rangesLong: rgText(a.rg, 4), days: a.days.length,
+      tent: a.tent, notes: a.notes.join(' / '), last: a.lastBooked ? 'Last booked ' + day(a.lastBooked) : 'Never booked', lastShort: a.lastBooked ? day(a.lastBooked) : 'Never',
+      contacted: a.contacted, q: [a.doc.name, a.doc.level, a.doc.spec, a.notes.join(' ')].join(' ').toLowerCase() }));
+    const end = F.finishing.map(f => {
+      const d = f.doc, b = f.b.ev, t = String(b.title || '').trim();
+      const where = shortTitle(b.location ? b.location + ' – ' : (t && !/^(booked|booking.*|timesheet)$/i.test(t) ? t : '')).site;
+      const next = f.afterRanges.length ? 'Free after ' + f.afterRanges.map(r => range(r[0], r[1])).join(', ') : 'No availability logged after';
+      const n = daysBetween(today, f.last);
+      return { kind: 'end', d, where, next, ends: day(f.last), inDays: n <= 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`,
+        q: [d.name, d.level, d.spec, where, t].join(' ').toLowerCase() };
+    });
+    const lists = { match, close, free, end };
+    const counts = { match: match.length, close: close.length, free: free.filter(a => !a.contacted).length, end: end.length };
+    return { F, today, lists, counts, pops };
   }
-  const rateShort = r => String(r || '').replace(/\s*\(.*$/, '').trim();
-  const lvShort = l => ({ 'Training Registrar': 'Trg Reg', Registrar: 'Reg', Specialist: 'Spec', Senior: 'Senior', Junior: 'Junior' }[l] || l || '');
+
+  // ---------- card rows ----------
+  const chipHTML = (c, wide) => {
+    const inner = `${c.mark}${esc(c.name)}${wide ? `<span>${esc(c.tip)}</span>` : ''}`;
+    const attrs = `class="chip ${c.cls}${wide ? ' wide' : ''}" ${c.pid ? `data-pop="${c.pid}"` : `title="${esc(c.tip)}"`}`;
+    return c.cu ? `<a ${attrs} href="${esc(c.cu)}" target="_blank" rel="noopener">${inner}</a>` : `<span ${attrs}>${inner}</span>`;
+  };
+  const actBtns = (x, big) => `<button class="ib ok${big ? ' big' : ''}" title="Accept – create order" data-act="accepted" data-jk="${esc(x.jk)}">${I.check(big ? 16 : 15)}</button>
+      <button class="ib${big ? ' big' : ''}" title="Not suitable" data-act="notsuitable" data-jk="${esc(x.jk)}">${I.x(big ? 16 : 15)}</button>`;
+  const jobRow = x => `<div class="jrow">
+      <div class="jtop"><div><div class="site">${esc(x.site)} <span class="st">${esc(x.st)}</span></div>${x.role ? `<div class="role">${esc(x.role)}</div>` : ''}</div>
+        <div class="acts">${actBtns(x)}</div></div>
+      <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span></div>
+      <div class="chips">${x.chips.map(c => chipHTML(c, false)).join('')}</div></div>`;
+  const contactBtn = (a, wide) => {
+    const on = !!a.contacted, tip = on ? `Contacted ${day(a.contacted)} – click to undo` : 'Mark as contacted (hides for 7 days)';
+    return wide ? `<button class="cbtn${on ? ' on' : ''}" title="${esc(tip)}" data-contact="${esc(a.a.k)}" data-on="${on ? '1' : ''}">${I.check(14)}${on ? 'Contacted ' + esc(day(a.contacted)) : 'Mark contacted'}</button>`
+      : `<button class="ib ct${on ? ' on' : ''}" title="${esc(tip)}" data-contact="${esc(a.a.k)}" data-on="${on ? '1' : ''}">${I.check(15)}</button>`;
+  };
+  const freeRow = a => `<div class="drow${a.contacted ? ' dim' : ''}">
+      <div style="min-width:0"><div class="nm">${nameLink(a.d)} <span class="x">· ${esc(dot(lvShort(a.d.level), a.d.spec))}</span></div>
+        <div class="sub"${a.notes ? ` title="${esc(a.notes)}"` : ''}>Free ${esc(a.ranges)} · ${a.days}d${a.tent ? ' · tentative' : ''}${a.notes ? ' · 💬' : ''}</div></div>
+      <div class="rt"><span class="lb">${esc(a.last)}</span>${contactBtn(a, false)}</div></div>`;
+  const endRow = f => `<div class="drow">
+      <div style="min-width:0"><div class="nm">${nameLink(f.d)}${f.d.level ? ` <span class="x">· ${esc(lvShort(f.d.level))}</span>` : ''}</div>
+        <div class="sub">${esc(dot(f.where, f.next))}</div></div>
+      <span class="pill">Ends ${esc(f.ends)}</span></div>`;
+  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow };
 
   // ---------- render ----------
   function render() {
-    const today = N.sydToday();
-    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, contacted: contactedMap(), dismissed: dismissedMap() });
-    const TABS = [
-      ['match', 'Matched', F.jobs.filter(x => !x.state).length, 'var(--green)'],
-      ['close', 'Close', F.nearJobs.filter(x => !x.state).length, 'var(--purple)'],
-      ['free', 'Free, no job', F.avail.filter(a => !a.contacted).length, 'var(--blue)'],
-      ['ending', 'Finishing', F.finishing.length, 'var(--amber)']
-    ];
-    if (!TABS.some(t => t[0] === tab)) tab = (TABS.find(t => t[2] > 0) || TABS[0])[0];
-    $('tabs').innerHTML = TABS.map(([id, label, n, c]) => `<button class="tab ${tab === id ? 'on' : ''}" style="--c:${c}" data-tab="${id}"><b class="${n ? '' : 'zero'}">${n}</b>${label}</button>`).join('');
-    $('tabs').onclick = e => { const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; store.set('focus.tab', tab); showAll = false; render(); };
-
-    let rows = [], hint = '';
-    if (tab === 'match') { hint = 'Jobs from the inbox your doctors can cover · ✓ every day · ◐ most days'; rows = F.jobs.map(x => jobRow(x, false)); }
-    if (tab === 'close') { hint = 'Worth a call – level one step off, or free just around the dates (hover a name for why)'; rows = F.nearJobs.map(x => jobRow(x, true)); }
-    if (tab === 'free') { hint = `Free in the next ${win / 7} weeks with nothing booked or matched – market them`; rows = F.avail.map(freeRow); }
-    if (tab === 'ending') { hint = 'Bookings ending in the next 2 weeks with nothing lined up after'; rows = F.finishing.map(endRow); }
-    const lim = 15;
-    $('app').innerHTML = `<div class="hint">${hint}</div><div class="list">${rows.length ? (showAll ? rows : rows.slice(0, lim)).join('') : `<div class="empty">Nothing here right now 🎉</div>`}
-      ${rows.length > lim ? `<button class="more-btn" id="more">${showAll ? 'Show fewer' : `Show all ${rows.length}`}</button>` : ''}</div>
-      <div class="foot">${F.docsCount} doctors · <a href="${CAL_URL}" target="_blank" rel="noopener">Open calendar ↗</a></div>`;
-    if ($('more')) $('more').onclick = () => { showAll = !showAll; render(); };
-    wire();
+    if (!user || !loaded) return;
+    V = build();
+    $('meta').textContent = `${N.nice(V.today)} · ${V.F.docsCount} doctors · ${win / 7} weeks ahead`;
+    const grid = $('grid'), keep = {};
+    grid.querySelectorAll('.cBody').forEach(b => keep[b.dataset.id] = b.scrollTop);       // keep each card's scroll on live updates
+    grid.innerHTML = IDS.map(id => {
+      const m = META[id], list = V.lists[id];
+      return `<section class="card" style="--c:${m.c};--t70:${m.t}b3;--t30:${m.t}4d">
+        <button class="cHead" data-open="${id}" title="Open full screen">
+          <div class="lrow"><span class="dot"></span><span class="lab">${m.label}</span><span class="sp"></span><span style="color:#8a93a3;display:flex">${I.max(16)}</span></div>
+          <div class="crow"><span class="cnt">${V.counts[id]}</span><span class="hint">${esc(m.hint())}</span></div>
+        </button>
+        <div class="cBody" data-id="${id}">${list.length ? list.map(ROW[id]).join('') : `<div class="empty">${m.empty}</div>`}</div>
+        <button class="cFoot" data-open="${id}">View all ${list.length} full screen ${I.right(14)}</button>
+      </section>`;
+    }).join('');
+    grid.querySelectorAll('.cBody').forEach(b => { if (keep[b.dataset.id]) b.scrollTop = keep[b.dataset.id]; });
+    $('status').hidden = true; grid.hidden = false;
+    hidePop();
+    if (open) renderEx();
   }
 
-  function jobRow(x, closeTab) {
-    const j = x.j, { site, role } = shortTitle(j.title), done = x.state && x.state.s;
-    const docs = closeTab ? x.near : x.live;
-    const chip = r => {
-      const cls = closeTab ? 'close' : r.c === r.n ? 'all' : 'some';
-      const mark = closeTab ? '' : r.c === r.n ? '✓ ' : '◐ ';
-      const tip = closeTab ? (r.why || 'close match') : r.c === r.n ? `free all ${r.n} days` : `free ${r.c} of ${r.n} days`;
-      return `<a class="chip ${cls}" title="${esc(r.name + ' – ' + tip + (r.level ? ' · ' + r.level : ''))}" ${r.cu ? `href="${esc(r.cu)}" target="_blank" rel="noopener"` : ''}>${mark}${esc(label(r))}</a>`;
-    };
-    const show = docs.slice(0, 5);
-    const fc = {}; show.forEach(r => { const f = first(r.name); fc[f] = (fc[f] || 0) + 1; });
-    const label = r => { const f = first(r.name); if (fc[f] < 2) return f; const parts = String(r.name).replace(/\(.*?\)/g, '').trim().split(/\s+/); return f + ' ' + (parts[parts.length - 1] || '')[0] + '.'; };
-    return `<div class="row ${done ? 'done' : ''}">
-      <div><div class="t" title="${esc(j.title)}">${esc(site)}${role ? ` <span style="font-weight:400;color:var(--muted)">· ${esc(role)}</span>` : ''}</div>
-        <div class="sub">${esc(range(x.dates[0], x.dates[x.dates.length - 1]))} · ${esc(rateShort(j.rate) || 'rate n/a')}${j.state ? ' · ' + esc(j.state) : ''}${done ? ` · ${x.state.s === 'accepted' ? 'accepted' : 'not suitable'}` : ''}</div>
-        <div class="chips">${show.map(chip).join('')}${docs.length > 5 ? `<span class="chip more">+${docs.length - 5}</span>` : ''}</div></div>
-      <div class="right">${done ? '' : `<button class="ic ok" title="Accept – create Order" data-act="accepted" data-jk="${esc(x.jk)}" data-uid="${esc(x.uid)}" data-url="${esc(j.accept)}">✓</button>
-        <button class="ic" title="Not suitable" data-act="notsuitable" data-jk="${esc(x.jk)}" data-uid="${esc(x.uid)}" data-url="${esc(j.reject)}">✕</button>`}
-        ${j.mail ? `<a class="ic" title="Open the email" href="${esc(j.mail)}" target="_blank" rel="noopener">✉</a>` : ''}</div>
-    </div>`;
-  }
-  function freeRow(a) {
-    const d = a.doc, rg = a.rg.slice(0, 2).map(r => range(r[0], r[1])).join(', ') + (a.rg.length > 2 ? ` +${a.rg.length - 2}` : '');
-    const tip = a.notes.join(' / ');
-    return `<div class="row ${a.contacted ? 'done' : ''}">
-      <div><div class="t">${d.cu ? `<a href="${esc(d.cu)}" target="_blank" rel="noopener">${esc(d.name)}</a>` : esc(d.name)} <span style="font-weight:400;color:var(--muted)">· ${esc(lvShort(d.level))}${d.spec ? ' · ' + esc(d.spec) : ''}</span></div>
-        <div class="sub" ${tip ? `title="${esc(tip)}"` : ''}>Free ${esc(rg)} · ${a.days.length}d${a.tent ? ' · tentative' : ''}${a.notes.length ? ' · 💬' : ''}</div></div>
-      <div class="right"><span class="badge">${a.lastBooked ? 'last booked ' + esc(range(a.lastBooked, a.lastBooked)) : 'never booked'}</span>
-        <button class="ic ${a.contacted ? 'on' : ''}" title="${a.contacted ? 'Contacted ' + esc(range(a.contacted, a.contacted)) + ' – click to undo' : 'Mark as contacted (hides for 7 days)'}" data-contact="${esc(a.k)}" data-on="${a.contacted ? '1' : ''}">✓</button></div>
-    </div>`;
-  }
-  function endRow(f) {
-    const d = f.doc, b = f.b.ev, t = String(b.title || '').trim();
-    const where = shortTitle(b.location ? b.location + ' – ' : (t && !/^(booked|booking.*|timesheet)$/i.test(t) ? t : '')).site;
-    const next = f.afterRanges.length ? 'free after ' + f.afterRanges.map(r => range(r[0], r[1])).join(', ') : 'no availability logged after';
-    return `<div class="row">
-      <div><div class="t">${d.cu ? `<a href="${esc(d.cu)}" target="_blank" rel="noopener">${esc(d.name)}</a>` : esc(d.name)} <span style="font-weight:400;color:var(--muted)">· ${esc(lvShort(d.level))}</span></div>
-        <div class="sub">${where ? esc(where) + ' · ' : ''}${esc(next)}</div></div>
-      <div class="right"><span class="chip some">ends ${esc(range(f.last, f.last))}</span></div>
-    </div>`;
-  }
+  // ---------- full-screen view ----------
+  const COLS = {
+    job: 'minmax(0,2fr) 130px 150px minmax(0,2.4fr) 110px',
+    free: 'minmax(0,1.6fr) minmax(0,1.6fr) 60px 130px minmax(0,1.4fr) 150px',
+    end: 'minmax(0,1.4fr) minmax(0,1.4fr) 120px minmax(0,1.6fr)'
+  };
+  const exJob = x => `<div class="tr job">
+      <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}</div>
+      <div class="c13">${esc(x.dates)}<div class="s2">${x.n} day${x.n === 1 ? '' : 's'}</div></div>
+      <div class="c13">${esc(x.rate)}<div class="s2">${esc(x.st)}</div></div>
+      <div class="chips w">${x.chips.map(c => chipHTML(c, true)).join('')}</div>
+      <div class="acts">${actBtns(x, true)}${x.j.mail ? `<a class="ib big" title="Open the email" href="${esc(x.j.mail)}" target="_blank" rel="noopener">${I.mail(16)}</a>` : ''}</div></div>`;
+  const exFree = a => `<div class="tr${a.contacted ? ' dim' : ''}">
+      <div style="min-width:0"><div class="site">${nameLink(a.d)}</div><div class="c13m">${esc(dot(lvShort(a.d.level), a.d.spec))}</div></div>
+      <div class="c13">${esc(a.rangesLong)}<div class="s2">${a.tent === 'all' ? 'Tentative' : a.tent === 'some' ? 'Partly tentative' : ''}</div></div>
+      <div class="c13" style="font-weight:600">${a.days}</div>
+      <div class="c13m">${esc(a.lastShort)}</div>
+      <div class="c13m">${esc(a.notes || '–')}</div>
+      ${contactBtn(a, true)}</div>`;
+  const exEnd = f => `<div class="tr">
+      <div style="min-width:0"><div class="site">${nameLink(f.d)}</div><div class="c13m">${esc(dot(f.d.level, f.d.spec))}</div></div>
+      <div class="c13">${esc(f.where || '–')}</div>
+      <div><span class="pill">${esc(f.ends)}</span><div class="s2" style="margin-top:4px">${esc(f.inDays)}</div></div>
+      <div class="c13m">${esc(f.next)}</div></div>`;
 
-  function wire() {
-    document.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => {
-      const jk = b.dataset.jk, act = b.dataset.act, url = b.dataset.url;
-      hiddenNow.add(jk); render();                                   // gone straight away
-      if (act === 'accepted') { if (url) window.open(url, '_blank', 'noopener'); }   // Accept still opens the Order confirmation
-      else if (url) { try { fetch(url, { mode: 'no-cors', cache: 'no-store' }); } catch (e) { new Image().src = url; } }   // Not suitable: recorded quietly, no tab
-      const rec = { s: act, by: user.email, at: new Date().toISOString() };
+  function openEx(id) { open = id; q = ''; $('exQ').value = ''; store.set('focus.open', id); $('ex').hidden = false; renderEx(); $('exQ').focus({ preventScroll: true }); }
+  function closeEx(silent) { open = null; q = ''; $('ex').hidden = true; if (!silent) store.set('focus.open', null); hidePop(); }
+  function renderEx() {
+    if (!V || !open) return;
+    const m = META[open], qq = q.trim().toLowerCase();
+    $('ex').hidden = false;
+    $('exTabs').innerHTML = IDS.map(id => `<button class="tab${id === open ? ' on' : ''}" style="--c:${META[id].c}" data-tab="${id}"><span class="dot"></span>${META[id].tab} <span class="n">${V.counts[id]}</span></button>`).join('');
+    $('exTitle').innerHTML = `<div class="lrow" style="--c:${m.c}"><span class="dot"></span><span class="lab">${m.label}</span></div>
+      <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>`;
+    const list = V.lists[open].filter(x => !qq || x.q.includes(qq));
+    const kind = open === 'match' || open === 'close' ? 'job' : open;
+    const head = { job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'] }[kind];
+    const row = { job: exJob, free: exFree, end: exEnd }[kind];
+    const tbl = $('exTbl'), st = tbl.parentNode.scrollTop;
+    tbl.style.setProperty('--cols', COLS[kind]);
+    tbl.innerHTML = `<div class="th">${head.map(h => `<span>${h}</span>`).join('')}</div>` +
+      (list.length ? list.map(row).join('') : `<div style="padding:24px 20px;color:#5b6475">${V.lists[open].length ? 'No matches for that filter.' : m.empty}</div>`);
+    tbl.parentNode.scrollTop = st;
+  }
+  $('exQ').addEventListener('input', e => { q = e.target.value; renderEx(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && open) closeEx(); });
+
+  // ---------- doctor hover card ----------
+  function showPop(el) {
+    const p = V && V.pops[el.dataset.pop]; if (!p) return;
+    const doc = V.F.docs[p.k] || {}, rg = N.ranges(V.F.freeDaysFor(p.k));
+    const cur = V.F.currentBookingFor(p.k), last = V.F.lastBookedFor(p.k);
+    const rows = [
+      ['THIS JOB', `<span style="font-weight:600;color:${p.all ? '#15603f' : '#8a560c'}">${esc(p.fit)}</span>`],
+      ['AVAILABLE', rg.length ? esc(rgText(rg, 2)) : ''],
+      ['WANTS TO WORK', esc(doc.base || '')],
+      ['LAST BOOKED', cur ? 'Current – ends ' + esc(day(cur)) : last ? esc(day(last)) : '']
+    ].filter(r => r[1]);
+    const pop = $('pop');
+    pop.innerHTML = `<div class="ph"><div class="pn">${esc(doc.name || p.name)}</div><div class="pl">${esc(dot(doc.level || p.level, doc.spec))}</div></div>
+      <div class="pg">${rows.map(r => `<span class="pk">${r[0]}</span><span>${r[1]}</span>`).join('')}</div>
+      ${doc.cu || el.href ? '<div class="pf">Click to open in ClickUp</div>' : ''}`;
+    pop.hidden = false;
+    const r = el.getBoundingClientRect(), h = pop.offsetHeight;
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 288)) + 'px';
+    pop.style.top = (r.bottom + 6 + h < window.innerHeight ? r.bottom + 6 : Math.max(8, r.top - h - 6)) + 'px';
+  }
+  function hidePop() { $('pop').hidden = true; }
+  document.addEventListener('mouseover', e => { const c = e.target.closest('[data-pop]'); if (c) showPop(c); });
+  document.addEventListener('mouseout', e => { const c = e.target.closest('[data-pop]'); if (c && !c.contains(e.relatedTarget)) hidePop(); });
+  document.addEventListener('scroll', hidePop, true);
+
+  // ---------- toast ----------
+  let toastT = null, toastUndo = null;
+  function toast(msg, undo) {
+    clearTimeout(toastT); toastUndo = undo || null;
+    $('toastMsg').textContent = msg; $('toastUndo').hidden = !undo; $('toast').hidden = false;
+    toastT = setTimeout(() => { $('toast').hidden = true; toastUndo = null; }, 5000);
+  }
+  $('toastUndo').onclick = () => { const u = toastUndo; clearTimeout(toastT); $('toast').hidden = true; toastUndo = null; if (u) u(); };
+
+  // ---------- actions (same Firebase writes as before) ----------
+  function findJob(jk) { for (const id of ['match', 'close']) { const x = V.lists[id].find(y => y.jk === jk); if (x) return x; } return null; }
+  function answer(jk, act) {
+    const x = findJob(jk); if (!x) return;
+    const url = act === 'accepted' ? x.j.accept : x.j.reject;
+    hiddenNow.add(jk); render();                                   // gone straight away
+    if (act === 'accepted') { if (url) window.open(url, '_blank', 'noopener'); }   // Accept still opens the Order confirmation
+    else if (url) { try { fetch(url, { mode: 'no-cors', cache: 'no-store' }); } catch (e) { new Image().src = url; } }   // Not suitable: recorded quietly, no tab
+    const rec = { s: act, by: user.email, at: new Date().toISOString() };
+    const p = (async () => {
       try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).set(rec); } catch (e) { console.warn(e); }
-      try { await db.ref(`users/${b.dataset.uid}/jobmatches/${jk}/state`).set(rec); } catch (e) { /* someone else's calendar – view only */ }
-    });
-    document.querySelectorAll('[data-contact]').forEach(b => b.onclick = async () => {
-      const k = b.dataset.contact.replace(/[.#$\[\]\/]/g, '_');
-      try { await db.ref(`users/${user.uid}/focus/contacted/${k}`).set(b.dataset.on ? null : N.sydToday()); } catch (e) { console.warn(e); }
+      try { await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).set(rec); } catch (e) { /* someone else's calendar – view only */ }
+    })();
+    toast(`${x.site} marked ${act === 'accepted' ? 'accepted – order opened' : 'not suitable'}`, async () => {
+      await p;
+      try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).remove(); } catch (e) { console.warn(e); }
+      try { await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).remove(); } catch (e) { /* view only */ }
+      hiddenNow.delete(jk); render();
     });
   }
+  async function setContacted(k, on, name) {
+    const key = k.replace(/[.#$\[\]\/]/g, '_');
+    try { await db.ref(`users/${user.uid}/focus/contacted/${key}`).set(on ? N.sydToday() : null); } catch (e) { console.warn(e); }
+    if (on) toast(`${name} marked contacted`, () => setContacted(k, false));
+  }
+  document.addEventListener('click', e => {
+    const t = e.target.closest('[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
+    if (t.dataset.act) answer(t.dataset.jk, t.dataset.act);
+    else if (t.dataset.contact != null) { const a = V && V.lists.free.find(y => y.a.k === t.dataset.contact); setContacted(t.dataset.contact, !t.dataset.on, a ? a.d.name : 'Doctor'); }
+    else if (t.dataset.open) openEx(t.dataset.open);
+    else if (t.dataset.close != null) closeEx();
+    else if (t.dataset.tab) { open = t.dataset.tab; q = ''; $('exQ').value = ''; store.set('focus.open', open); renderEx(); }
+  });
 })();
 </script>
 </body>
