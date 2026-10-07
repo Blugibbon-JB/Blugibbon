@@ -28,7 +28,10 @@ button{font-family:inherit;cursor:pointer;color:inherit}
 .seg button.on{background:#fff;color:#1b2230;box-shadow:0 1px 3px rgba(16,24,40,.12)}
 .calBtn{display:flex;align-items:center;gap:8px;padding:7px 12px;background:linear-gradient(135deg,#3b82f6,#1f5ccc);border-radius:9px;color:#fff;font-size:13px;font-weight:600;box-shadow:0 4px 12px -4px rgba(31,98,214,.55)}
 .calBtn:hover{background:linear-gradient(135deg,#2f6fe0,#174aa3);color:#fff;text-decoration:none}
-.grid{flex:1;min-height:0;overflow:auto;padding:20px 24px;display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));grid-auto-rows:minmax(340px,1fr)}
+.grid{flex:1;min-height:0;overflow:auto;padding:20px 24px;display:grid;gap:20px;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(340px,1fr)}
+.grid.cols{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.seg button svg{display:block}
 .card{display:flex;flex-direction:column;min-height:0;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(16,24,40,.03);background:linear-gradient(180deg,var(--t70) 0%,var(--t30) 45%,rgba(255,255,255,.6) 100%)}
 .cHead{all:unset;box-sizing:border-box;cursor:pointer;display:block;padding:18px 20px 14px}
 .cHead:hover{background:rgba(255,255,255,.45)} .cHead:focus-visible,.cFoot:focus-visible{outline:2px solid #1f62d6;outline-offset:-2px}
@@ -107,11 +110,14 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
 .cbtn:hover{border-color:#1f62d6}
 .cbtn.on{background:#e8effc;border-color:#1f62d6;color:#174aa3}
 /* hover card + toast */
-.pop{position:fixed;z-index:70;width:280px;pointer-events:none;background:#fff;border:1px solid #e3e8ef;border-radius:14px;overflow:hidden;box-shadow:0 18px 40px -12px rgba(16,24,40,.25);font-size:13px}
+.pop{position:fixed;z-index:70;width:320px;pointer-events:none;background:#fff;border:1px solid #e3e8ef;border-radius:14px;overflow:hidden;box-shadow:0 18px 40px -12px rgba(16,24,40,.25);font-size:13px}
 .pop .ph{padding:12px 14px 10px;background:linear-gradient(180deg,#e4f4ec,#fff)}
 .pop .pn{font-weight:800;font-size:15px}
 .pop .pl{color:#5b6475}
 .pop .pg{display:grid;grid-template-columns:112px minmax(0,1fr);gap:6px 10px;padding:10px 14px 12px;border-top:1px solid #eef1f6}
+.pop.near .ph{background:linear-gradient(180deg,#efeafb,#fff)}
+.pop .pg>span:nth-child(even){min-width:0;overflow-wrap:anywhere}
+.ptag{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:#eef1f6;color:#3b4252;margin:0 2px 2px 0}
 .pop .pk{font-size:11px;font-weight:800;letter-spacing:.06em;color:#8a93a3;padding-top:1px}
 .pop .pf{padding:8px 14px;border-top:1px solid #eef1f6;font-size:12px;color:#5b6475}
 .toast{position:fixed;left:24px;bottom:24px;z-index:60;display:flex;align-items:center;gap:16px;padding:12px 16px;background:#1b2230;color:#fff;border-radius:12px;font-size:13px;box-shadow:0 18px 40px -12px rgba(16,24,40,.4)}
@@ -133,6 +139,7 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
     <span class="meta" id="meta"></span>
     <span class="sp"></span>
     <div class="seg" id="winSeg" title="How far ahead to look"><button data-w="14">2 wks</button><button data-w="28">4 wks</button><button data-w="56">8 wks</button></div>
+    <div class="seg" id="layoutSeg" title="Card layout"><button data-l="grid" title="2 × 2 grid"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></button><button data-l="cols" title="4 columns"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="4" height="18" x="2" y="3" rx="1"/><rect width="4" height="18" x="7.33" y="3" rx="1"/><rect width="4" height="18" x="12.67" y="3" rx="1"/><rect width="4" height="18" x="18" y="3" rx="1"/></svg></button></div>
     <div class="seg" id="scopeSeg" hidden><button data-s="mine">Mine</button><button data-s="all">Everyone</button></div>
     <a class="calBtn" href="https://blugibbon-jb.github.io/Blugibbon/availability2.html" target="_blank" rel="noopener" title="Open the availability calendar">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>Calendar</a>
@@ -198,8 +205,10 @@ const Focus = (() => {
     for (const { uid, node } of nodes) {
       for (const d of arr(node && node.doctors)) {
         if (!d) continue; const k = key(d.ahpra_id || d.name); if (!k) continue;
-        const o = docs[k] || (docs[k] = { k, name: String(d.name || '').trim() || k, level: '', spec: '', cu: '', base: '', hidden: true, uids: [] });
+        const o = docs[k] || (docs[k] = { k, name: String(d.name || '').trim() || k, level: '', spec: '', cu: '', base: '', specAll: '', prefs: '', pgy: '', tags: [], hidden: true, uids: [] });
         o.base = o.base || String(d.where || '').trim();   // calendar 'Where' = where they want to work
+        o.specAll = o.specAll || String(d.specialty || '').trim(); o.prefs = o.prefs || String(d.prefs || '').trim(); o.pgy = o.pgy || String(d.pgy || '').trim();
+        if (!o.tags.length && d.tags) o.tags = (Array.isArray(d.tags) ? d.tags : Object.values(d.tags)).map(t => String(t).trim()).filter(Boolean);
         if (!d.hidden) o.hidden = false;
         o.level = o.level || d.level || '';
         if (!o.spec) { const parts = [...new Set(String([d.specialty, d.prefs].filter(Boolean).join(',')).split(/[,;]+/).map(x => x.trim()).filter(Boolean))]; o.spec = parts.slice(0, 2).join(', ') + (parts.length > 2 ? ' +' + (parts.length - 2) : ''); } o.cu = o.cu || d.clickup_url || '';
@@ -222,8 +231,8 @@ const Focus = (() => {
         if (seenJob.has(jk)) continue; seenJob.add(jk);
         const state = rec.state || null;
         if ((state && state.s) || (opts.dismissed || {})[jk]) continue;   // answered (accepted / not suitable) -> gone
-        const dates = arr(j.dates).filter(d => d >= today);
-        if (!dates.length) continue;
+        const dates = arr(j.dates).filter(d => d >= today).sort();
+        if (!dates.length || dates[0] >= until) continue;          // only jobs starting inside the look-ahead window
         const live = [], near = [];
         for (const m of arr(j.docs)) {
           const dk = key(m.k), doc = docs[dk];
@@ -291,9 +300,11 @@ const Focus = (() => {
 
     // helpers for the doctor hover card
     const freeDaysFor = k => { const out = []; for (let d = today; d < until; d = addDays(d, 1)) if (freeOn(k, d)) out.push(d); return out; };
+    const notesFor = k => { const out = []; for (const x of evBy[k] || []) { if ((x.k !== 'avail' && x.k !== 'tent') || x.e <= today || x.s >= until) continue;
+      const t = [x.ev.title, x.ev.notes].filter(v => v && !/^(available|tentative|status)$/i.test(String(v).trim())).join(' · '); if (t && !out.includes(t)) out.push(t); } return out; };
     const lastBookedFor = k => (evBy[k] || []).filter(x => x.k === 'booked' && x.e <= today).map(x => addDays(x.e, -1)).sort().pop() || '';
     const currentBookingFor = k => (evBy[k] || []).filter(x => x.k === 'booked' && x.s <= today && x.e > today).map(x => addDays(x.e, -1)).sort().pop() || '';
-    return { today, win, jobs, nearJobs, avail, finishing, docs, freeDaysFor, lastBookedFor, currentBookingFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
+    return { today, win, jobs, nearJobs, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
   }
   return { build, addDays, nice, short, span, ranges, sydToday, key };
 })();
@@ -353,12 +364,17 @@ if (typeof firebase !== 'undefined') (function () {
   }
   const rateShort = r => String(r || '').replace(/\s*\(.*$/, '').trim();
   const lvShort = l => ({ 'Training Registrar': 'Trg Reg', Registrar: 'Reg', Specialist: 'Spec', Senior: 'Senior', Junior: 'Junior' }[l] || l || '');
+  const lvLong = l => String(l || '');
   const dot = (...xs) => xs.filter(Boolean).join(' · ');
   const nameLink = d => d.cu ? `<a class="nl" href="${esc(d.cu)}" target="_blank" rel="noopener">${esc(d.name)}</a>` : esc(d.name);
 
   // ---------- controls ----------
   const setSeg = (seg, attr, val) => seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset[attr] === String(val)));
   $('winSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; win = Number(b.dataset.w); store.set('focus.win', win); setSeg($('winSeg'), 'w', win); render(); };
+  let layout = store.get('focus.layout', 'grid') === 'cols' ? 'cols' : 'grid';
+  const applyLayout = () => { $('grid').classList.toggle('cols', layout === 'cols'); setSeg($('layoutSeg'), 'l', layout); };
+  $('layoutSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; layout = b.dataset.l; store.set('focus.layout', layout); applyLayout(); };
+  applyLayout();
   $('scopeSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; scope = b.dataset.s; store.set('focus.scope', scope); setSeg($('scopeSeg'), 's', scope); listen(); };
 
   function statusView(html) { $('grid').hidden = true; $('status').hidden = false; $('status').innerHTML = `<div class="stCard">${html}</div>`; }
@@ -409,7 +425,7 @@ if (typeof firebase !== 'undefined') (function () {
       const chips = docs.map(r => {
         const all = r.c === r.n, tip = near ? (r.why || 'Close match') : all ? `Free all ${r.n} days` : `Free ${r.c} of ${r.n} days`;
         let pid = '';
-        if (!near) { pid = 'p' + (pi++); pops[pid] = { k: r.k, name: r.name, level: r.level, fit: tip, all }; }
+        pid = 'p' + (pi++); pops[pid] = { k: r.k, name: r.name, level: r.level, fit: tip, all, near, c: r.c, n: r.n };
         return { ...r, cls: near ? 'p' : all ? 'g' : 'a', mark: near ? '' : all ? '✓ ' : '◐ ', tip, pid };
       });
       return { kind: near ? 'close' : 'match', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, st: j.state || '', n,
@@ -444,7 +460,7 @@ if (typeof firebase !== 'undefined') (function () {
       <button class="ib${big ? ' big' : ''}" title="Not suitable" data-act="notsuitable" data-jk="${esc(x.jk)}">${I.x(big ? 16 : 15)}</button>`;
   const jobRow = x => `<div class="jrow">
       <div class="jtop"><div><div class="site">${esc(x.site)} <span class="st">${esc(x.st)}</span></div>${x.role ? `<div class="role">${esc(x.role)}</div>` : ''}</div>
-        <div class="acts">${actBtns(x)}</div></div>
+        <div class="acts">${x.j.mail ? `<a class="ib" title="Open the original email" href="${esc(x.j.mail)}" target="_blank" rel="noopener">${I.mail(15)}</a>` : ''}${actBtns(x)}</div></div>
       <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span></div>
       <div class="chips">${x.chips.map(c => chipHTML(c, false)).join('')}</div></div>`;
   const contactBtn = (a, wide) => {
@@ -538,19 +554,27 @@ if (typeof firebase !== 'undefined') (function () {
     const p = V && V.pops[el.dataset.pop]; if (!p) return;
     const doc = V.F.docs[p.k] || {}, rg = N.ranges(V.F.freeDaysFor(p.k));
     const cur = V.F.currentBookingFor(p.k), last = V.F.lastBookedFor(p.k);
+    const notes = V.F.notesFor(p.k);
+    const fitFg = p.near ? '#4b2f92' : p.all ? '#15603f' : '#8a560c';
     const rows = [
-      ['THIS JOB', `<span style="font-weight:600;color:${p.all ? '#15603f' : '#8a560c'}">${esc(p.fit)}</span>`],
-      ['AVAILABLE', rg.length ? esc(rgText(rg, 2)) : ''],
+      ['THIS JOB', `<span style="font-weight:600;color:${fitFg}">${esc(p.fit)}</span>` + (p.near && p.c ? `<div style="color:#5b6475">Free ${p.c} of ${p.n} job days</div>` : '')],
+      ['AVAILABLE', rg.length ? esc(rgText(rg, 3)) : ''],
       ['WANTS TO WORK', esc(doc.base || '')],
+      ['SPECIALTY', esc(doc.specAll || '')],
+      ['PREFERENCES', esc(doc.prefs || '')],
+      ['PGY', esc(doc.pgy || '')],
+      ['TAGS', (doc.tags || []).length ? doc.tags.map(t => `<span class="ptag">${esc(t)}</span>`).join(' ') : ''],
+      ['NOTES', notes.length ? notes.slice(0, 3).map(esc).join('<br>') : ''],
       ['LAST BOOKED', cur ? 'Current – ends ' + esc(day(cur)) : last ? esc(day(last)) : '']
     ].filter(r => r[1]);
     const pop = $('pop');
-    pop.innerHTML = `<div class="ph"><div class="pn">${esc(doc.name || p.name)}</div><div class="pl">${esc(dot(doc.level || p.level, doc.spec))}</div></div>
+    pop.classList.toggle('near', !!p.near);
+    pop.innerHTML = `<div class="ph"><div class="pn">${esc(doc.name || p.name)}</div><div class="pl">${esc(lvLong(doc.level || p.level))}</div></div>
       <div class="pg">${rows.map(r => `<span class="pk">${r[0]}</span><span>${r[1]}</span>`).join('')}</div>
       ${doc.cu || el.href ? '<div class="pf">Click to open in ClickUp</div>' : ''}`;
     pop.hidden = false;
     const r = el.getBoundingClientRect(), h = pop.offsetHeight;
-    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 288)) + 'px';
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 328)) + 'px';
     pop.style.top = (r.bottom + 6 + h < window.innerHeight ? r.bottom + 6 : Math.max(8, r.top - h - 6)) + 'px';
   }
   function hidePop() { $('pop').hidden = true; }
