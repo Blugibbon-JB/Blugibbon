@@ -137,6 +137,7 @@ const Focus = (() => {
         const j = rec && rec.job; if (!j || !j.end || j.end < today) continue;
         if (seenJob.has(jk)) continue; seenJob.add(jk);
         const state = rec.state || null;
+        if ((state && state.s) || (opts.dismissed || {})[jk]) continue;   // answered (accepted / not suitable) -> gone
         const dates = arr(j.dates).filter(d => d >= today);
         if (!dates.length) continue;
         const live = [], near = [];
@@ -259,6 +260,13 @@ if (typeof firebase !== 'undefined') (function () {
     ref.on('value', snap => { const v = snap.val() || {}; data = scope === 'all' ? v : { [user.uid]: v }; render(); },
       err => { $('app').innerHTML = `<div class="status">Couldn't read the calendar (${esc(err.code || err.message)}).</div>`; });
   }
+  const hiddenNow = new Set();        // hidden the instant you click, before Firebase answers
+  function dismissedMap() {
+    const out = {};
+    for (const node of Object.values(data)) for (const k of Object.keys((node && node.focus && node.focus.dismissed) || {})) out[k] = 1;
+    hiddenNow.forEach(k => out[k] = 1);
+    return out;
+  }
   function contactedMap() {
     const out = {}, cutoff = N.addDays(N.sydToday(), -7);
     for (const node of Object.values(data)) for (const [k, d] of Object.entries((node && node.focus && node.focus.contacted) || {})) if (d >= cutoff && (!out[k] || d > out[k])) out[k] = d;
@@ -283,7 +291,7 @@ if (typeof firebase !== 'undefined') (function () {
   // ---------- render ----------
   function render() {
     const today = N.sydToday();
-    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, contacted: contactedMap() });
+    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, contacted: contactedMap(), dismissed: dismissedMap() });
     const TABS = [
       ['match', 'Matched', F.jobs.filter(x => !x.state).length, 'var(--green)'],
       ['close', 'Close', F.nearJobs.filter(x => !x.state).length, 'var(--purple)'],
@@ -351,8 +359,13 @@ if (typeof firebase !== 'undefined') (function () {
 
   function wire() {
     document.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => {
-      const url = b.dataset.url; if (url) window.open(url, '_blank', 'noopener');
-      try { await db.ref(`users/${b.dataset.uid}/jobmatches/${b.dataset.jk}/state`).set({ s: b.dataset.act, by: user.email, at: new Date().toISOString() }); } catch (e) {}
+      const jk = b.dataset.jk, act = b.dataset.act, url = b.dataset.url;
+      hiddenNow.add(jk); render();                                   // gone straight away
+      if (act === 'accepted') { if (url) window.open(url, '_blank', 'noopener'); }   // Accept still opens the Order confirmation
+      else if (url) { try { fetch(url, { mode: 'no-cors', cache: 'no-store' }); } catch (e) { new Image().src = url; } }   // Not suitable: recorded quietly, no tab
+      const rec = { s: act, by: user.email, at: new Date().toISOString() };
+      try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).set(rec); } catch (e) { console.warn(e); }
+      try { await db.ref(`users/${b.dataset.uid}/jobmatches/${jk}/state`).set(rec); } catch (e) { /* someone else's calendar – view only */ }
     });
     document.querySelectorAll('[data-contact]').forEach(b => b.onclick = async () => {
       const k = b.dataset.contact.replace(/[.#$\[\]\/]/g, '_');
