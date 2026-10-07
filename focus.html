@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doctor Focus</title>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-database-compat.js"></script>
+<style>
+:root{
+  --bg:#F7F8FA; --card:#FFFFFF; --line:#E5E7EB; --text:#1F2937; --muted:#6B7280; --soft:#F3F4F6;
+  --blue:#2563EB; --blue-soft:#EFF6FF; --green:#047857; --green-soft:#ECFDF5; --amber:#B45309; --amber-soft:#FFFBEB;
+  --purple:#6D28D9; --purple-soft:#F5F3FF; --red:#B91C1C; --red-soft:#FEF2F2;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#111827; --card:#1F2937; --line:#374151; --text:#F3F4F6; --muted:#9CA3AF; --soft:#273244;
+    --blue:#60A5FA; --blue-soft:#1E2A44; --green:#34D399; --green-soft:#12322A; --amber:#FBBF24; --amber-soft:#3A2E12;
+    --purple:#A78BFA; --purple-soft:#2B2547; --red:#F87171; --red-soft:#3B1D1D; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+button{font:inherit;cursor:pointer}
+.wrap{padding:12px 14px 40px;max-width:1100px;margin:0 auto}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 14px 8px;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.top h1{font-size:15px;margin:0;font-weight:650}
+.who{color:var(--muted);font-size:12px}
+.spacer{flex:1}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:transparent;color:var(--muted);padding:4px 9px;font-size:12px}
+.seg button.on{background:var(--blue);color:#fff}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:9px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 10px;text-align:left;color:var(--text)}
+.tile b{display:block;font-size:20px;line-height:1.1}
+.tile span{font-size:11.5px;color:var(--muted)}
+.tile.t1 b{color:var(--green)} .tile.t2 b{color:var(--purple)} .tile.t3 b{color:var(--blue)} .tile.t4 b{color:var(--amber)}
+@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+section{margin-top:16px}
+section > h2{font-size:13px;margin:0 0 7px;display:flex;align-items:baseline;gap:4px 7px;flex-wrap:wrap}
+section > h2 small{flex-basis:auto}
+@media (max-width:560px){section > h2 small{flex-basis:100%}}
+section > h2 small{color:var(--muted);font-weight:400}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.empty{color:var(--muted);background:var(--card);border:1px dashed var(--line);border-radius:9px;padding:10px 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.card.done{opacity:.55}
+.jt{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.jt .title{font-weight:650;font-size:13.5px}
+.meta{color:var(--muted);font-size:12px;margin-top:2px}
+.pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.p-green{background:var(--green-soft);color:var(--green)} .p-amber{background:var(--amber-soft);color:var(--amber)}
+.p-purple{background:var(--purple-soft);color:var(--purple)} .p-blue{background:var(--blue-soft);color:var(--blue)}
+.p-grey{background:var(--soft);color:var(--muted)} .p-red{background:var(--red-soft);color:var(--red)}
+.docs{margin-top:7px;display:flex;flex-direction:column;gap:4px}
+.drow{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;padding:4px 0;border-top:1px solid var(--line)}
+.drow:first-child{border-top:0}
+.drow .nm{font-weight:600}
+.drow .sub{color:var(--muted);font-size:12px}
+.acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:6px;padding:3px 9px;font-size:12px}
+.btn.ok{background:#047857;border-color:#047857;color:#fff}
+.btn.no{color:var(--red)}
+.btn.sm{padding:1px 7px;font-size:11.5px}
+.shifts{margin:5px 0 0;padding:0;list-style:none;color:var(--muted);font-size:12px}
+.list .card{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:start;padding:8px 12px}
+.list .card .right{text-align:right;white-space:nowrap}
+.note{font-size:12px;color:var(--muted);font-style:italic}
+.more{color:var(--blue);background:none;border:0;padding:4px 0;font-size:12px}
+.status{padding:30px 14px;text-align:center;color:var(--muted)}
+.signin{margin-top:10px;background:var(--blue);color:#fff;border:0;border-radius:7px;padding:8px 16px;font-size:14px}
+details summary{cursor:pointer;color:var(--muted);font-size:12px;margin-top:6px}
+.foot{color:var(--muted);font-size:11.5px;margin-top:18px}
+</style>
+</head>
+<body>
+<header id="hdr" hidden>
+  <div class="top">
+    <h1>🎯 Doctor focus</h1>
+    <span class="who" id="who"></span>
+    <span class="spacer"></span>
+    <span class="seg" id="winSeg" title="How far ahead to look">
+      <button data-w="14">2 wks</button><button data-w="28" class="on">4 wks</button><button data-w="56">8 wks</button>
+    </span>
+    <span class="seg" id="scopeSeg" hidden>
+      <button data-s="mine" class="on">My doctors</button><button data-s="all">Everyone</button>
+    </span>
+  </div>
+  <div class="tiles" id="tiles"></div>
+</header>
+<div class="wrap" id="app"><div class="status">Loading…</div></div>
+
+<script>
+/* ===================== pure logic (testable) ===================== */
+const Focus = (() => {
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const addDays = (d, n) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+  const nice = d => { const t = new Date(d + 'T00:00:00Z'); return `${DOW[t.getUTCDay()]} ${t.getUTCDate()} ${MON[t.getUTCMonth()]}`; };
+  const short = d => { const t = new Date(d + 'T00:00:00Z'); return `${t.getUTCDate()} ${MON[t.getUTCMonth()]}`; };
+  const span = (a, b) => a === b ? nice(a) : `${nice(a)} – ${nice(b)}`;
+  const arr = x => Array.isArray(x) ? x : Object.values(x || {});
+  const key = s => String(s || '').trim().toUpperCase();
+  const sydToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+
+  // classify one calendar entry
+  function kind(e) {
+    const st = String(e.status || '').trim().toLowerCase(), ti = String(e.title || '').trim().toLowerCase();
+    if (e.type === 'placement' || e.source === 'timesheets' || e.source === 'placements' || e.source === 'clickup' || /^book/.test(st) || /^booked\b/.test(ti)) return 'booked';
+    if (/^(unavailable|away|holiday|leave|sick)/.test(st) || /^(away|unavailable|holiday|on leave|leave)\b/.test(ti)) return 'away';
+    if (st === 'available') return 'avail';
+    if (st === 'tentative') return 'tent';
+    return 'other';
+  }
+  function norm(e) {
+    const s = String(e.start || '').slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    let en = String(e.end || '').slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(en) || en <= s) en = addDays(s, 1);
+    return { s, e: en, k: kind(e), ev: e };       // e = exclusive end
+  }
+  // merge sorted day list into ranges
+  function ranges(days) {
+    const out = []; for (const d of days) { const r = out[out.length - 1]; if (r && addDays(r[1], 1) === d) r[1] = d; else out.push([d, d]); } return out;
+  }
+
+  /* nodes: [{uid, node}] where node = users/{uid}; opts: {today, win, contacted:{AHPRA: date}} */
+  function build(nodes, opts) {
+    const today = opts.today, win = opts.win || 28, until = addDays(today, win);   // window = [today, until)
+    const docs = {};            // key -> doctor info (merged across calendars)
+    const evBy = {};            // key -> [normalised entries]
+    for (const { uid, node } of nodes) {
+      for (const d of arr(node && node.doctors)) {
+        if (!d) continue; const k = key(d.ahpra_id || d.name); if (!k) continue;
+        const o = docs[k] || (docs[k] = { k, name: String(d.name || '').trim() || k, level: '', spec: '', cu: '', hidden: true, uids: [] });
+        if (!d.hidden) o.hidden = false;
+        o.level = o.level || d.level || '';
+        if (!o.spec) { const parts = [...new Set(String([d.specialty, d.prefs].filter(Boolean).join(',')).split(/[,;]+/).map(x => x.trim()).filter(Boolean))]; o.spec = parts.slice(0, 2).join(', ') + (parts.length > 2 ? ' +' + (parts.length - 2) : ''); } o.cu = o.cu || d.clickup_url || '';
+        if (!o.uids.includes(uid)) o.uids.push(uid);
+      }
+      for (const e of arr(node && node.events)) {
+        if (!e) continue; const k = key(e.ahpra_id || (e.placement_data && e.placement_data.doctor_id)); if (!k) continue;
+        const n = norm(e); if (n) (evBy[k] = evBy[k] || []).push(n);
+      }
+    }
+    const isBusy = (k, d) => (evBy[k] || []).some(x => (x.k === 'booked' || x.k === 'away') && d >= x.s && d < x.e);
+    const freeOn = (k, d) => !isBusy(k, d) && (evBy[k] || []).some(x => (x.k === 'avail' || x.k === 'tent') && d >= x.s && d < x.e);
+
+    // ---------- 1 + 2: job matches ----------
+    const jobs = [], nearJobs = [], inJob = new Set(), inNear = new Set();
+    const seenJob = new Set();
+    for (const { uid, node } of nodes) {
+      for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) {
+        const j = rec && rec.job; if (!j || !j.end || j.end < today) continue;
+        if (seenJob.has(jk)) continue; seenJob.add(jk);
+        const state = rec.state || null;
+        const dates = arr(j.dates).filter(d => d >= today);
+        if (!dates.length) continue;
+        const live = [], near = [];
+        for (const m of arr(j.docs)) {
+          const dk = key(m.k), doc = docs[dk];
+          if (doc && doc.hidden) continue;
+          const c = dates.filter(d => freeOn(dk, d)).length;
+          const row = { k: dk, name: (doc && doc.name) || m.name, level: (doc && doc.level) || m.lv || '', cu: (doc && doc.cu) || m.cu || '', c, n: dates.length,
+            tent: !!m.tent, viaNote: !!m.viaNote, why: m.why || '', note: m.note || '' };
+          if (m.g !== 'near' && c > 0) live.push(row);
+          else if (m.g === 'near' || c === 0) { if (m.g !== 'near') row.why = 'no longer free on the job dates'; near.push(row); }
+        }
+        live.sort((a, b) => b.c - a.c || a.name.localeCompare(b.name));
+        const item = { jk, uid, j, state, dates, live, near };
+        if (live.length) { jobs.push(item); if (!state) live.forEach(r => inJob.add(r.k)); }
+        else if (near.length) { nearJobs.push(item); if (!state) near.forEach(r => inNear.add(r.k)); }
+      }
+    }
+    const byStart = (a, b) => (a.state ? 1 : 0) - (b.state ? 1 : 0) || a.dates[0].localeCompare(b.dates[0]);
+    jobs.sort(byStart); nearJobs.sort(byStart);
+
+    // ---------- 4: finishing soon, nothing next ----------
+    const finishing = [], inFinish = new Set();
+    const soon = addDays(today, Math.min(win, 14));
+    for (const [k, evs] of Object.entries(evBy)) {
+      const doc = docs[k]; if (!doc || doc.hidden) continue;
+      const booked = evs.filter(x => x.k === 'booked');
+      // the booking that is running now or starts within the window and ends soonest
+      const cur = booked.filter(x => x.e > today && x.s <= soon).sort((a, b) => a.e.localeCompare(b.e));
+      for (const b of cur) {
+        const last = addDays(b.e, -1);
+        if (last < today || last >= soon) continue;
+        // next booking that starts within 3 weeks of this one ending
+        const next = booked.some(x => x !== b && x.s >= b.s && x.e > b.e && x.s <= addDays(b.e, 21));
+        if (next) continue;
+        const after = [];
+        for (let d = b.e, i = 0; i < 21; d = addDays(d, 1), i++) if (freeOn(k, d)) after.push(d);
+        finishing.push({ k, doc, b, last, afterRanges: ranges(after).slice(0, 2) });
+        inFinish.add(k);
+        break;
+      }
+    }
+    finishing.sort((a, b) => a.last.localeCompare(b.last));
+
+    // ---------- 3: available, no job yet ----------
+    const avail = [];
+    for (const [k, evs] of Object.entries(evBy)) {
+      const doc = docs[k]; if (!doc || doc.hidden) continue;
+      if (inJob.has(k) || inNear.has(k) || inFinish.has(k)) continue;
+      const days = [], tentDays = []; let notes = [];
+      for (let d = today; d < until; d = addDays(d, 1)) {
+        if (isBusy(k, d)) continue;
+        const a = evs.find(x => (x.k === 'avail' || x.k === 'tent') && d >= x.s && d < x.e);
+        if (!a) continue;
+        days.push(d); if (a.k === 'tent') tentDays.push(d);
+        const t = [a.ev.title, a.ev.notes].filter(x => x && !/^(available|tentative)$/i.test(String(x).trim())).join(' · ');
+        if (t && !notes.includes(t)) notes.push(t);
+      }
+      if (!days.length) continue;
+      const lastBooked = evs.filter(x => x.k === 'booked' && x.e <= today).map(x => addDays(x.e, -1)).sort().pop() || '';
+      avail.push({ k, doc, days, rg: ranges(days), tent: tentDays.length === days.length ? 'all' : tentDays.length ? 'some' : '', notes: notes.slice(0, 2), lastBooked,
+        contacted: (opts.contacted || {})[k] || '' });
+    }
+    // not-yet-contacted first, then soonest availability, then most days
+    avail.sort((a, b) => (a.contacted ? 1 : 0) - (b.contacted ? 1 : 0) || a.days[0].localeCompare(b.days[0]) || b.days.length - a.days.length);
+
+    return { today, win, jobs, nearJobs, avail, finishing, docsCount: Object.values(docs).filter(d => !d.hidden).length };
+  }
+  return { build, addDays, nice, short, span, ranges, sydToday, key };
+})();
+if (typeof module !== 'undefined') module.exports = Focus;
+</script>
+
+<script>
+/* ===================== UI ===================== */
+if (typeof firebase !== 'undefined') (function () {
+  firebase.initializeApp({
+    apiKey: "AIzaSyCJBHYoYk7fG-5h-tAcU897ySV4AUbThPY",
+    authDomain: "blugibbon-av-cal-2.firebaseapp.com",
+    databaseURL: "https://blugibbon-av-cal-2-default-rtdb.firebaseio.com",
+    projectId: "blugibbon-av-cal-2",
+    appId: "1:324678581656:web:6812ee55aab867aa2f3fed"
+  });
+  const auth = firebase.auth(), db = firebase.database();
+  const ADMINS = ['josh@blugibbon.com.au'];
+  const CAL_URL = 'https://blugibbon-jb.github.io/Blugibbon/availability2.html';
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+  let user = null, scope = store.get('focus.scope', 'mine'), win = Number(store.get('focus.win', '28')) || 28;
+  let data = {};            // uid -> node
+  let ref = null, showAll = {};
+  const N = Focus;
+
+  function setSeg(seg, attr, val) { seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset[attr] === String(val))); }
+  $('winSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; win = Number(b.dataset.w); store.set('focus.win', win); setSeg($('winSeg'), 'w', win); render(); };
+  $('scopeSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; scope = b.dataset.s; store.set('focus.scope', scope); setSeg($('scopeSeg'), 's', scope); listen(); };
+
+  function signInView(msg) {
+    $('hdr').hidden = true;
+    $('app').innerHTML = `<div class="status">${msg || 'Sign in with your Blugibbon Google account to see your doctors.'}<br><button class="signin" id="si">Sign in with Google</button></div>`;
+    $('si').onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(err => {
+      if (/popup/.test(err.code || '')) auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+      else signInView('Sign-in failed: ' + esc(err.message));
+    });
+  }
+  auth.getRedirectResult().catch(() => {});
+  auth.onAuthStateChanged(u => {
+    user = u;
+    if (!u) { if (ref) ref.off(); signInView(); return; }
+    $('hdr').hidden = false;
+    $('who').textContent = u.displayName || u.email;
+    const admin = ADMINS.includes(String(u.email).toLowerCase());
+    $('scopeSeg').hidden = !admin; if (!admin) scope = 'mine';
+    setSeg($('scopeSeg'), 's', scope); setSeg($('winSeg'), 'w', win);
+    listen();
+  });
+
+  function listen() {
+    if (ref) ref.off();
+    $('app').innerHTML = '<div class="status">Loading your calendar…</div>';
+    ref = scope === 'all' ? db.ref('users') : db.ref('users/' + user.uid);
+    ref.on('value', snap => {
+      const v = snap.val() || {};
+      data = scope === 'all' ? v : { [user.uid]: v };
+      render();
+    }, err => { $('app').innerHTML = `<div class="status">Couldn't read the calendar (${esc(err.code || err.message)}).</div>`; });
+  }
+
+  function contactedMap() {
+    // per-recruiter "contacted" marks live in users/{uid}/focus/contacted/{AHPRA} = YYYY-MM-DD (kept 7 days)
+    const out = {}, cutoff = N.addDays(N.sydToday(), -7);
+    for (const node of Object.values(data)) for (const [k, d] of Object.entries((node && node.focus && node.focus.contacted) || {})) if (d >= cutoff && (!out[k] || d > out[k])) out[k] = d;
+    return out;
+  }
+
+  function render() {
+    const today = N.sydToday();
+    const nodes = Object.entries(data).map(([uid, node]) => ({ uid, node }));
+    const F = N.build(nodes, { today, win, contacted: contactedMap() });
+    const openJobs = F.jobs.filter(x => !x.state).length, openNear = F.nearJobs.filter(x => !x.state).length;
+    $('tiles').innerHTML = [
+      ['t1', openJobs, 'Matched to a job', 's1'], ['t2', openNear, 'Possible matches', 's2'],
+      ['t3', F.avail.filter(a => !a.contacted).length, 'Available, no job', 's3'], ['t4', F.finishing.length, 'Finishing, nothing next', 's4']
+    ].map(([c, n, l, id]) => `<button class="tile ${c}" data-go="${id}"><b>${n}</b><span>${l}</span></button>`).join('');
+    $('tiles').onclick = e => { const b = e.target.closest('[data-go]'); if (b) document.getElementById(b.dataset.go).scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+
+    const html = [];
+    html.push(sec('s1', 'var(--green)', 'Matched to a job', 'from the jobs inbox, still free on the dates',
+      F.jobs.length ? F.jobs.map(jobCard).join('') : empty('No open job matches right now. They appear here when the jobs inbox finds a job one of your doctors is free for.')));
+    html.push(sec('s2', 'var(--purple)', 'Possible matches', 'close but not exact – level one step off, or free just either side of the dates',
+      F.nearJobs.length ? F.nearJobs.map(jobCard).join('') : empty('Nothing close right now.')));
+    html.push(sec('s3', 'var(--blue)', 'Available, no job yet', `free in the next ${win / 7} weeks with nothing booked or matched – market them`,
+      F.avail.length ? listOf('s3', F.avail.map(availRow)) : empty('No unbooked availability logged in this window.')));
+    html.push(sec('s4', 'var(--amber)', 'Finishing soon, nothing next', 'current bookings ending in the next 2 weeks with no follow-on booking',
+      F.finishing.length ? listOf('s4', F.finishing.map(finRow)) : empty('No bookings ending soon without a next one.')));
+    html.push(`<div class="foot">Live from the availability calendar · ${F.docsCount} doctors · today ${N.nice(today)} · <a href="${CAL_URL}" target="_blank" rel="noopener">Open calendar</a></div>`);
+    $('app').innerHTML = html.join('');
+    wire();
+  }
+  const sec = (id, col, title, sub, body) => `<section id="${id}"><h2><span class="dot" style="background:${col}"></span>${title} <small>${sub}</small></h2>${body}</section>`;
+  const empty = t => `<div class="empty">${t}</div>`;
+  function listOf(id, rows) {
+    const lim = 12, all = showAll[id];
+    return `<div class="list">${(all ? rows : rows.slice(0, lim)).join('')}</div>` + (rows.length > lim ? `<button class="more" data-more="${id}">${all ? 'Show fewer' : `Show all ${rows.length}`}</button>` : '');
+  }
+  const docLink = (name, cu) => cu ? `<a href="${esc(cu)}" target="_blank" rel="noopener">${esc(name)}</a>` : esc(name);
+
+  function jobCard(x) {
+    const j = x.j, done = x.state && x.state.s;
+    const cov = r => r.c === r.n ? `<span class="pill p-green">✅ all ${r.n} day${r.n > 1 ? 's' : ''}</span>` : `<span class="pill p-amber">🟡 ${r.c}/${r.n} days</span>`;
+    const drow = (r, nearRow) => `<div class="drow"><span class="nm">${docLink(r.name, r.cu)}</span>${nearRow ? `<span class="pill p-purple">${esc(r.why || 'close')}</span>` : cov(r)}
+      <span class="sub">${esc([r.level, r.tent ? 'tentative' : '', r.viaNote ? 'specialty from calendar note' : ''].filter(Boolean).join(' · '))}</span>
+      ${r.note ? `<span class="note">“${esc(r.note)}”</span>` : ''}</div>`;
+    const near = x.live.length ? x.near : [];
+    return `<div class="card ${done ? 'done' : ''}">
+      <div class="jt"><span class="title">${esc(j.title)}</span>${j.rateUp ? '<span class="pill p-red">💲 rate up</span>' : ''}${done ? `<span class="pill p-grey">${x.state.s === 'accepted' ? 'Accepted' : 'Not suitable'}${x.state.by ? ' · ' + esc(String(x.state.by).split('@')[0]) : ''}</span>` : ''}</div>
+      <div class="meta">📅 ${esc(j.when || N.span(x.dates[0], x.dates[x.dates.length - 1]))} · 💰 ${esc(j.rate || 'rate not stated')}${j.ref ? ' · ' + esc(j.ref) : ''}${j.state ? ' · ' + esc(j.state) : ''}</div>
+      ${j.imageShifts ? '<div class="meta">📷 Shifts were read from an image/PDF – check the email</div>' : ''}
+      ${arr(j.shifts).length ? `<ul class="shifts">${arr(j.shifts).map(s => `<li>▸ ${esc(s)}</li>`).join('')}</ul>` : ''}
+      ${j.req ? `<div class="meta">📋 ${esc(j.req)}</div>` : ''}
+      <div class="docs">${(x.live.length ? x.live : x.near).map(r => drow(r, !x.live.length)).join('')}</div>
+      ${near.length ? `<details><summary>Also close (${near.length})</summary><div class="docs">${near.map(r => drow(r, true)).join('')}</div></details>` : ''}
+      <div class="acts">
+        ${done ? '' : `<button class="btn ok" data-act="accepted" data-jk="${esc(x.jk)}" data-uid="${esc(x.uid)}" data-url="${esc(j.accept)}">✅ Accept – create Order</button>
+        <button class="btn no" data-act="notsuitable" data-jk="${esc(x.jk)}" data-uid="${esc(x.uid)}" data-url="${esc(j.reject)}">❌ Not suitable</button>`}
+        ${j.mail ? `<a class="btn" href="${esc(j.mail)}" target="_blank" rel="noopener">📧 Email</a>` : ''}
+      </div>
+      ${j.from || j.received ? `<div class="meta" style="margin-top:6px">${j.from ? 'From ' + esc(j.from) : ''}${j.from && j.received ? ' · ' : ''}${j.received ? 'received ' + esc(N.short(j.received)) : ''}</div>` : ''}
+    </div>`;
+  }
+  const arr = v => Array.isArray(v) ? v : Object.values(v || {});
+
+  function availRow(a) {
+    const d = a.doc, rg = a.rg.slice(0, 3).map(r => N.span(r[0], r[1])).join(', ') + (a.rg.length > 3 ? ` +${a.rg.length - 3} more` : '');
+    return `<div class="card ${a.contacted ? 'done' : ''}">
+      <div><span class="nm" style="font-weight:600">${docLink(d.name, d.cu)}</span> <span class="sub" style="color:var(--muted);font-size:12px">${esc([d.level, d.spec].filter(Boolean).join(' · '))}</span>
+        <div class="meta">🗓️ ${esc(rg)}${a.tent ? ` · <span class="pill p-grey">${a.tent === 'all' ? 'tentative' : 'partly tentative'}</span>` : ''}</div>
+        ${a.notes.length ? `<div class="note">“${esc(a.notes.join(' / ').slice(0, 160))}”</div>` : ''}</div>
+      <div class="right"><span class="pill p-blue">${a.days.length} day${a.days.length > 1 ? 's' : ''}</span>
+        <div class="meta">${a.lastBooked ? 'last booked ' + esc(N.short(a.lastBooked)) : 'no past booking'}</div>
+        <button class="btn sm" data-contact="${esc(a.k)}" data-on="${a.contacted ? '1' : ''}" style="margin-top:4px">${a.contacted ? '↺ Contacted ' + esc(N.short(a.contacted)) : '✓ Contacted'}</button></div>
+    </div>`;
+  }
+  function finRow(f) {
+    const d = f.doc, b = f.b.ev, t = String(b.title || '').trim(), where = b.location || (t && !/^(booked|booking.*|timesheet)$/i.test(t) ? t : 'Booking (no site noted)');
+    const nxt = f.afterRanges.length ? `free after: ${f.afterRanges.map(r => N.span(r[0], r[1])).join(', ')}` : 'no availability logged after';
+    return `<div class="card">
+      <div><span class="nm" style="font-weight:600">${docLink(d.name, d.cu)}</span> <span class="sub" style="color:var(--muted);font-size:12px">${esc([d.level, d.spec].filter(Boolean).join(' · '))}</span>
+        <div class="meta">📍 ${esc(where)}</div><div class="meta">${esc(nxt)}</div></div>
+      <div class="right"><span class="pill p-amber">ends ${esc(N.nice(f.last))}</span></div>
+    </div>`;
+  }
+
+  function wire() {
+    document.querySelectorAll('[data-more]').forEach(b => b.onclick = () => { showAll[b.dataset.more] = !showAll[b.dataset.more]; render(); });
+    document.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => {
+      const url = b.dataset.url; if (url) window.open(url, '_blank', 'noopener');
+      try { await db.ref(`users/${b.dataset.uid}/jobmatches/${b.dataset.jk}/state`).set({ s: b.dataset.act, by: user.email, at: new Date().toISOString() }); }
+      catch (e) { /* view-only on someone else's calendar: the webhook still records it */ }
+    });
+    document.querySelectorAll('[data-contact]').forEach(b => b.onclick = async () => {
+      const k = b.dataset.contact.replace(/[.#$\[\]\/]/g, '_');
+      try { await db.ref(`users/${user.uid}/focus/contacted/${k}`).set(b.dataset.on ? null : N.sydToday()); } catch (e) { alertless(e); }
+    });
+  }
+  function alertless(e) { console.warn('focus write failed', e); }
+})();
+</script>
+</body>
+</html>
