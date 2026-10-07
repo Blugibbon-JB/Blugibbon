@@ -129,6 +129,18 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
 .ptag{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:#eef1f6;color:#3b4252;margin:0 2px 2px 0}
 .pop .pk{font-size:11px;font-weight:800;letter-spacing:.06em;color:#8a93a3;padding-top:1px}
 .pop .pf{padding:8px 14px;border-top:1px solid #eef1f6;font-size:12px;color:#5b6475}
+.modalBg{position:fixed;inset:0;z-index:80;background:rgba(16,24,40,.35);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:16px;padding:22px 24px;width:520px;max-width:100%;box-shadow:0 18px 40px -12px rgba(16,24,40,.4);font-size:13px;color:#3b4252}
+.modal .mT{display:block;font-size:17px;font-weight:800;color:#1b2230;margin-bottom:6px}
+.modal p{margin:6px 0} .modal ol{margin:8px 0 12px;padding-left:20px} .modal li{margin:3px 0}
+.modal code{font-size:12px;background:#eef1f6;padding:1px 5px;border-radius:5px;overflow-wrap:anywhere}
+.modal input{width:100%;height:40px;border:1px solid #dde2ea;border-radius:10px;padding:0 12px;font:inherit;font-size:13px;color:#1b2230}
+.modal input:focus{outline:2px solid #1f62d6;outline-offset:1px}
+.mErr{color:#b42318;font-size:12px;margin-top:6px}
+.mBtns{display:flex;align-items:center;gap:8px;margin-top:14px}
+.mBtns .sec{border:1px solid #dde2ea;background:#fff;border-radius:9px;padding:8px 14px;font-weight:600;font-size:13px}
+.mBtns .lnk{border:0;background:none;color:#5b6475;font-size:12px;padding:0;text-decoration:underline}
+.mHint{color:#8a93a3;font-size:12px;margin-top:12px!important}
 .toast{position:fixed;left:24px;bottom:24px;z-index:60;display:flex;align-items:center;gap:16px;padding:12px 16px;background:#1b2230;color:#fff;border-radius:12px;font-size:13px;box-shadow:0 18px 40px -12px rgba(16,24,40,.4)}
 .toast button{border:0;background:transparent;color:#8fb4f5;font-weight:800;font-size:13px;padding:0}
 /* loading / sign-in */
@@ -174,6 +186,15 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
   <div class="exBody"><div class="tbl" id="exTbl"></div></div>
 </div>
 <div class="pop" id="pop" hidden></div>
+<div class="modalBg" id="mailSet" hidden><div class="modal">
+  <div class="mT">Your jobs inbox link</div>
+  <p>You open the jobs inbox as a delegate, so Gmail gives you your own address for it. Save it once and every Email link will open in the jobs inbox.</p>
+  <ol><li>In Gmail, open the <b>jobs inbox</b> (the delegated mailbox) in a new tab.</li><li>Copy the whole address from the address bar. It looks like <code>https://mail.google.com/mail/u/0/d/…/#inbox</code>.</li><li>Paste it below and save.</li></ol>
+  <input id="mailBaseIn" placeholder="https://mail.google.com/mail/u/0/d/…" autocomplete="off">
+  <div class="mErr" id="mailErr" hidden>That doesn't look like a Gmail address. It should start with https://mail.google.com/mail/</div>
+  <div class="mBtns"><button class="lnk" id="mailClear">Reset to default</button><span class="sp"></span><button class="sec" id="mailCancel">Cancel</button><button class="primary" id="mailSave" style="margin-top:0">Save and open</button></div>
+  <p class="mHint">To change it later, hold Alt (Option on a Mac) and click any Email link.</p>
+</div></div>
 <div class="toast" id="toast" hidden><span id="toastMsg"></span><button id="toastUndo">Undo</button></div>
 <script>
 /* ===================== pure logic (testable) ===================== */
@@ -477,7 +498,37 @@ if (typeof firebase !== 'undefined') (function () {
   }
   const fullTime = a => !a ? '' : a.ms ? new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(a.ms)) : day(a.day) + ' (time not recorded)';
   const addedHTML = x => { const a = addedAt(x.j); return a ? `<span class="ago" title="Job email received ${esc(fullTime(a))}" data-ago="${esc(JSON.stringify(a))}">${I.clock(12)}${esc(ago(a))}</span>` : ''; };
-  const mailHTML = x => x.j.mail ? `<a class="mlink" href="${esc(x.j.mail)}" target="_blank" rel="noopener" title="Open the original email">${I.mail(13)}Email</a>` : '';
+  // Email links: people who open the jobs inbox as a Gmail delegate have their own private address for it, so each person can save theirs once
+  const INBOX_OWNERS = ['josh@blugibbon.com.au', 'admin@blugibbon.com.au'];   // these open the inbox directly with the default link
+  const threadOf = url => (String(url || '').match(/#all\/([0-9a-f]{8,20})/i) || [])[1] || '';
+  const mailBase = () => { const v = (data[user && user.uid] || {}).focus; return (v && v.mailBase) || store.get('focus.mailBase', ''); };
+  function mailHref(url) { const b = mailBase(), t = threadOf(url); return b && t ? b + '#all/' + t : url; }
+  const mailHTML = x => x.j.mail ? `<a class="mlink" href="${esc(mailHref(x.j.mail))}" data-mail="${esc(x.j.mail)}" target="_blank" rel="noopener" title="Open the original email (Alt-click to change your inbox link)">${I.mail(13)}Email</a>` : '';
+  function cleanBase(s) {
+    s = String(s || '').trim(); if (!/^https:\/\/mail\.google\.com\/mail\//i.test(s)) return '';
+    s = s.split('#')[0].split('?')[0]; return s.endsWith('/') ? s : s + '/';
+  }
+  function mailSetup(pendingUrl) {
+    const m = $('mailSet'); m.hidden = false; $('mailBaseIn').value = mailBase(); $('mailErr').hidden = true; $('mailBaseIn').focus();
+    $('mailSave').onclick = async () => {
+      const b = cleanBase($('mailBaseIn').value); if (!b) { $('mailErr').hidden = false; return; }
+      store.set('focus.mailBase', b);
+      try { await db.ref(`users/${user.uid}/focus/mailBase`).set(b); } catch (e) { console.warn(e); }
+      m.hidden = true; render();
+      if (pendingUrl) window.open(b + '#all/' + threadOf(pendingUrl), '_blank', 'noopener');
+    };
+    $('mailClear').onclick = async () => {
+      store.set('focus.mailBase', null);
+      try { await db.ref(`users/${user.uid}/focus/mailBase`).remove(); } catch (e) { console.warn(e); }
+      m.hidden = true; render();
+    };
+  }
+  $('mailCancel').onclick = () => { $('mailSet').hidden = true; };
+  document.addEventListener('click', e => {
+    const a = e.target.closest('[data-mail]'); if (!a) return;
+    const needs = !mailBase() && !INBOX_OWNERS.includes(String(user && user.email).toLowerCase());
+    if (e.altKey || needs) { e.preventDefault(); mailSetup(needs ? a.dataset.mail : ''); }
+  }, true);
   setInterval(() => document.querySelectorAll('[data-ago]').forEach(el => { try { el.lastChild.textContent = ago(JSON.parse(el.dataset.ago)); } catch (e) {} }), 60000);
   const chipHTML = (c, wide) => {
     const inner = `${c.mark}${esc(c.name)}${wide ? `<span>${esc(c.tip)}</span>` : ''}`;
@@ -575,7 +626,7 @@ if (typeof firebase !== 'undefined') (function () {
     tbl.parentNode.scrollTop = st;
   }
   $('exQ').addEventListener('input', e => { q = e.target.value; renderEx(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && open) closeEx(); });
+  document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('mailSet').hidden) { $('mailSet').hidden = true; return; } if (open) closeEx(); });
 
   // ---------- doctor hover card ----------
   function showPop(el) {
