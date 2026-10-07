@@ -1526,6 +1526,8 @@ button.moreBtn[aria-expanded="true"]{
 }
 
 /* Tooltip */
+.fc-tooltip{ color: var(--bg-text, #1F2937) !important; }
+.fc-tooltip .cu-sum{ margin-top:6px; padding-top:6px; border-top:1px solid var(--bg-border, #e5e7eb); white-space:pre-wrap; opacity:.9; }
 .fc-tooltip,
 .dateBreakdownTooltip{
   background: #fff !important;
@@ -7911,9 +7913,16 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
     }
     if(e.location) lines.push(`Where: ${e.location}`);
     if(e.placement_id) lines.push(`Placement ID: ${e.placement_id}`);
-    if(e.notes) lines.push(`Notes: ${e.notes}`);
+    const cu = e.cu_info;
+    if(cu){
+      (typeof cuInfoLines === 'function' ? cuInfoLines(cu) : []).forEach(l => lines.push(l));
+    } else if(e.notes) lines.push(`Notes: ${e.notes}`);
 
-    const content = `<div class="t">${esc(title)}</div>` + lines.map(l=>`<div class="row">${esc(l)}</div>`).join("");
+    let content = `<div class="t">${esc(title)}</div>` + lines.map(l=>`<div class="row">${esc(l)}</div>`).join("");
+    if(cu && cu.summary){
+      const sm = String(cu.summary);
+      content += `<div class="cu-sum">${esc(sm.length > 400 ? sm.slice(0, 400) + '…' : sm)}</div>`;
+    }
 
     function show(ev){
       if(!tip) return;
@@ -9071,8 +9080,9 @@ function renderCalendar(){
         notes: e.notes,
         location: displayLocation,
         doctor_name: (docById.get(String(e.ahpra_id))?.name || String(e.ahpra_id)),
-        placement_id: e.placement_id || e.placement_data?.placement_id,
-        event_id: e.id // Store the full event ID for loading full data if needed
+        placement_id: e.placement_id || e.placement_data?.placement_id || e.clickup_placement_id,
+        event_id: e.id, // Store the full event ID for loading full data if needed
+        cu_info: e.source === 'clickup' ? (e.cu_info || {}) : null
       };
 
       // Show doctor name in title if showing multiple doctors (all-doctors view or tag-filtered view)
@@ -14752,14 +14762,41 @@ function createSiteManually() {
 
 <script>
 /* Read-only notice for ClickUp-synced calendar records */
+function cuMoney(v){ const n = Number(v); return isFinite(n) ? '$' + n.toFixed(2) : ''; }
+function cuInfoLines(cu){
+  const out = []; if(!cu) return out;
+  const per = cu.unit ? '/' + cu.unit : '';
+  if(cu.evo_order) out.push(`EVO order: ${cu.evo_order}`);
+  if(cu.evo_booking) out.push(`EVO booking: ${cu.evo_booking}`);
+  if(cu.pay_inc != null || cu.pay_exc != null){
+    out.push(`Dr pay: ${cu.pay_inc != null ? cuMoney(cu.pay_inc) + per + ' inc super' : ''}${cu.pay_inc != null && cu.pay_exc != null ? ' (' + cuMoney(cu.pay_exc) + ' ex)' : (cu.pay_inc == null ? cuMoney(cu.pay_exc) + per + ' ex super' : '')}`);
+  }
+  if(cu.night_pay_inc != null) out.push(`Night pay: ${cuMoney(cu.night_pay_inc)}${per} inc super`);
+  if(cu.extra_pay_inc != null) out.push(`Extra pay: ${cuMoney(cu.extra_pay_inc)}${per} inc super`);
+  const m = [];
+  if(cu.margin != null) m.push(cuMoney(cu.margin) + per);
+  if(cu.night_margin != null) m.push('night ' + cuMoney(cu.night_margin) + per);
+  if(cu.extra_margin != null) m.push('extra ' + cuMoney(cu.extra_margin) + per);
+  if(m.length) out.push(`Margin: ${m.join(', ')}`);
+  if(cu.total_margin != null) out.push(`Total est. margin: ${cuMoney(cu.total_margin)}`);
+  return out;
+}
 function showClickUpSyncedNotice(rec){
-  const url = rec.clickup_task_id ? buildClickUpUrl(rec.clickup_task_id) : "";
+  const url = rec.clickup_url || (rec.clickup_task_id ? buildClickUpUrl(rec.clickup_task_id) : "");
+  const cu = rec.cu_info || {};
+  const endInc = rec.end_inclusive || (rec.end ? new Date(Date.parse(String(rec.end).slice(0,10) + 'T00:00:00Z') - 864e5).toISOString().slice(0,10) : '');
+  const fmtD = d => { try { return formatDateAU(parseDateAU(String(d).slice(0,10))); } catch(_) { return String(d).slice(0,10); } };
+  const doc = (typeof doctors !== 'undefined' ? doctors : []).find(d => String(d.ahpra_id) === String(rec.ahpra_id));
+  const rows = cuInfoLines(cu).map(l => `<div>${esc(l)}</div>`).join('');
   modalTitle.textContent = "Synced from ClickUp";
   modalBody.innerHTML = `
     <div class="field full">
       <div><b>${esc(rec.title || rec.status || "Booking")}</b></div>
-      <div class="hint" style="margin-top:6px;">${esc(String(rec.start||"").slice(0,10))} → ${esc(String(rec.end||"").slice(0,10))}</div>
-      <p style="margin-top:12px;">This booking comes from a ClickUp placement. To change the dates or cancel it, update the placement in ClickUp. The calendar updates automatically.</p>
+      ${doc ? `<div class="hint" style="margin-top:4px;">${esc(doc.name || '')}${rec.clickup_placement_id ? ' · Placement ' + esc(rec.clickup_placement_id) : ''}</div>` : ''}
+      <div class="hint" style="margin-top:4px;">${esc(fmtD(rec.start))}${endInc && endInc !== String(rec.start).slice(0,10) ? ' → ' + esc(fmtD(endInc)) : ''}${rec.location ? ' · ' + esc(rec.location) : ''}</div>
+      ${rows ? `<div style="margin-top:10px; display:grid; gap:3px;">${rows}</div>` : ''}
+      ${cu.summary ? `<div style="margin-top:12px;"><div class="hint" style="margin-bottom:4px;">Summary from ClickUp</div><div style="white-space:pre-wrap; max-height:260px; overflow:auto; border:1px solid var(--bg-border,#e5e7eb); border-radius:8px; padding:8px 10px; font-size:12.5px;">${esc(cu.summary)}</div></div>` : ''}
+      <p class="hint" style="margin-top:12px;">This booking comes from a ClickUp placement. To change the dates or cancel it, update the placement in ClickUp. The calendar updates automatically.</p>
     </div>`;
   modalFooter.innerHTML = `
     <div></div>
