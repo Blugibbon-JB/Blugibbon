@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Focus sign-in test</title>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-database-compat.js"></script>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:16px;background:#F7F8FA;color:#1F2937}
+  .card{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;max-width:520px}
+  h1{font-size:16px;margin:0 0 8px}
+  button{background:#2563EB;color:#fff;border:0;border-radius:6px;padding:8px 14px;font-size:14px;cursor:pointer;margin-right:6px}
+  button.alt{background:#6B7280}
+  pre{background:#F3F4F6;padding:8px;border-radius:6px;font-size:12px;white-space:pre-wrap}
+  .ok{color:#047857;font-weight:600}.bad{color:#B91C1C;font-weight:600}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Focus card – sign-in test</h1>
+  <div id="status">Checking sign-in…</div>
+  <p>
+    <button id="popup">Sign in (popup)</button>
+    <button id="redirect" class="alt">Sign in (redirect)</button>
+    <button id="out" class="alt">Sign out</button>
+  </p>
+  <pre id="log"></pre>
+</div>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyCJBHYoYk7fG-5h-tAcU897ySV4AUbThPY",
+  authDomain: "blugibbon-av-cal-2.firebaseapp.com",
+  databaseURL: "https://blugibbon-av-cal-2-default-rtdb.firebaseio.com",
+  projectId: "blugibbon-av-cal-2",
+  appId: "1:324678581656:web:6812ee55aab867aa2f3fed"
+});
+const auth = firebase.auth();
+const $ = id => document.getElementById(id);
+const log = m => { $('log').textContent += m + '\n'; };
+log('In an embed (iframe): ' + (window.self !== window.top));
+log('Browser: ' + navigator.userAgent.slice(0,120));
+const provider = new firebase.auth.GoogleAuthProvider();
+
+auth.getRedirectResult().catch(e => log('Redirect error: ' + e.code));
+
+$('popup').onclick = () => auth.signInWithPopup(provider)
+  .then(() => log('Popup sign-in OK'))
+  .catch(e => log('Popup error: ' + e.code + ' – ' + e.message));
+$('redirect').onclick = () => auth.signInWithRedirect(provider).catch(e => log('Redirect error: ' + e.code));
+$('out').onclick = () => auth.signOut();
+
+auth.onAuthStateChanged(async user => {
+  if (!user) { $('status').innerHTML = '<span class="bad">Not signed in.</span> Try the popup button first.'; return; }
+  $('status').textContent = 'Signed in as ' + user.email + ' – reading your calendar…';
+  try {
+    const snap = await firebase.database().ref('users/' + user.uid + '/doctors').once('value');
+    const docs = snap.val() || {};
+    const n = Object.values(docs).filter(d => d && !d.hidden).length;
+    $('status').innerHTML = '<span class="ok">✅ Hi ' + (user.displayName || user.email) + ' – ' + n + ' doctors in your calendar.</span><br>Now reload this card: if it still says this, the sign-in sticks.';
+    log('Calendar read OK');
+  } catch (e) {
+    $('status').innerHTML = '<span class="bad">Signed in but couldn\'t read the calendar: ' + e.code + '</span>';
+  }
+});
+</script>
+</body>
+</html>
