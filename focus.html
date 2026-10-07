@@ -59,6 +59,8 @@ header{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 14px 0}
 .more-btn{display:block;width:100%;border:0;border-top:1px solid var(--line);background:none;padding:7px;color:var(--blue);font-size:12px}
 .status{padding:30px 14px;text-align:center;color:var(--muted)}
 .signin{margin-top:10px;background:var(--blue);color:#fff;border:0;border-radius:7px;padding:8px 16px;font-size:14px}
+.calLink{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--blue);color:var(--blue);background:var(--card);border-radius:6px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap}
+.calLink:hover{background:var(--blue);color:#fff;text-decoration:none}
 .foot{color:var(--faint);font-size:11px;margin-top:10px;text-align:right}
 .foot a{color:var(--blue)}
 @media (max-width:520px){ .row{grid-template-columns:1fr} .right{justify-content:flex-start} }
@@ -70,6 +72,7 @@ header{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 14px 0}
     <h1>🎯 Doctor focus</h1>
     <span class="who" id="who"></span>
     <span class="spacer"></span>
+    <a class="calLink" href="https://blugibbon-jb.github.io/Blugibbon/availability2.html" target="_blank" rel="noopener" title="Open the availability calendar">📅 Calendar ↗</a>
     <span class="seg" id="winSeg" title="How far ahead to look"><button data-w="14">2 wks</button><button data-w="28" class="on">4 wks</button><button data-w="56">8 wks</button></span>
     <span class="seg" id="scopeSeg" hidden><button data-s="mine" class="on">Mine</button><button data-s="all">Everyone</button></span>
   </div>
