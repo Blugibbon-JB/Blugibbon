@@ -158,6 +158,16 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
 .mHint{color:#8a93a3;font-size:12px;margin-top:12px!important}
 .revCard{grid-column:1/-1}
 .grid.cols .revCard{grid-column:auto}
+.grid.withUpd .revCard{grid-column:auto}
+.tag.new{background:#e4f4ec;color:#15603f}
+.tag.del{background:#f1f2f5;color:#5b6475}
+.tag.doc{background:#eef1f6;color:#3b4252}
+.chs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.ch{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;white-space:nowrap;background:#eef1f6;color:#3b4252}
+.ch.av{background:#e4f4ec;color:#15603f}.ch.tn{background:#eef7f0;color:#3d7a52}.ch.bk{background:#e5eefd;color:#174aa3}.ch.aw{background:#fbf1e0;color:#8a560c}.ch.rm{background:#f1f2f5;color:#6b7280;text-decoration:line-through}.ch.st{background:#fde8e8;color:#9b1c1c}.ch.ok{background:#e4f4ec;color:#15603f}
+.updBar{display:flex;align-items:center;gap:10px;padding:0 20px 10px;font-size:12px;color:#5b6475}
+.updBar.wide{padding:12px 0 0}
+.tm{font-size:11px;color:#8a93a3;white-space:nowrap}
 .selBar{display:flex;align-items:center;gap:10px;padding:0 20px 10px;font-size:12px;color:#3b4252;flex-wrap:wrap}
 .selBar label{display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer}
 .selBar.wide{padding:12px 0 0}
@@ -420,9 +430,10 @@ if (typeof firebase !== 'undefined') (function () {
   const arr = v => Array.isArray(v) ? v : Object.values(v || {});
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} } };
-  const ALL_IDS = ['match', 'close', 'free', 'end', 'rev'];
+  const ALL_IDS = ['match', 'close', 'free', 'end', 'rev', 'upd'];
   let IDS = ['match', 'close', 'free', 'end'];
   let user = null, scope = store.get('focus.scope', 'mine'), win = Number(store.get('focus.win', '28')) || 28;
+  let updWin = store.get('focus.updWin', 'last') === 'today' ? 'today' : 'last';
   let open = store.get('focus.open', ''); if (!ALL_IDS.includes(open)) open = null;
   let data = {}, ref = null, loaded = false, V = null, q = '';
 
@@ -444,6 +455,7 @@ if (typeof firebase !== 'undefined') (function () {
     close: { label: 'CLOSE MATCHES', tab: 'Close', c: '#6b45c9', t: '#eee8fc', hint: () => 'Worth a call – one level off or near the dates', exHint: 'Worth a call – level one step off, or free just around the dates.', empty: 'Nothing waiting right now.' },
     free: { label: 'FREE, NO JOB', tab: 'Free, no job', c: '#1f62d6', t: '#e5eefd', hint: () => `Free in the next ${win / 7} weeks with nothing booked – market them`, exHint: 'Free with nothing booked or matched. Mark as contacted to hide for 7 days.', empty: 'Everyone free is booked or matched.' },
     rev: { label: 'REVERSE MARKET', tab: 'Reverse market', c: '#0f766e', t: '#dcf3ee', hint: () => 'Desk jobs with no doctor free (any date) – market them to candidates', exHint: 'Jobs that fit your desk but none of your doctors are free – shown whatever the start date. "Could suit" lists doctors who fit the job but have no availability logged for those dates. Tick jobs to export them to a mailer.', empty: 'No unmatched desk jobs right now.' },
+    upd: { label: 'UPDATES', tab: 'Updates', c: '#475467', t: '#eceff3', hint: () => (V && V.updHint) || 'What the last update changed', exHint: 'What changed: new, updated and removed jobs, and doctors whose availability, bookings, away dates or status changed. "Last update" = the most recent update that changed something; "Today" = every update since midnight. Updates run every 30 min, 8:30–5:30 weekdays.', empty: 'Nothing has changed yet.' },
     end: { label: 'FINISHING SOON', tab: 'Finishing', c: '#c27a12', t: '#fcf0dd', hint: () => 'Bookings ending in 2 weeks with nothing lined up', exHint: 'Bookings ending in the next 2 weeks with nothing lined up after.', empty: 'No gaps coming up.' }
   };
 
@@ -579,11 +591,73 @@ if (typeof firebase !== 'undefined') (function () {
         req: [j.req, j.travel].filter(Boolean).join(' · '), fit: arr(j.fit),
         q: [j.title, site, role, j.state, j.specialty, j.req, j.travel, j.ref, j.evo, ...arr(j.fit).map(f => f.name)].join(' ').toLowerCase() };
     });
-    const lists = { match, close, free, end, rev };
-    const counts = { match: match.length, close: close.length, free: free.filter(a => !a.contacted).length, end: end.length, rev: rev.length };
+    const U = updatesVM(today);
+    const lists = { match, close, free, end, rev, upd: U.rows };
+    const counts = { match: match.length, close: close.length, free: free.filter(a => !a.contacted).length, end: end.length, rev: rev.length, upd: U.rows.length };
     for (const k of [...sel]) if (!rev.some(r => r.jk === k)) sel.delete(k);   // forget ticks on jobs that have gone
-    return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0 };
+    return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0, updHint: U.hint };
   }
+
+  // ---------- Updates tile: change log written by the Make scenario (users/{uid}/focus/changes/{ms}) ----------
+  const hm = ms => new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', hour: 'numeric', minute: '2-digit' }).format(new Date(ms)).replace(/\s/g, '').toLowerCase();
+  const rgList = str => String(str || '').split(',').filter(Boolean).map(r => { const [a, b] = r.split('..'); return range(a, b || a); });
+  const CH = {
+    new: c => ['ok', 'Added to calendar'], gone: c => ['st', 'Removed from calendar'], inactive: c => ['st', 'Made inactive'], active: c => ['ok', 'Re-activated'],
+    level: c => ['', 'Level ' + c.d],
+    '+A': c => ['av', 'Available ' + rgList(c.d).join(', ')], '-A': c => ['rm', 'Available ' + rgList(c.d).join(', ')],
+    '+T': c => ['tn', 'Tentative ' + rgList(c.d).join(', ')], '-T': c => ['rm', 'Tentative ' + rgList(c.d).join(', ')],
+    '+B': c => ['bk', 'Booked ' + rgList(c.d).join(', ')], '-B': c => ['rm', 'Booked ' + rgList(c.d).join(', ')],
+    '+W': c => ['aw', 'Away ' + rgList(c.d).join(', ')], '-W': c => ['rm', 'Away ' + rgList(c.d).join(', ')]
+  };
+  function updatesVM(today) {
+    const runs = {}; let lastRun = 0;
+    for (const node of Object.values(data)) {
+      const f = (node && node.focus) || {};
+      if (Number(f.lastRun) > lastRun) lastRun = Number(f.lastRun);
+      for (const [key, e] of Object.entries(f.changes || {})) { if (!e) continue; const at = Number(e.at || key); (runs[at] = runs[at] || []).push(e); }
+    }
+    const ats = Object.keys(runs).map(Number).sort((a, b) => b - a);
+    const pick = updWin === 'today' ? ats.filter(a => sydDate(a) === today) : ats.slice(0, 1);
+    const rows = [], seenJ = new Set(), seenD = new Set();
+    for (const at of pick) for (const e of runs[at]) {
+      for (const j of arr(e.jobs)) {
+        const id = at + j.t + j.k; if (seenJ.has(id)) continue; seenJ.add(id);
+        const { site, role } = shortTitle(j.title || '');
+        const what = j.t === 'del' ? (j.why || 'removed') : j.t === 'upd' ? (j.chg || 'order updated') : ({ match: 'matched to your doctors', near: 'close match', rev: 'reverse market' }[j.kind] || '');
+        rows.push({ kind: 'upd', type: 'job', t: j.t, at, site: site || j.title || 'Job', role, dates: j.s ? range(j.s, j.e || j.s) : '', what, evo: j.evo || '',
+          q: [j.title, what, j.evo, j.t === 'add' ? 'new' : j.t === 'upd' ? 'updated' : 'removed'].join(' ').toLowerCase() });
+      }
+      for (const d of arr(e.docs)) {
+        const id = at + d.k; if (seenD.has(id)) continue; seenD.add(id);
+        const chs = arr(d.ch).map(c => (CH[c.t] || (() => ['', c.t]))(c));
+        rows.push({ kind: 'upd', type: 'doc', at, d: { name: d.n || d.k, cu: d.cu || '', level: d.lv || '' }, chs,
+          q: [d.n, d.lv, ...chs.map(c => c[1])].join(' ').toLowerCase() });
+      }
+    }
+    const ORDER = { add: 0, upd: 1, del: 2 };
+    rows.sort((a, b) => b.at - a.at || (a.type === b.type ? (ORDER[a.t] || 0) - (ORDER[b.t] || 0) : a.type === 'job' ? -1 : 1));
+    const nJ = rows.filter(r => r.type === 'job').length, nD = rows.length - nJ;
+    const counts = nJ || nD ? dot(nJ ? `${nJ} job${nJ === 1 ? '' : 's'}` : '', nD ? `${nD} doctor${nD === 1 ? '' : 's'}` : '') : '';
+    const hint = updWin === 'today'
+      ? (pick.length ? `Today · ${pick.length} update${pick.length === 1 ? '' : 's'}${counts ? ' · ' + counts : ''}` : 'Nothing has changed today')
+      : (pick.length ? `Last change ${sydDate(pick[0]) === today ? hm(pick[0]) : day(sydDate(pick[0])) + ' ' + hm(pick[0])}${lastRun && lastRun !== pick[0] ? ' · checked ' + hm(lastRun) : ''}` : 'No updates yet');
+    return { rows, hint };
+  }
+  const TAG = { add: ['new', 'New'], upd: ['upd', 'Updated'], del: ['del', 'Removed'] };
+  const updTime = x => updWin === 'today' ? `<span class="tm">${esc(hm(x.at))}</span>` : '';
+  const updRow = x => x.type === 'job'
+    ? `<div class="drow"><div style="min-width:0"><div class="nm"><span class="tag ${TAG[x.t][0]}">${TAG[x.t][1]}</span> ${esc(x.site)}${x.role ? ` <span class="x">· ${esc(x.role)}</span>` : ''}</div>
+        <div class="sub" title="${esc(dot(x.dates, x.what))}">${esc(dot(x.dates, x.evo ? 'EVO ' + x.evo : '', x.what))}</div></div>${updTime(x)}</div>`
+    : `<div class="drow"><div style="min-width:0"><div class="nm">${nameLink(x.d)}${x.d.level ? ` <span class="x">· ${esc(lvShort(x.d.level))}</span>` : ''}</div>
+        <div class="chs">${x.chs.map(c => `<span class="ch ${c[0]}"${c[0] === 'rm' ? ' title="Removed from the calendar"' : ''}>${esc(c[1])}</span>`).join('')}</div></div>${updTime(x)}</div>`;
+  const exUpd = x => x.type === 'job'
+    ? `<div class="tr"><div class="c13m">${esc(hm(x.at))}</div><div><span class="tag ${TAG[x.t][0]}">${TAG[x.t][1]} job</span></div>
+        <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}</div>
+        <div class="c13m">${esc(dot(x.dates, x.evo ? 'EVO ' + x.evo : '', x.what))}</div></div>`
+    : `<div class="tr"><div class="c13m">${esc(hm(x.at))}</div><div><span class="tag doc">Doctor</span></div>
+        <div style="min-width:0"><div class="site">${nameLink(x.d)}</div>${x.d.level ? `<div class="c13m">${esc(x.d.level)}</div>` : ''}</div>
+        <div class="chs">${x.chs.map(c => `<span class="ch ${c[0]}"${c[0] === 'rm' ? ' title="Removed from the calendar"' : ''}>${esc(c[1])}</span>`).join('')}</div></div>`;
+  const updBar = wide => `<div class="updBar${wide ? ' wide' : ''}"><div class="seg"><button class="${updWin === 'last' ? 'on' : ''}" data-updwin="last">Last update</button><button class="${updWin === 'today' ? 'on' : ''}" data-updwin="today">Today</button></div></div>`;
 
   // ---------- card rows ----------
   // when the job came in: Gmail ids carry the arrival time; only trusted when it falls on the received date (a reply in an old thread points at the thread's first email)
@@ -678,7 +752,7 @@ if (typeof firebase !== 'undefined') (function () {
     return `<div class="selBar${wide ? ' wide' : ''}"><label><input type="checkbox" data-selall${n && k === n ? ' checked' : ''}${n ? '' : ' disabled'}> Select all</label>
       <span class="selN">${k ? `${k} selected` : 'None selected'}</span>${k ? '<button class="lnk2" data-selnone>Clear</button>' : ''}<span class="sp"></span>
       <button class="expBtn" data-export${k ? '' : ' disabled'}>${I.mail(14)}Export to mailer${k ? ` (${k})` : ''}</button></div>`; };
-  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow, rev: revRow };
+  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow, rev: revRow, upd: updRow };
 
   // ---------- render ----------
   function render() {
@@ -689,13 +763,14 @@ if (typeof firebase !== 'undefined') (function () {
     grid.querySelectorAll('.cBody').forEach(b => keep[b.dataset.id] = b.scrollTop);       // keep each card's scroll on live updates
     IDS = V.showRev ? ALL_IDS.slice() : ALL_IDS.filter(i => i !== 'rev');
     if (open && !IDS.includes(open)) closeEx();
+    grid.classList.toggle('withUpd', IDS.includes('rev') && IDS.includes('upd'));
     grid.innerHTML = IDS.map(id => {
       const m = META[id], list = V.lists[id];
       return `<section class="card${id === 'rev' ? ' revCard' : ''}" style="--c:${m.c};--t70:${m.t}b3;--t30:${m.t}4d">
         <button class="cHead" data-open="${id}" title="Open full screen">
           <div class="lrow"><span class="dot"></span><span class="lab">${m.label}</span><span class="sp"></span><span style="color:#8a93a3;display:flex">${I.max(16)}</span></div>
           <div class="crow"><span class="cnt">${V.counts[id]}</span><span class="hint">${esc(m.hint())}</span></div>
-        </button>${id === 'rev' ? selBar(false) : ''}
+        </button>${id === 'rev' ? selBar(false) : id === 'upd' ? updBar(false) : ''}
         <div class="cBody" data-id="${id}">${list.length ? list.map(ROW[id]).join('') : `<div class="empty">${m.empty}</div>`}</div>
         <button class="cFoot" data-open="${id}">View all ${list.length} full screen ${I.right(14)}</button>
       </section>`;
@@ -711,7 +786,8 @@ if (typeof firebase !== 'undefined') (function () {
     job: 'minmax(0,2fr) 130px 150px minmax(0,2.4fr) 110px',
     free: 'minmax(0,1.6fr) minmax(0,1.6fr) 60px 130px minmax(0,1.4fr) 150px',
     end: 'minmax(0,1.4fr) minmax(0,1.4fr) 120px minmax(0,1.6fr)',
-    rev: '28px minmax(0,2fr) 150px 140px minmax(0,2fr) 60px'
+    rev: '28px minmax(0,2fr) 150px 140px minmax(0,2fr) 60px',
+    upd: '80px 120px minmax(0,1.4fr) minmax(0,2.4fr)'
   };
   const exJob = x => `<div class="tr job">
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
@@ -747,11 +823,11 @@ if (typeof firebase !== 'undefined') (function () {
     $('ex').hidden = false;
     $('exTabs').innerHTML = IDS.map(id => `<button class="tab${id === open ? ' on' : ''}" style="--c:${META[id].c}" data-tab="${id}"><span class="dot"></span>${META[id].tab} <span class="n">${V.counts[id]}</span></button>`).join('');
     $('exTitle').innerHTML = `<div class="lrow" style="--c:${m.c}"><span class="dot"></span><span class="lab">${m.label}</span></div>
-      <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>${open === 'rev' ? selBar(true) : ''}`;
+      <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>${open === 'rev' ? selBar(true) : open === 'upd' ? updBar(true) : ''}`;
     const list = V.lists[open].filter(x => !qq || x.q.includes(qq));
     const kind = open === 'match' || open === 'close' ? 'job' : open;
-    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'] }[kind];
-    const row = { job: exJob, free: exFree, end: exEnd, rev: exRev }[kind];
+    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'], upd: ['TIME', 'TYPE', 'JOB / DOCTOR', 'WHAT CHANGED'] }[kind];
+    const row = { job: exJob, free: exFree, end: exEnd, rev: exRev, upd: exUpd }[kind];
     const tbl = $('exTbl'), st = tbl.parentNode.scrollTop;
     tbl.style.setProperty('--cols', COLS[kind]);
     tbl.innerHTML = `<div class="th">${head.map(h => `<span>${h}</span>`).join('')}</div>` +
@@ -759,6 +835,7 @@ if (typeof firebase !== 'undefined') (function () {
     tbl.parentNode.scrollTop = st;
   }
   $('exQ').addEventListener('input', e => { q = e.target.value; renderEx(); });
+  document.addEventListener('click', e => { const t = e.target.closest('[data-updwin]'); if (!t) return; e.preventDefault(); e.stopPropagation(); updWin = t.dataset.updwin; store.set('focus.updWin', updWin); render(); }, true);
   document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('mailSet').hidden) { $('mailSet').hidden = true; return; } if (!$('expSet').hidden) { $('expSet').hidden = true; return; } if (open) closeEx(); });
 
   // ---------- doctor hover card ----------
