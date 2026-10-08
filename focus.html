@@ -67,6 +67,10 @@ button{font-family:inherit;cursor:pointer;color:inherit}
 .jmeta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px}
 .jmeta .d{display:flex;align-items:center;gap:5px;color:#3b4252}
 .rate{font-weight:800}
+.tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap}
+.tag.evo{background:#eef1f6;color:#3b4252}
+.tag.upd{background:#e8effc;color:#174aa3}
+.tag.var{background:#fbf1e0;color:#8a560c}
 .ago{display:flex;align-items:center;gap:4px;color:#8a93a3}
 .mlink{display:flex;align-items:center;gap:4px;color:#1f62d6;font-weight:600}
 .mlink:hover{color:#174aa3}
@@ -438,6 +442,24 @@ if (typeof firebase !== 'undefined') (function () {
   const dm = d => { const t = new Date(d + 'T00:00:00Z'); return [t.getUTCDate(), MON[t.getUTCMonth()]]; };
   function range(a, b) { const [d1, m1] = dm(a), [d2, m2] = dm(b); return a === b ? `${d1} ${m1}` : m1 === m2 ? `${d1}–${d2} ${m1}` : `${d1} ${m1} – ${d2} ${m2}`; }
   const day = d => range(d, d);
+  // real working days, e.g. "9, 12–16 Oct" (card) and "Fri 9 Oct, Mon 12 – Fri 16 Oct · 6 days" (mailer)
+  function compactDates(ds) {
+    const rg = N.ranges(ds), out = rg.map((r, i) => {
+      const [d1, m1] = dm(r[0]), [d2, m2] = dm(r[1]), nm = i < rg.length - 1 ? dm(rg[i + 1][0])[1] : null, tail = m2 !== nm ? ' ' + m2 : '';
+      return r[0] === r[1] ? `${d1}${tail}` : m1 === m2 ? `${d1}–${d2}${tail}` : `${d1} ${m1} – ${d2}${tail}`;
+    });
+    return out.length > 4 ? out.slice(0, 4).join(', ') + ` +${out.length - 4} more` : out.join(', ');
+  }
+  function longDates(ds) {
+    const rg = N.ranges(ds), parts = rg.map(r => r[0] === r[1] ? N.nice(r[0]) : `${N.nice(r[0])} – ${N.nice(r[1])}`);
+    return (parts.length > 5 ? parts.slice(0, 5).join(', ') + ` +${parts.length - 5} more` : parts.join(', ')) + ` · ${ds.length} day${ds.length === 1 ? '' : 's'}`;
+  }
+  const evoOf = j => String(j.evo || (String(j.ref || '').match(/EVO\s*([\d][\d\s\-–\/,&]*\d|\d{5})/) || [])[1]
+    || (String(j.ref || '').match(/Ref\s*(\d{5}(?:\s*[-–\/]\s*\d{1,5})?)(?!\d)/) || [])[1] || '').trim();   // older jobs filed a 5-digit EVO number as Ref
+  const flagsHTML = x => { const j = x.j, ev = evoOf(j);
+    return (ev ? `<span class="tag evo" title="EVO order">EVO ${esc(ev)}</span>` : '') +
+      (j.mod ? `<span class="tag upd" title="EVO order modified – job updated">Updated</span>` : '') +
+      (j.variant ? `<span class="tag var" title="An earlier email had a different ${j.variant === 'rate' ? 'rate' : 'set of dates'} for this job">Different ${j.variant === 'rate' ? 'rate' : 'dates'}</span>` : ''); };
   const rgText = (rg, max) => rg.slice(0, max).map(r => range(r[0], r[1])).join(', ') + (rg.length > max ? ` +${rg.length - max}` : '');
   const daysBetween = (a, b) => Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 864e5);
   function shortTitle(t) {        // "Sydney Adventist Hospital – PGY4+ (Pager 21), PGY3+ … General Medicine" -> tidy
@@ -524,8 +546,8 @@ if (typeof firebase !== 'undefined') (function () {
         return { ...r, cls: near ? 'p' : all ? 'g' : 'a', mark: near ? '' : all ? '✓ ' : '◐ ', tip, pid };
       });
       return { kind: near ? 'close' : 'match', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, st: j.state || '', n,
-        dates: range(x.dates[0], x.dates[n - 1]), rate: rateShort(j.rate) || 'Rate n/a', chips,
-        q: [j.title, site, role, j.state, rateShort(j.rate), ...docs.map(r => r.name + ' ' + (r.why || ''))].join(' ').toLowerCase() };
+        dates: compactDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a', chips,
+        q: [j.title, site, role, j.state, rateShort(j.rate), j.ref, j.evo, ...docs.map(r => r.name + ' ' + (r.why || ''))].join(' ').toLowerCase() };
     };
     const match = F.jobs.filter(x => !x.state).map(x => jobVM(x, false));
     const close = F.nearJobs.filter(x => !x.state).map(x => jobVM(x, true));
@@ -543,9 +565,9 @@ if (typeof firebase !== 'undefined') (function () {
     const rev = F.unmatched.map(x => {
       const j = x.j, { site, role } = shortTitle(j.title), n = x.dates.length;
       return { kind: 'rev', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, roleFull: String(j.title || '').split(' – ').slice(1).join(' – ') || j.specialty || '',
-        st: j.state || '', n, dates: range(x.dates[0], x.dates[n - 1]), when: j.when || range(x.dates[0], x.dates[n - 1]), rate: rateShort(j.rate) || 'Rate n/a',
+        st: j.state || '', n, dates: compactDates(x.dates), when: longDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a',
         req: [j.req, j.travel].filter(Boolean).join(' · '),
-        q: [j.title, site, role, j.state, j.specialty, j.req, j.travel].join(' ').toLowerCase() };
+        q: [j.title, site, role, j.state, j.specialty, j.req, j.travel, j.ref, j.evo].join(' ').toLowerCase() };
     });
     const lists = { match, close, free, end, rev };
     const counts = { match: match.length, close: close.length, free: free.filter(a => !a.contacted).length, end: end.length, rev: rev.length };
@@ -612,7 +634,7 @@ if (typeof firebase !== 'undefined') (function () {
   const jobRow = x => `<div class="jrow">
       <div class="jtop"><div><div class="site">${esc(x.site)} <span class="st">${esc(x.st)}</span></div>${x.role ? `<div class="role">${esc(x.role)}</div>` : ''}</div>
         <div class="acts">${actBtns(x)}</div></div>
-      <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span>${addedHTML(x)}${mailHTML(x)}</div>
+      <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span>${flagsHTML(x)}${addedHTML(x)}${mailHTML(x)}</div>
       <div class="chips">${x.chips.map(c => chipHTML(c, false, x)).join('')}</div></div>`;
   const contactBtn = (a, wide) => {
     const on = !!a.contacted, tip = on ? `Contacted ${day(a.contacted)} – click to undo` : 'Mark as contacted (hides for 7 days)';
@@ -633,7 +655,7 @@ if (typeof firebase !== 'undefined') (function () {
   const revRow = x => `<div class="jrow rev${sel.has(x.jk) ? ' on' : ''}">
       <div class="jtop">${selBox(x)}<div><div class="site">${esc(x.site)} <span class="st">${esc(x.st)}</span></div>${x.role ? `<div class="role">${esc(x.role)}</div>` : ''}</div>
         <div class="acts">${rmBtn(x)}</div></div>
-      <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span>${addedHTML(x)}${mailHTML(x)}</div>
+      <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span>${flagsHTML(x)}${addedHTML(x)}${mailHTML(x)}</div>
       ${x.req ? `<div class="sub" title="${esc(x.req)}" style="padding-left:30px">${esc(x.req)}</div>` : ''}</div>`;
   const selBar = (wide) => { const n = V.lists.rev.length, k = sel.size;
     return `<div class="selBar${wide ? ' wide' : ''}"><label><input type="checkbox" data-selall${n && k === n ? ' checked' : ''}${n ? '' : ' disabled'}> Select all</label>
@@ -677,7 +699,7 @@ if (typeof firebase !== 'undefined') (function () {
   const exJob = x => `<div class="tr job">
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
       <div class="c13">${esc(x.dates)}<div class="s2">${x.n} day${x.n === 1 ? '' : 's'}</div></div>
-      <div class="c13">${esc(x.rate)}<div class="s2">${esc(x.st)}</div></div>
+      <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
       <div class="chips w">${x.chips.map(c => chipHTML(c, true, x)).join('')}</div>
       <div class="acts">${actBtns(x, true)}</div></div>`;
   const exFree = a => `<div class="tr${a.contacted ? ' dim' : ''}">
@@ -697,7 +719,7 @@ if (typeof firebase !== 'undefined') (function () {
       ${selBox(x)}
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.roleFull ? `<div class="c13m">${esc(x.roleFull)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
       <div class="c13">${esc(x.dates)}<div class="s2">${esc(x.when.includes('·') ? x.when.replace(/^[^·]*·\s*/, '') : x.n + ' day' + (x.n === 1 ? '' : 's'))}</div></div>
-      <div class="c13">${esc(x.rate)}<div class="s2">${esc(x.st)}</div></div>
+      <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
       <div class="c13m">${esc(x.req || '–')}</div>
       <div class="acts">${rmBtn(x, true)}</div></div>`;
   function openEx(id) { open = id; q = ''; $('exQ').value = ''; store.set('focus.open', id); $('ex').hidden = false; renderEx(); $('exQ').focus({ preventScroll: true }); }
