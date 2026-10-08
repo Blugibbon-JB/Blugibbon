@@ -67,6 +67,12 @@ button{font-family:inherit;cursor:pointer;color:inherit}
 .jmeta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px}
 .jmeta .d{display:flex;align-items:center;gap:5px;color:#3b4252}
 .rate{font-weight:800}
+.fitRow{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding-left:30px}
+.fitRow.w{padding-left:0;margin-top:8px}
+.fitL{font-size:11px;font-weight:800;letter-spacing:.04em;color:#0f766e;margin-right:2px}
+.chip.t{background:#dcf3ee;color:#115e59;padding-right:9px} a.chip.t:hover{border-color:currentColor;text-decoration:none}
+.chip .fl2{font-weight:400;opacity:.75}
+.fitMore{font-size:12px;color:#8a93a3}
 .tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap}
 .tag.evo{background:#eef1f6;color:#3b4252}
 .tag.upd{background:#e8effc;color:#174aa3}
@@ -316,8 +322,8 @@ const Focus = (() => {
         const state = rec.state || null;
         if ((state && state.s) || (opts.dismissed || {})[jk]) continue;   // answered (accepted / not suitable) -> gone
         const dates = arr(j.dates).filter(d => d >= today).sort();
+        if (dates.length && j.um) { unmatched.push({ jk, uid, j, state, dates }); continue; }   // desk job with no doctor free -> reverse market (any start date)
         if (!dates.length || dates[0] >= until) continue;          // only jobs starting inside the look-ahead window
-        if (j.um) { unmatched.push({ jk, uid, j, state, dates }); continue; }   // desk job with no doctor free -> reverse market
         const live = [], near = [];
         for (const m of arr(j.docs)) {
           const dk = key(m.k), doc = docs[dk];
@@ -408,6 +414,7 @@ if (typeof firebase !== 'undefined') (function () {
   const auth = firebase.auth(), db = firebase.database();
   const ADMINS = ['josh@blugibbon.com.au'];
   const N = Focus, $ = id => document.getElementById(id);
+  const arr = v => Array.isArray(v) ? v : Object.values(v || {});
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} } };
   const ALL_IDS = ['match', 'close', 'free', 'end', 'rev'];
@@ -433,7 +440,7 @@ if (typeof firebase !== 'undefined') (function () {
     match: { label: 'MATCHED', tab: 'Matched', c: '#1f8a5b', t: '#e4f4ec', hint: () => 'Inbox jobs your doctors can cover', exHint: 'Inbox jobs your doctors can cover. ✓ free every day, ◐ free most days.', empty: 'Nothing waiting right now.' },
     close: { label: 'CLOSE MATCHES', tab: 'Close', c: '#6b45c9', t: '#eee8fc', hint: () => 'Worth a call – one level off or near the dates', exHint: 'Worth a call – level one step off, or free just around the dates.', empty: 'Nothing waiting right now.' },
     free: { label: 'FREE, NO JOB', tab: 'Free, no job', c: '#1f62d6', t: '#e5eefd', hint: () => `Free in the next ${win / 7} weeks with nothing booked – market them`, exHint: 'Free with nothing booked or matched. Mark as contacted to hide for 7 days.', empty: 'Everyone free is booked or matched.' },
-    rev: { label: 'REVERSE MARKET', tab: 'Reverse market', c: '#0f766e', t: '#dcf3ee', hint: () => 'Desk jobs with no doctor free – market them to candidates', exHint: 'Jobs that fit your desk but none of your doctors are free. Tick the ones to send and export them to a mailer.', empty: 'No unmatched desk jobs right now.' },
+    rev: { label: 'REVERSE MARKET', tab: 'Reverse market', c: '#0f766e', t: '#dcf3ee', hint: () => 'Desk jobs with no doctor free (any date) – market them to candidates', exHint: 'Jobs that fit your desk but none of your doctors are free – shown whatever the start date. "Could suit" lists doctors who fit the job but have no availability logged for those dates. Tick jobs to export them to a mailer.', empty: 'No unmatched desk jobs right now.' },
     end: { label: 'FINISHING SOON', tab: 'Finishing', c: '#c27a12', t: '#fcf0dd', hint: () => 'Bookings ending in 2 weeks with nothing lined up', exHint: 'Bookings ending in the next 2 weeks with nothing lined up after.', empty: 'No gaps coming up.' }
   };
 
@@ -566,8 +573,8 @@ if (typeof firebase !== 'undefined') (function () {
       const j = x.j, { site, role } = shortTitle(j.title), n = x.dates.length;
       return { kind: 'rev', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, roleFull: String(j.title || '').split(' – ').slice(1).join(' – ') || j.specialty || '',
         st: j.state || '', n, dates: compactDates(x.dates), when: longDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a',
-        req: [j.req, j.travel].filter(Boolean).join(' · '),
-        q: [j.title, site, role, j.state, j.specialty, j.req, j.travel, j.ref, j.evo].join(' ').toLowerCase() };
+        req: [j.req, j.travel].filter(Boolean).join(' · '), fit: arr(j.fit),
+        q: [j.title, site, role, j.state, j.specialty, j.req, j.travel, j.ref, j.evo, ...arr(j.fit).map(f => f.name)].join(' ').toLowerCase() };
     });
     const lists = { match, close, free, end, rev };
     const counts = { match: match.length, close: close.length, free: free.filter(a => !a.contacted).length, end: end.length, rev: rev.length };
@@ -652,11 +659,18 @@ if (typeof firebase !== 'undefined') (function () {
   const sel = new Set();
   const selBox = x => `<label class="sel" title="Select for the mailer"><input type="checkbox" data-sel="${esc(x.jk)}"${sel.has(x.jk) ? ' checked' : ''}></label>`;
   const rmBtn = (x, big) => `<button class="ib${big ? ' big' : ''}" title="Not suitable – remove" data-rmjob="${esc(x.jk)}">${I.x(18)}</button>`;
+  const fitHTML = (x, wide) => {
+    if (!x.fit.length) return '';
+    const chip = f => { const tip = `${f.name}${f.lv ? ' · ' + f.lv : ''} – ${f.av ? 'availability logged to ' + day(f.av) : 'no availability logged'}. Fits the job; check if they can go that far out.`;
+      const inner = `${esc(f.name)}${f.lv ? ` <span class="fl2">${esc(lvShort(f.lv))}</span>` : ''}${wide ? `<span class="ctip">${f.av ? 'Avail. to ' + esc(day(f.av)) : 'No availability logged'}</span>` : ''}`;
+      return f.cu ? `<a class="chip t${wide ? ' wide' : ''}" href="${esc(f.cu)}" target="_blank" rel="noopener" title="${esc(tip)}"><span class="cn">${inner}</span></a>` : `<span class="chip t${wide ? ' wide' : ''}" title="${esc(tip)}"><span class="cn">${inner}</span></span>`; };
+    return `<div class="fitRow${wide ? ' w' : ''}"><span class="fitL" title="Doctors who fit the specialty and level but haven't logged availability for these dates">Could suit</span>${x.fit.slice(0, wide ? 10 : 4).map(chip).join('')}${!wide && x.fit.length > 4 ? `<span class="fitMore">+${x.fit.length - 4}</span>` : ''}</div>`;
+  };
   const revRow = x => `<div class="jrow rev${sel.has(x.jk) ? ' on' : ''}">
       <div class="jtop">${selBox(x)}<div><div class="site">${esc(x.site)} <span class="st">${esc(x.st)}</span></div>${x.role ? `<div class="role">${esc(x.role)}</div>` : ''}</div>
         <div class="acts">${rmBtn(x)}</div></div>
       <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span>${flagsHTML(x)}${addedHTML(x)}${mailHTML(x)}</div>
-      ${x.req ? `<div class="sub" title="${esc(x.req)}" style="padding-left:30px">${esc(x.req)}</div>` : ''}</div>`;
+      ${x.req ? `<div class="sub" title="${esc(x.req)}" style="padding-left:30px">${esc(x.req)}</div>` : ''}${fitHTML(x, false)}</div>`;
   const selBar = (wide) => { const n = V.lists.rev.length, k = sel.size;
     return `<div class="selBar${wide ? ' wide' : ''}"><label><input type="checkbox" data-selall${n && k === n ? ' checked' : ''}${n ? '' : ' disabled'}> Select all</label>
       <span class="selN">${k ? `${k} selected` : 'None selected'}</span>${k ? '<button class="lnk2" data-selnone>Clear</button>' : ''}<span class="sp"></span>
@@ -720,7 +734,7 @@ if (typeof firebase !== 'undefined') (function () {
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.roleFull ? `<div class="c13m">${esc(x.roleFull)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
       <div class="c13">${esc(x.dates)}<div class="s2">${esc(x.when.includes('·') ? x.when.replace(/^[^·]*·\s*/, '') : x.n + ' day' + (x.n === 1 ? '' : 's'))}</div></div>
       <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
-      <div class="c13m">${esc(x.req || '–')}</div>
+      <div class="c13m">${esc(x.req || '–')}${fitHTML(x, true)}</div>
       <div class="acts">${rmBtn(x, true)}</div></div>`;
   function openEx(id) { open = id; q = ''; $('exQ').value = ''; store.set('focus.open', id); $('ex').hidden = false; renderEx(); $('exQ').focus({ preventScroll: true }); }
   function closeEx(silent) { open = null; q = ''; $('ex').hidden = true; if (!silent) store.set('focus.open', null); hidePop(); }
@@ -733,7 +747,7 @@ if (typeof firebase !== 'undefined') (function () {
       <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>${open === 'rev' ? selBar(true) : ''}`;
     const list = V.lists[open].filter(x => !qq || x.q.includes(qq));
     const kind = open === 'match' || open === 'close' ? 'job' : open;
-    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'] }[kind];
+    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'] }[kind];
     const row = { job: exJob, free: exFree, end: exEnd, rev: exRev }[kind];
     const tbl = $('exTbl'), st = tbl.parentNode.scrollTop;
     tbl.style.setProperty('--cols', COLS[kind]);
