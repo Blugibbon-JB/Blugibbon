@@ -265,6 +265,9 @@ const Focus = (() => {
   const arr = x => Array.isArray(x) ? x : Object.values(x || {});
   const key = s => String(s || '').trim().toUpperCase();
   const safeKey = s => String(s || '').replace(/[.#$\[\]\/]/g, '_');
+  // a job under 2 weeks drops off once its start date has passed; 2 weeks or longer once its end date is less than a week away (same rule as the Make scenario)
+  const dayDiff = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
+  const tooLate = (j, today) => { const s = String(j.jStart || j.start || j.end).slice(0, 10), e = String(j.end).slice(0, 10); return dayDiff(s, e) + 1 < 14 ? s < today : e < addDays(today, 7); };
   const sydToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
   // classify one calendar entry
@@ -317,7 +320,7 @@ const Focus = (() => {
     const seenJob = new Set();
     for (const { uid, node } of nodes) {
       for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) {
-        const j = rec && rec.job; if (!j || !j.end || j.end < today) continue;
+        const j = rec && rec.job; if (!j || !j.end || tooLate(j, today)) continue;
         if (seenJob.has(jk)) continue; seenJob.add(jk);
         const state = rec.state || null;
         if ((state && state.s) || (opts.dismissed || {})[jk]) continue;   // answered (accepted / not suitable) -> gone
@@ -465,7 +468,7 @@ if (typeof firebase !== 'undefined') (function () {
     || (String(j.ref || '').match(/Ref\s*(\d{5}(?:\s*[-–\/]\s*\d{1,5})?)(?!\d)/) || [])[1] || '').trim();   // older jobs filed a 5-digit EVO number as Ref
   const flagsHTML = x => { const j = x.j, ev = evoOf(j);
     return (ev ? `<span class="tag evo" title="EVO order">EVO ${esc(ev)}</span>` : '') +
-      (j.mod ? `<span class="tag upd" title="EVO order modified – job updated">Updated</span>` : '') +
+      (j.mod ? `<span class="tag upd" title="${esc('EVO order modified ' + j.mod + (j.chg ? ' – ' + j.chg : ' – job updated'))}">Updated</span>` : '') +
       (j.variant ? `<span class="tag var" title="An earlier email had a different ${j.variant === 'rate' ? 'rate' : 'set of dates'} for this job">Different ${j.variant === 'rate' ? 'rate' : 'dates'}</span>` : ''); };
   const rgText = (rg, max) => rg.slice(0, max).map(r => range(r[0], r[1])).join(', ') + (rg.length > max ? ` +${rg.length - max}` : '');
   const daysBetween = (a, b) => Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 864e5);
