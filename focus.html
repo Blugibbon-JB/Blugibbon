@@ -29,7 +29,7 @@ button{font-family:inherit;cursor:pointer;color:inherit}
 .calBtn{display:flex;align-items:center;gap:8px;padding:7px 12px;background:linear-gradient(135deg,#3b82f6,#1f5ccc);border-radius:9px;color:#fff;font-size:13px;font-weight:600;box-shadow:0 4px 12px -4px rgba(31,98,214,.55)}
 .calBtn:hover{background:linear-gradient(135deg,#2f6fe0,#174aa3);color:#fff;text-decoration:none}
 .grid{flex:1;min-height:0;overflow:auto;padding:20px 24px;display:grid;gap:20px;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(340px,1fr)}
-.grid.cols{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.grid.cols{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}
 @media (max-width:900px){.grid{grid-template-columns:1fr}}
 .seg button svg{display:block}
 .card{display:flex;flex-direction:column;min-height:0;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(16,24,40,.03);background:linear-gradient(180deg,var(--t70) 0%,var(--t30) 45%,rgba(255,255,255,.6) 100%)}
@@ -51,7 +51,7 @@ button{font-family:inherit;cursor:pointer;color:inherit}
 .drow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px;margin:2px 8px;border-radius:12px}
 .jrow:hover,.drow:hover{background:#f4f6fa}
 .dim{opacity:.45}
-.jtop{display:flex;align-items:flex-start;gap:10px} .jtop>div:first-child{flex:1;min-width:0}
+.jtop{display:flex;align-items:flex-start;gap:10px} .jtop>div:not(.acts){flex:1;min-width:0}
 .site{font-weight:600;text-wrap:pretty}
 .st{font-size:11px;font-weight:800;letter-spacing:.06em;color:#8a93a3}
 .role{font-size:13px;color:#3b4252}
@@ -146,6 +146,31 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
 .mBtns .sec{border:1px solid #dde2ea;background:#fff;border-radius:9px;padding:8px 14px;font-weight:600;font-size:13px}
 .mBtns .lnk{border:0;background:none;color:#5b6475;font-size:12px;padding:0;text-decoration:underline}
 .mHint{color:#8a93a3;font-size:12px;margin-top:12px!important}
+.revCard{grid-column:1/-1}
+.grid.cols .revCard{grid-column:auto}
+.selBar{display:flex;align-items:center;gap:10px;padding:0 20px 10px;font-size:12px;color:#3b4252;flex-wrap:wrap}
+.selBar label{display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer}
+.selBar.wide{padding:12px 0 0}
+.selN{color:#8a93a3}
+.lnk2{border:0;background:none;color:#1f62d6;font-size:12px;font-weight:600;padding:0}
+.expBtn{display:flex;align-items:center;gap:6px;border:0;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;color:#fff;background:linear-gradient(135deg,#14b8a6,#0f766e);box-shadow:0 4px 12px -4px rgba(15,118,110,.55)}
+.expBtn:hover{background:linear-gradient(135deg,#0d9488,#115e59)}
+.expBtn[disabled]{background:#cfd6df;box-shadow:none;cursor:default}
+.sel{display:flex;align-items:center;padding-top:2px;cursor:pointer;flex:none}
+.sel input,.selBar input{width:16px;height:16px;accent-color:#0f766e;cursor:pointer;margin:0}
+.jrow.rev .jtop{gap:12px}
+.jrow.rev.on,.tr.on{background:#e6f4f1}
+.modal.exp{width:1040px}
+.expGrid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;margin-top:10px}
+.expOpts{display:flex;flex-direction:column;gap:10px}
+.fl{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:800;letter-spacing:.06em;color:#8a93a3;text-transform:uppercase}
+.fl input,.fl textarea{font:inherit;font-size:13px;letter-spacing:0;text-transform:none;color:#1b2230;border:1px solid #dde2ea;border-radius:10px;padding:8px 10px;font-weight:400;resize:vertical}
+.fl input{height:38px}
+.ck{display:flex;align-items:center;gap:8px;font-size:13px;color:#1b2230;cursor:pointer}
+.ck input{width:16px;height:16px;accent-color:#0f766e;margin:0}
+.expPrev{border:1px solid #e3e8ef;border-radius:12px;overflow:hidden;background:#f4f6fa;height:min(62vh,560px)}
+.expPrev iframe{width:100%;height:100%;border:0;background:#fff}
+@media (max-width:820px){.expGrid{grid-template-columns:1fr}.expPrev{height:360px}}
 .toast{position:fixed;left:24px;bottom:24px;z-index:60;display:flex;align-items:center;gap:16px;padding:12px 16px;background:#1b2230;color:#fff;border-radius:12px;font-size:13px;box-shadow:0 18px 40px -12px rgba(16,24,40,.4)}
 .toast button{border:0;background:transparent;color:#8fb4f5;font-weight:800;font-size:13px;padding:0}
 /* loading / sign-in */
@@ -199,6 +224,24 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
   <div class="mErr" id="mailErr" hidden>That doesn't look like a Gmail address. It should start with https://mail.google.com/mail/</div>
   <div class="mBtns"><button class="lnk" id="mailClear">Reset to default</button><span class="sp"></span><button class="sec" id="mailCancel">Cancel</button><button class="primary" id="mailSave" style="margin-top:0">Save and open</button></div>
   <p class="mHint">To change it later, hold Alt (Option on a Mac) and click any Email link.</p>
+</div></div>
+<div class="modalBg" id="expSet" hidden><div class="modal exp">
+  <div class="mT">Export to mailer</div>
+  <div class="expGrid">
+    <div class="expOpts">
+      <label class="fl">Heading<input id="expHead" value="Current locum opportunities"></label>
+      <label class="fl">Intro<textarea id="expIntro" rows="3">Hi there, here are some locum shifts we're currently looking to fill. If any suit you, just reply to this email or give us a call and we'll lock it in.</textarea></label>
+      <label class="fl">Sign-off<textarea id="expOutro" rows="2">Not quite right? Let us know your availability and preferences and we'll keep you in mind for what comes up next.</textarea></label>
+      <label class="ck"><input type="checkbox" id="expSite" checked> Show hospital names</label>
+      <label class="ck"><input type="checkbox" id="expRate"> Show rates</label>
+      <label class="ck"><input type="checkbox" id="expReq" checked> Show requirements</label>
+      <p class="mHint" style="margin-top:6px!important">Rates come from the job email and may be the client rate – check before sending.</p>
+    </div>
+    <div class="expPrev"><iframe id="expFrame" title="Mailer preview"></iframe></div>
+  </div>
+  <div class="mBtns"><span class="mHint" id="expMsg" style="margin:0!important"></span><span class="sp"></span>
+    <button class="sec" id="expCsv">Download CSV</button><button class="sec" id="expHtml">Download HTML</button>
+    <button class="sec" id="expClose">Close</button><button class="primary" id="expCopy" style="margin-top:0">Copy for email</button></div>
 </div></div>
 <div class="toast" id="toast" hidden><span id="toastMsg"></span><button id="toastUndo">Undo</button></div>
 <script>
@@ -259,7 +302,8 @@ const Focus = (() => {
     const freeOn = (k, d) => !isBusy(k, d) && (evBy[k] || []).some(x => (x.k === 'avail' || x.k === 'tent') && d >= x.s && d < x.e);
 
     // ---------- 1 + 2: job matches ----------
-    const jobs = [], nearJobs = [], inJob = new Set(), inNear = new Set();
+    const jobs = [], nearJobs = [], unmatched = [], inJob = new Set(), inNear = new Set();
+    const anyUm = nodes.some(({ node }) => Object.values((node && node.jobmatches) || {}).some(r => r && r.job && r.job.um));
     const seenJob = new Set();
     for (const { uid, node } of nodes) {
       for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) {
@@ -269,6 +313,7 @@ const Focus = (() => {
         if ((state && state.s) || (opts.dismissed || {})[jk]) continue;   // answered (accepted / not suitable) -> gone
         const dates = arr(j.dates).filter(d => d >= today).sort();
         if (!dates.length || dates[0] >= until) continue;          // only jobs starting inside the look-ahead window
+        if (j.um) { unmatched.push({ jk, uid, j, state, dates }); continue; }   // desk job with no doctor free -> reverse market
         const live = [], near = [];
         for (const m of arr(j.docs)) {
           const dk = key(m.k), doc = docs[dk];
@@ -288,7 +333,7 @@ const Focus = (() => {
       }
     }
     const byStart = (a, b) => (a.state ? 1 : 0) - (b.state ? 1 : 0) || a.dates[0].localeCompare(b.dates[0]);
-    jobs.sort(byStart); nearJobs.sort(byStart);
+    jobs.sort(byStart); nearJobs.sort(byStart); unmatched.sort(byStart);
 
     // ---------- 4: finishing soon, nothing next ----------
     const finishing = [], inFinish = new Set();
@@ -341,7 +386,7 @@ const Focus = (() => {
       const t = [x.ev.title, x.ev.notes].filter(v => v && !/^(available|tentative|status)$/i.test(String(v).trim())).join(' · '); if (t && !out.includes(t)) out.push(t); } return out; };
     const lastBookedFor = k => (evBy[k] || []).filter(x => x.k === 'booked' && x.e <= today).map(x => addDays(x.e, -1)).sort().pop() || '';
     const currentBookingFor = k => (evBy[k] || []).filter(x => x.k === 'booked' && x.s <= today && x.e > today).map(x => addDays(x.e, -1)).sort().pop() || '';
-    return { today, win, jobs, nearJobs, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
+    return { today, win, jobs, nearJobs, unmatched, anyUm, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
   }
   return { build, safeKey, addDays, nice, short, span, ranges, sydToday, key };
 })();
@@ -361,9 +406,10 @@ if (typeof firebase !== 'undefined') (function () {
   const N = Focus, $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} } };
-  const IDS = ['match', 'close', 'free', 'end'];
+  const ALL_IDS = ['match', 'close', 'free', 'end', 'rev'];
+  let IDS = ['match', 'close', 'free', 'end'];
   let user = null, scope = store.get('focus.scope', 'mine'), win = Number(store.get('focus.win', '28')) || 28;
-  let open = store.get('focus.open', ''); if (!IDS.includes(open)) open = null;
+  let open = store.get('focus.open', ''); if (!ALL_IDS.includes(open)) open = null;
   let data = {}, ref = null, loaded = false, V = null, q = '';
 
   // ---------- icons (Lucide) ----------
@@ -383,6 +429,7 @@ if (typeof firebase !== 'undefined') (function () {
     match: { label: 'MATCHED', tab: 'Matched', c: '#1f8a5b', t: '#e4f4ec', hint: () => 'Inbox jobs your doctors can cover', exHint: 'Inbox jobs your doctors can cover. ✓ free every day, ◐ free most days.', empty: 'Nothing waiting right now.' },
     close: { label: 'CLOSE MATCHES', tab: 'Close', c: '#6b45c9', t: '#eee8fc', hint: () => 'Worth a call – one level off or near the dates', exHint: 'Worth a call – level one step off, or free just around the dates.', empty: 'Nothing waiting right now.' },
     free: { label: 'FREE, NO JOB', tab: 'Free, no job', c: '#1f62d6', t: '#e5eefd', hint: () => `Free in the next ${win / 7} weeks with nothing booked – market them`, exHint: 'Free with nothing booked or matched. Mark as contacted to hide for 7 days.', empty: 'Everyone free is booked or matched.' },
+    rev: { label: 'REVERSE MARKET', tab: 'Reverse market', c: '#0f766e', t: '#dcf3ee', hint: () => 'Desk jobs with no doctor free – market them to candidates', exHint: 'Jobs that fit your desk but none of your doctors are free. Tick the ones to send and export them to a mailer.', empty: 'No unmatched desk jobs right now.' },
     end: { label: 'FINISHING SOON', tab: 'Finishing', c: '#c27a12', t: '#fcf0dd', hint: () => 'Bookings ending in 2 weeks with nothing lined up', exHint: 'Bookings ending in the next 2 weeks with nothing lined up after.', empty: 'No gaps coming up.' }
   };
 
@@ -493,9 +540,17 @@ if (typeof firebase !== 'undefined') (function () {
       return { kind: 'end', d, where, next, ends: day(f.last), inDays: n <= 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`,
         q: [d.name, d.level, d.spec, where, t].join(' ').toLowerCase() };
     });
-    const lists = { match, close, free, end };
-    const counts = { match: match.length, close: close.length, free: free.filter(a => !a.contacted).length, end: end.length };
-    return { F, today, lists, counts, pops };
+    const rev = F.unmatched.map(x => {
+      const j = x.j, { site, role } = shortTitle(j.title), n = x.dates.length;
+      return { kind: 'rev', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, roleFull: String(j.title || '').split(' – ').slice(1).join(' – ') || j.specialty || '',
+        st: j.state || '', n, dates: range(x.dates[0], x.dates[n - 1]), when: j.when || range(x.dates[0], x.dates[n - 1]), rate: rateShort(j.rate) || 'Rate n/a',
+        req: [j.req, j.travel].filter(Boolean).join(' · '),
+        q: [j.title, site, role, j.state, j.specialty, j.req, j.travel].join(' ').toLowerCase() };
+    });
+    const lists = { match, close, free, end, rev };
+    const counts = { match: match.length, close: close.length, free: free.filter(a => !a.contacted).length, end: end.length, rev: rev.length };
+    for (const k of [...sel]) if (!rev.some(r => r.jk === k)) sel.delete(k);   // forget ticks on jobs that have gone
+    return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0 };
   }
 
   // ---------- card rows ----------
@@ -572,7 +627,19 @@ if (typeof firebase !== 'undefined') (function () {
       <div style="min-width:0"><div class="nm">${nameLink(f.d)}${f.d.level ? ` <span class="x">· ${esc(lvShort(f.d.level))}</span>` : ''}</div>
         <div class="sub">${esc(dot(f.where, f.next))}</div></div>
       <span class="pill">Ends ${esc(f.ends)}</span></div>`;
-  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow };
+  const sel = new Set();
+  const selBox = x => `<label class="sel" title="Select for the mailer"><input type="checkbox" data-sel="${esc(x.jk)}"${sel.has(x.jk) ? ' checked' : ''}></label>`;
+  const rmBtn = (x, big) => `<button class="ib${big ? ' big' : ''}" title="Not suitable – remove" data-rmjob="${esc(x.jk)}">${I.x(18)}</button>`;
+  const revRow = x => `<div class="jrow rev${sel.has(x.jk) ? ' on' : ''}">
+      <div class="jtop">${selBox(x)}<div><div class="site">${esc(x.site)} <span class="st">${esc(x.st)}</span></div>${x.role ? `<div class="role">${esc(x.role)}</div>` : ''}</div>
+        <div class="acts">${rmBtn(x)}</div></div>
+      <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span>${addedHTML(x)}${mailHTML(x)}</div>
+      ${x.req ? `<div class="sub" title="${esc(x.req)}" style="padding-left:30px">${esc(x.req)}</div>` : ''}</div>`;
+  const selBar = (wide) => { const n = V.lists.rev.length, k = sel.size;
+    return `<div class="selBar${wide ? ' wide' : ''}"><label><input type="checkbox" data-selall${n && k === n ? ' checked' : ''}${n ? '' : ' disabled'}> Select all</label>
+      <span class="selN">${k ? `${k} selected` : 'None selected'}</span>${k ? '<button class="lnk2" data-selnone>Clear</button>' : ''}<span class="sp"></span>
+      <button class="expBtn" data-export${k ? '' : ' disabled'}>${I.mail(14)}Export to mailer${k ? ` (${k})` : ''}</button></div>`; };
+  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow, rev: revRow };
 
   // ---------- render ----------
   function render() {
@@ -581,13 +648,15 @@ if (typeof firebase !== 'undefined') (function () {
     $('meta').textContent = `${N.nice(V.today)} · ${V.F.docsCount} doctors · ${win / 7} weeks ahead`;
     const grid = $('grid'), keep = {};
     grid.querySelectorAll('.cBody').forEach(b => keep[b.dataset.id] = b.scrollTop);       // keep each card's scroll on live updates
+    IDS = V.showRev ? ALL_IDS.slice() : ALL_IDS.filter(i => i !== 'rev');
+    if (open && !IDS.includes(open)) closeEx();
     grid.innerHTML = IDS.map(id => {
       const m = META[id], list = V.lists[id];
-      return `<section class="card" style="--c:${m.c};--t70:${m.t}b3;--t30:${m.t}4d">
+      return `<section class="card${id === 'rev' ? ' revCard' : ''}" style="--c:${m.c};--t70:${m.t}b3;--t30:${m.t}4d">
         <button class="cHead" data-open="${id}" title="Open full screen">
           <div class="lrow"><span class="dot"></span><span class="lab">${m.label}</span><span class="sp"></span><span style="color:#8a93a3;display:flex">${I.max(16)}</span></div>
           <div class="crow"><span class="cnt">${V.counts[id]}</span><span class="hint">${esc(m.hint())}</span></div>
-        </button>
+        </button>${id === 'rev' ? selBar(false) : ''}
         <div class="cBody" data-id="${id}">${list.length ? list.map(ROW[id]).join('') : `<div class="empty">${m.empty}</div>`}</div>
         <button class="cFoot" data-open="${id}">View all ${list.length} full screen ${I.right(14)}</button>
       </section>`;
@@ -602,7 +671,8 @@ if (typeof firebase !== 'undefined') (function () {
   const COLS = {
     job: 'minmax(0,2fr) 130px 150px minmax(0,2.4fr) 110px',
     free: 'minmax(0,1.6fr) minmax(0,1.6fr) 60px 130px minmax(0,1.4fr) 150px',
-    end: 'minmax(0,1.4fr) minmax(0,1.4fr) 120px minmax(0,1.6fr)'
+    end: 'minmax(0,1.4fr) minmax(0,1.4fr) 120px minmax(0,1.6fr)',
+    rev: '28px minmax(0,2fr) 150px 140px minmax(0,2fr) 60px'
   };
   const exJob = x => `<div class="tr job">
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
@@ -623,6 +693,13 @@ if (typeof firebase !== 'undefined') (function () {
       <div><span class="pill">${esc(f.ends)}</span><div class="s2" style="margin-top:4px">${esc(f.inDays)}</div></div>
       <div class="c13m">${esc(f.next)}</div></div>`;
 
+  const exRev = x => `<div class="tr job${sel.has(x.jk) ? ' on' : ''}">
+      ${selBox(x)}
+      <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.roleFull ? `<div class="c13m">${esc(x.roleFull)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
+      <div class="c13">${esc(x.dates)}<div class="s2">${esc(x.when.includes('·') ? x.when.replace(/^[^·]*·\s*/, '') : x.n + ' day' + (x.n === 1 ? '' : 's'))}</div></div>
+      <div class="c13">${esc(x.rate)}<div class="s2">${esc(x.st)}</div></div>
+      <div class="c13m">${esc(x.req || '–')}</div>
+      <div class="acts">${rmBtn(x, true)}</div></div>`;
   function openEx(id) { open = id; q = ''; $('exQ').value = ''; store.set('focus.open', id); $('ex').hidden = false; renderEx(); $('exQ').focus({ preventScroll: true }); }
   function closeEx(silent) { open = null; q = ''; $('ex').hidden = true; if (!silent) store.set('focus.open', null); hidePop(); }
   function renderEx() {
@@ -631,11 +708,11 @@ if (typeof firebase !== 'undefined') (function () {
     $('ex').hidden = false;
     $('exTabs').innerHTML = IDS.map(id => `<button class="tab${id === open ? ' on' : ''}" style="--c:${META[id].c}" data-tab="${id}"><span class="dot"></span>${META[id].tab} <span class="n">${V.counts[id]}</span></button>`).join('');
     $('exTitle').innerHTML = `<div class="lrow" style="--c:${m.c}"><span class="dot"></span><span class="lab">${m.label}</span></div>
-      <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>`;
+      <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>${open === 'rev' ? selBar(true) : ''}`;
     const list = V.lists[open].filter(x => !qq || x.q.includes(qq));
     const kind = open === 'match' || open === 'close' ? 'job' : open;
-    const head = { job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'] }[kind];
-    const row = { job: exJob, free: exFree, end: exEnd }[kind];
+    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'] }[kind];
+    const row = { job: exJob, free: exFree, end: exEnd, rev: exRev }[kind];
     const tbl = $('exTbl'), st = tbl.parentNode.scrollTop;
     tbl.style.setProperty('--cols', COLS[kind]);
     tbl.innerHTML = `<div class="th">${head.map(h => `<span>${h}</span>`).join('')}</div>` +
@@ -643,7 +720,7 @@ if (typeof firebase !== 'undefined') (function () {
     tbl.parentNode.scrollTop = st;
   }
   $('exQ').addEventListener('input', e => { q = e.target.value; renderEx(); });
-  document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('mailSet').hidden) { $('mailSet').hidden = true; return; } if (open) closeEx(); });
+  document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('mailSet').hidden) { $('mailSet').hidden = true; return; } if (!$('expSet').hidden) { $('expSet').hidden = true; return; } if (open) closeEx(); });
 
   // ---------- doctor hover card ----------
   function showPop(el) {
@@ -689,6 +766,82 @@ if (typeof firebase !== 'undefined') (function () {
   $('toastUndo').onclick = () => { const u = toastUndo; clearTimeout(toastT); $('toast').hidden = true; toastUndo = null; if (u) u(); };
 
   // ---------- actions (same Firebase writes as before) ----------
+  // ---------- mailer export ----------
+  const E = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function expJobs() { return V.lists.rev.filter(r => sel.has(r.jk)); }
+  function expOpts() { return { head: $('expHead').value.trim(), intro: $('expIntro').value.trim(), outro: $('expOutro').value.trim(), site: $('expSite').checked, rate: $('expRate').checked, req: $('expReq').checked }; }
+  const siteOf = x => x.j.site || String(x.j.title || '').split(' – ')[0];
+  const where = (x, o) => o.site ? [siteOf(x), x.st].filter(Boolean).join(', ') : (x.st ? `Hospital in ${x.st}` : 'Hospital');
+  const roleOf = x => x.roleFull || x.j.specialty || 'Locum doctor';
+  function mailerHTML(jobs, o) {
+    const F = 'font-family:Arial,Helvetica,sans-serif;';
+    const block = x => `<tr><td style="padding:0 0 12px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e8ef;border-radius:10px;border-collapse:separate"><tr><td style="padding:14px 16px;${F}">
+      <div style="${F}font-size:16px;font-weight:bold;color:#1b2230;margin:0 0 2px">${E(roleOf(x))}</div>
+      <div style="${F}font-size:14px;color:#1f62d6;margin:0 0 8px">${E(where(x, o))}</div>
+      <div style="${F}font-size:14px;color:#3b4252;line-height:1.5"><b>Dates:</b> ${E(x.when)}${o.rate && x.rate !== 'Rate n/a' ? `<br><b>Rate:</b> ${E(x.j.rate || x.rate)}` : ''}${o.req && x.j.req ? `<br><b>Requirements:</b> ${E(x.j.req)}` : ''}${o.req && x.j.travel ? `<br><b>Travel &amp; accommodation:</b> ${E(x.j.travel)}` : ''}</div>
+    </td></tr></table></td></tr>`;
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto"><tr><td style="padding:8px 4px;${F}">
+      ${o.head ? `<h2 style="${F}font-size:22px;color:#1b2230;margin:0 0 10px">${E(o.head)}</h2>` : ''}
+      ${o.intro ? `<p style="${F}font-size:14px;color:#3b4252;line-height:1.5;margin:0 0 16px">${E(o.intro).replace(/\n/g, '<br>')}</p>` : ''}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${jobs.map(block).join('')}</table>
+      ${o.outro ? `<p style="${F}font-size:14px;color:#3b4252;line-height:1.5;margin:8px 0 0">${E(o.outro).replace(/\n/g, '<br>')}</p>` : ''}
+    </td></tr></table>`;
+  }
+  function mailerText(jobs, o) {
+    const lines = [o.head, '', o.intro, ''];
+    for (const x of jobs) { lines.push(`• ${roleOf(x)} – ${where(x, o)}`, `  Dates: ${x.when}`); if (o.rate && x.rate !== 'Rate n/a') lines.push(`  Rate: ${x.j.rate || x.rate}`); if (o.req && x.j.req) lines.push(`  Requirements: ${x.j.req}`); if (o.req && x.j.travel) lines.push(`  Travel & accommodation: ${x.j.travel}`); lines.push(''); }
+    lines.push(o.outro); return lines.filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n').trim();
+  }
+  function expPreview() {
+    const f = $('expFrame'), jobs = expJobs(), o = expOpts();
+    f.srcdoc = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:16px;background:#fff">${mailerHTML(jobs, o)}</body></html>`;
+    $('expMsg').textContent = `${jobs.length} job${jobs.length === 1 ? '' : 's'}`;
+  }
+  function openExport() { if (!sel.size) return; $('expSet').hidden = false; expPreview(); }
+  ['expHead', 'expIntro', 'expOutro', 'expSite', 'expRate', 'expReq'].forEach(id => $(id).addEventListener('input', expPreview));
+  ['expSite', 'expRate', 'expReq'].forEach(id => $(id).addEventListener('change', expPreview));
+  $('expClose').onclick = () => { $('expSet').hidden = true; };
+  function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+  const stamp = () => N.sydToday();
+  $('expHtml').onclick = () => download(`reverse-market-${stamp()}.html`, `<!doctype html><html><head><meta charset="utf-8"><title>${E(expOpts().head)}</title></head><body style="margin:0;padding:16px">${mailerHTML(expJobs(), expOpts())}</body></html>`, 'text/html');
+  $('expCsv').onclick = () => {
+    const o = expOpts(), q = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    const rows = [['Role', 'Hospital', 'State', 'Dates', 'Rate', 'Requirements', 'Travel & accommodation']].concat(expJobs().map(x => [roleOf(x), o.site ? siteOf(x) : '', x.st, x.when, o.rate ? (x.j.rate || '') : '', x.j.req || '', x.j.travel || '']));
+    download(`reverse-market-${stamp()}.csv`, rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
+  };
+  $('expCopy').onclick = async () => {
+    const jobs = expJobs(), o = expOpts(), html = mailerHTML(jobs, o), text = mailerText(jobs, o);
+    let ok = false;
+    try { if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) { await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })]); ok = true; } } catch (e) {}
+    if (!ok) {   // fallback (e.g. inside the ClickUp embed): copy the rendered preview
+      const d = document.createElement('div'); d.contentEditable = 'true'; d.style.cssText = 'position:fixed;left:-9999px;top:0'; d.innerHTML = html; document.body.appendChild(d);
+      const r = document.createRange(); r.selectNodeContents(d); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      try { ok = document.execCommand('copy'); } catch (e) {} s.removeAllRanges(); d.remove();
+    }
+    $('expMsg').textContent = ok ? 'Copied – paste it straight into your email' : 'Copy was blocked here – use Download HTML instead';
+  };
+
+  function findRev(jk) { return V && V.lists.rev.find(y => y.jk === jk); }
+  function removeRev(jk) {
+    const x = findRev(jk); if (!x) return;
+    hiddenNow.add(jk); sel.delete(jk); render();
+    const rec = { s: 'removed', by: user.email, at: new Date().toISOString() };
+    const p = (async () => {
+      try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).set(rec); } catch (e) { console.warn(e); }
+      try { await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).set(rec); } catch (e) { /* view only */ }
+    })();
+    toast(`${x.site} removed from reverse market`, async () => {
+      await p;
+      try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).remove(); } catch (e) {}
+      try { await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).remove(); } catch (e) {}
+      hiddenNow.delete(jk); render();
+    });
+  }
+  document.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.sel != null) { if (t.checked) sel.add(t.dataset.sel); else sel.delete(t.dataset.sel); render(); }
+    else if (t.dataset.selall != null) { if (t.checked) V.lists.rev.forEach(r => sel.add(r.jk)); else sel.clear(); render(); }
+  });
   function findJob(jk) { for (const id of ['match', 'close']) { const x = V.lists[id].find(y => y.jk === jk); if (x) return x; } return null; }
   function answer(jk, act) {
     const x = findJob(jk); if (!x) return;
@@ -727,7 +880,10 @@ if (typeof firebase !== 'undefined') (function () {
     if (on) toast(`${name} marked contacted`, () => setContacted(k, false));
   }
   document.addEventListener('click', e => {
-    const t = e.target.closest('[data-rm],[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
+    const t = e.target.closest('[data-rmjob],[data-export],[data-selnone],[data-rm],[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
+    if (t.dataset.rmjob) { removeRev(t.dataset.rmjob); return; }
+    if (t.dataset.export != null) { openExport(); return; }
+    if (t.dataset.selnone != null) { sel.clear(); render(); return; }
     if (t.dataset.rm) { e.preventDefault(); hidePop(); removeDoc(t.dataset.jk, t.dataset.rm, t.dataset.uid, t.dataset.nm, t.dataset.site); }
     else if (t.dataset.act) answer(t.dataset.jk, t.dataset.act);
     else if (t.dataset.contact != null) { const a = V && V.lists.free.find(y => y.a.k === t.dataset.contact); setContacted(t.dataset.contact, !t.dataset.on, a ? a.d.name : 'Doctor'); }
