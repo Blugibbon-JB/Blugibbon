@@ -119,6 +119,12 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
 .exHead .cnt{font-size:52px}
 .exHint{font-size:15px;color:#5b6475;text-wrap:pretty}
 .flt{display:flex;align-items:center;gap:8px;border:1px solid #dde2ea;border-radius:10px;background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:0 12px;height:40px;width:300px;max-width:100%;color:#8a93a3}
+.flt.gq{width:340px;height:36px}
+.flt.gq.on{border-color:#1f62d6;box-shadow:0 0 0 3px rgba(31,98,214,.12)}
+.gqX{border:0;background:#eef1f6;color:#5b6475;border-radius:999px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;padding:0;font-size:13px;line-height:1}
+.srchCard{grid-column:1/-1}
+.grid.cols .srchCard{grid-column:auto}
+mark{background:#fff3b0;color:inherit;border-radius:3px;padding:0 1px}
 .flt input{flex:1;border:0;outline:0;background:transparent;font:inherit;font-size:13px;color:#1b2230;min-width:0}
 .exBody{flex:1;min-height:0;overflow:auto;padding:0 24px 32px}
 .tbl{background:#fff;border:1px solid rgba(16,24,40,.06);border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04),0 12px 32px -14px rgba(16,24,40,.14);min-width:860px}
@@ -208,6 +214,11 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
   <header class="hd" id="hdr" hidden>
     <div class="brand"><span class="bg">BLUGIBBON</span><span class="df">Doctor focus</span></div>
     <span class="meta" id="meta"></span>
+    <label class="flt gq" id="gqBox" title="Search everything on this screen – press / to jump here">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="gq" placeholder="Search doctor, site, level, location…" autocomplete="off" spellcheck="false">
+      <button class="gqX" id="gqX" title="Clear search" hidden>×</button>
+    </label>
     <span class="sp"></span>
     <div class="seg" id="winSeg" title="How far ahead to look"><button data-w="14">2 wks</button><button data-w="28">4 wks</button><button data-w="56">8 wks</button></div>
     <div class="seg" id="layoutSeg" title="Card layout"><button data-l="grid" title="2 × 2 grid"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></button><button data-l="cols" title="4 columns"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="4" height="18" x="2" y="3" rx="1"/><rect width="4" height="18" x="7.33" y="3" rx="1"/><rect width="4" height="18" x="12.67" y="3" rx="1"/><rect width="4" height="18" x="18" y="3" rx="1"/></svg></button></div>
@@ -434,6 +445,7 @@ if (typeof firebase !== 'undefined') (function () {
   let IDS = ['match', 'close', 'free', 'end'];
   let user = null, scope = store.get('focus.scope', 'mine'), win = Number(store.get('focus.win', '28')) || 28;
   let updWin = store.get('focus.updWin', 'last') === 'today' ? 'today' : 'last';
+  let gq = '';   // master search (header)
   let open = store.get('focus.open', ''); if (!ALL_IDS.includes(open)) open = null;
   let data = {}, ref = null, loaded = false, V = null, q = '';
 
@@ -455,6 +467,7 @@ if (typeof firebase !== 'undefined') (function () {
     close: { label: 'CLOSE MATCHES', tab: 'Close', c: '#6b45c9', t: '#eee8fc', hint: () => 'Worth a call – one level off or near the dates', exHint: 'Worth a call – level one step off, or free just around the dates.', empty: 'Nothing waiting right now.' },
     free: { label: 'FREE, NO JOB', tab: 'Free, no job', c: '#1f62d6', t: '#e5eefd', hint: () => `Free in the next ${win / 7} weeks with nothing booked – market them`, exHint: 'Free with nothing booked or matched. Mark as contacted to hide for 7 days.', empty: 'Everyone free is booked or matched.' },
     rev: { label: 'REVERSE MARKET', tab: 'Reverse market', c: '#0f766e', t: '#dcf3ee', hint: () => 'Desk jobs with no doctor free (any date) – market them to candidates', exHint: 'Jobs that fit your desk but none of your doctors are free – shown whatever the start date. "Could suit" lists doctors who fit the job but have no availability logged for those dates. Tick jobs to export them to a mailer.', empty: 'No unmatched desk jobs right now.' },
+    srch: { label: 'SEARCH – DOCTORS', tab: 'Search', c: '#1b2230', t: '#eef1f6', hint: () => (V && V.srchHint) || '', exHint: 'Every doctor on the calendar matching your search (name, level, specialty, preferences, where they want to work, tags, notes) – whether or not they are in another card. The other cards are filtered by the same search.', empty: 'No doctors match.' },
     upd: { label: 'UPDATES', tab: 'Updates', c: '#475467', t: '#eceff3', hint: () => (V && V.updHint) || 'What the last update changed', exHint: 'What changed: new, updated and removed jobs, and doctors whose availability, bookings, away dates or status changed. "Last update" = the most recent update that changed something; "Today" = every update since midnight. Updates run every 30 min, 8:30–5:30 weekdays.', empty: 'Nothing has changed yet.' },
     end: { label: 'FINISHING SOON', tab: 'Finishing', c: '#c27a12', t: '#fcf0dd', hint: () => 'Bookings ending in 2 weeks with nothing lined up', exHint: 'Bookings ending in the next 2 weeks with nothing lined up after.', empty: 'No gaps coming up.' }
   };
@@ -569,33 +582,59 @@ if (typeof firebase !== 'undefined') (function () {
       });
       return { kind: near ? 'close' : 'match', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, st: j.state || '', n,
         dates: compactDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a', chips,
-        q: [j.title, site, role, j.state, rateShort(j.rate), j.ref, j.evo, ...docs.map(r => r.name + ' ' + (r.why || ''))].join(' ').toLowerCase() };
+        q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo, ...docs.map(r => r.name + ' ' + lvWords(r.level) + ' ' + (r.why || ''))].join(' ').toLowerCase() };
     };
     const match = F.jobs.filter(x => !x.state).map(x => jobVM(x, false));
     const close = F.nearJobs.filter(x => !x.state).map(x => jobVM(x, true));
     const free = F.avail.map(a => ({ kind: 'free', a, d: a.doc, ranges: rgText(a.rg, 2), rangesLong: rgText(a.rg, 4), days: a.days.length,
       tent: a.tent, notes: a.notes.join(' / '), last: a.lastBooked ? 'Last booked ' + day(a.lastBooked) : 'Never booked', lastShort: a.lastBooked ? day(a.lastBooked) : 'Never',
-      contacted: a.contacted, q: [a.doc.name, a.doc.level, a.doc.spec, a.notes.join(' ')].join(' ').toLowerCase() }));
+      contacted: a.contacted, q: [a.doc.name, lvWords(a.doc.level), a.doc.spec, a.doc.specAll, a.doc.prefs, a.doc.base, (a.doc.tags || []).join(' '), a.notes.join(' ')].join(' ').toLowerCase() }));
     const end = F.finishing.map(f => {
       const d = f.doc, b = f.b.ev, t = String(b.title || '').trim();
       const where = shortTitle(b.location ? b.location + ' – ' : (t && !/^(booked|booking.*|timesheet)$/i.test(t) ? t : '')).site;
       const next = f.afterRanges.length ? 'Free after ' + f.afterRanges.map(r => range(r[0], r[1])).join(', ') : 'No availability logged after';
       const n = daysBetween(today, f.last);
       return { kind: 'end', d, where, next, ends: day(f.last), inDays: n <= 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`,
-        q: [d.name, d.level, d.spec, where, t].join(' ').toLowerCase() };
+        q: [d.name, lvWords(d.level), d.spec, d.specAll, d.base, where, t, b.location].join(' ').toLowerCase() };
     });
     const rev = F.unmatched.map(x => {
       const j = x.j, { site, role } = shortTitle(j.title), n = x.dates.length;
       return { kind: 'rev', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, roleFull: String(j.title || '').split(' – ').slice(1).join(' – ') || j.specialty || '',
         st: j.state || '', n, dates: compactDates(x.dates), when: longDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a',
         req: [j.req, j.travel].filter(Boolean).join(' · '), fit: arr(j.fit),
-        q: [j.title, site, role, j.state, j.specialty, j.req, j.travel, j.ref, j.evo, ...arr(j.fit).map(f => f.name)].join(' ').toLowerCase() };
+        q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), j.req, j.travel, j.ref, j.evo, ...arr(j.fit).map(f => f.name)].join(' ').toLowerCase() };
     });
     const U = updatesVM(today);
-    const lists = { match, close, free, end, rev, upd: U.rows };
-    const counts = { match: match.length, close: close.length, free: free.filter(a => !a.contacted).length, end: end.length, rev: rev.length, upd: U.rows.length };
     for (const k of [...sel]) if (!rev.some(r => r.jk === k)) sel.delete(k);   // forget ticks on jobs that have gone
-    return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0, updHint: U.hint };
+    const lists = { match, close, free, end, rev, upd: U.rows };
+    const T = gTerms(); let srchHint = '';
+    if (T.length) {
+      for (const id of Object.keys(lists)) lists[id] = lists[id].filter(x => gHit(x.q || '', T));
+      lists.srch = searchDocs(F, T);
+      const tot = Object.values(lists).reduce((n, l) => n + l.length, 0) - lists.srch.length;
+      srchHint = `${lists.srch.length} doctor${lists.srch.length === 1 ? '' : 's'} match “${gq.trim()}” · ${tot} item${tot === 1 ? '' : 's'} in the other cards`;
+    }
+    const counts = { match: lists.match.length, close: lists.close.length, free: lists.free.filter(a => !a.contacted).length, end: lists.end.length, rev: lists.rev.length, upd: lists.upd.length, srch: (lists.srch || []).length };
+    return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0, updHint: U.hint, srchHint, searching: T.length > 0 };
+  }
+
+  // ---------- master search ----------
+  const LV_WORDS = { junior: 'junior rmo jmo hmo intern resident', senior: 'senior srmo smo cmo pho', registrar: 'registrar reg', 'training registrar': 'training registrar reg trainee', specialist: 'specialist consultant vmo staff specialist', consultant: 'consultant specialist vmo' };
+  const lvWords = l => { const k = String(l || '').trim().toLowerCase(); return k + ' ' + (LV_WORDS[k] || ''); };
+  const gTerms = () => gq.toLowerCase().split(/\s+/).filter(Boolean);
+  const gHit = (q, T) => T.every(t => q.includes(t));
+  function searchDocs(F, T) {
+    const out = [];
+    for (const d of Object.values(F.docs)) {
+      if (d.hidden) continue;
+      const notes = F.notesFor(d.k);
+      const qq = [d.name, lvWords(d.level), d.spec, d.specAll, d.prefs, d.base, d.pgy, (d.tags || []).join(' '), notes.join(' ')].join(' ').toLowerCase();
+      if (!gHit(qq, T)) continue;
+      const rg = N.ranges(F.freeDaysFor(d.k)), cur = F.currentBookingFor(d.k), last = F.lastBookedFor(d.k);
+      out.push({ kind: 'srch', d, free: rg.length ? 'Free ' + rgText(rg, 3) : 'No availability in window', freeShort: rg.length ? 'Free ' + rgText(rg, 2) : 'No availability', days: rg.reduce((n, r) => n + daysBetween(r[0], r[1]) + 1, 0),
+        book: cur ? 'Booked to ' + day(cur) : last ? 'Last booked ' + day(last) : 'Never booked', notes: notes.slice(0, 2).join(' / '), q: qq });
+    }
+    return out.sort((a, b) => (b.days ? 1 : 0) - (a.days ? 1 : 0) || a.d.name.localeCompare(b.d.name)).slice(0, 300);
   }
 
   // ---------- Updates tile: change log written by the Make scenario (users/{uid}/focus/changes/{ms}) ----------
@@ -752,26 +791,32 @@ if (typeof firebase !== 'undefined') (function () {
     return `<div class="selBar${wide ? ' wide' : ''}"><label><input type="checkbox" data-selall${n && k === n ? ' checked' : ''}${n ? '' : ' disabled'}> Select all</label>
       <span class="selN">${k ? `${k} selected` : 'None selected'}</span>${k ? '<button class="lnk2" data-selnone>Clear</button>' : ''}<span class="sp"></span>
       <button class="expBtn" data-export${k ? '' : ' disabled'}>${I.mail(14)}Export to mailer${k ? ` (${k})` : ''}</button></div>`; };
-  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow, rev: revRow, upd: updRow };
+  const srchRow = x => `<div class="drow">
+      <div style="min-width:0"><div class="nm">${nameLink(x.d)} <span class="x">· ${esc(dot(lvShort(x.d.level), x.d.spec))}</span></div>
+        <div class="sub" title="${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.free, x.book, x.notes))}">${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.freeShort, x.book))}</div></div>
+      <span class="lb">${x.days ? x.days + 'd free' : ''}</span></div>`;
+  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow, rev: revRow, upd: updRow, srch: srchRow };
 
   // ---------- render ----------
   function render() {
     if (!user || !loaded) return;
     V = build();
     $('meta').textContent = `${N.nice(V.today)} · ${V.F.docsCount} doctors · ${win / 7} weeks ahead`;
+    $('gqBox').classList.toggle('on', V.searching); $('gqX').hidden = !V.searching;
     const grid = $('grid'), keep = {};
     grid.querySelectorAll('.cBody').forEach(b => keep[b.dataset.id] = b.scrollTop);       // keep each card's scroll on live updates
     IDS = V.showRev ? ALL_IDS.slice() : ALL_IDS.filter(i => i !== 'rev');
+    if (V.searching) IDS = ['srch', ...IDS.filter(id => V.lists[id].length)];   // searching: doctor results first, then only the cards with a hit
     if (open && !IDS.includes(open)) closeEx();
     grid.classList.toggle('withUpd', IDS.includes('rev') && IDS.includes('upd'));
     grid.innerHTML = IDS.map(id => {
       const m = META[id], list = V.lists[id];
-      return `<section class="card${id === 'rev' ? ' revCard' : ''}" style="--c:${m.c};--t70:${m.t}b3;--t30:${m.t}4d">
+      return `<section class="card${id === 'rev' ? ' revCard' : id === 'srch' ? ' srchCard' : ''}" style="--c:${m.c};--t70:${m.t}b3;--t30:${m.t}4d">
         <button class="cHead" data-open="${id}" title="Open full screen">
           <div class="lrow"><span class="dot"></span><span class="lab">${m.label}</span><span class="sp"></span><span style="color:#8a93a3;display:flex">${I.max(16)}</span></div>
           <div class="crow"><span class="cnt">${V.counts[id]}</span><span class="hint">${esc(m.hint())}</span></div>
         </button>${id === 'rev' ? selBar(false) : id === 'upd' ? updBar(false) : ''}
-        <div class="cBody" data-id="${id}">${list.length ? list.map(ROW[id]).join('') : `<div class="empty">${m.empty}</div>`}</div>
+        <div class="cBody" data-id="${id}">${list.length ? list.map(ROW[id]).join('') : `<div class="empty">${V.searching ? 'Nothing matches “' + esc(gq.trim()) + '”.' : m.empty}</div>`}</div>
         <button class="cFoot" data-open="${id}">View all ${list.length} full screen ${I.right(14)}</button>
       </section>`;
     }).join('');
@@ -787,7 +832,8 @@ if (typeof firebase !== 'undefined') (function () {
     free: 'minmax(0,1.6fr) minmax(0,1.6fr) 60px 130px minmax(0,1.4fr) 150px',
     end: 'minmax(0,1.4fr) minmax(0,1.4fr) 120px minmax(0,1.6fr)',
     rev: '28px minmax(0,2fr) 150px 140px minmax(0,2fr) 60px',
-    upd: '80px 120px minmax(0,1.4fr) minmax(0,2.4fr)'
+    upd: '80px 120px minmax(0,1.4fr) minmax(0,2.4fr)',
+    srch: 'minmax(0,1.4fr) minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.6fr) 150px'
   };
   const exJob = x => `<div class="tr job">
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
@@ -826,8 +872,14 @@ if (typeof firebase !== 'undefined') (function () {
       <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>${open === 'rev' ? selBar(true) : open === 'upd' ? updBar(true) : ''}`;
     const list = V.lists[open].filter(x => !qq || x.q.includes(qq));
     const kind = open === 'match' || open === 'close' ? 'job' : open;
-    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'], upd: ['TIME', 'TYPE', 'JOB / DOCTOR', 'WHAT CHANGED'] }[kind];
-    const row = { job: exJob, free: exFree, end: exEnd, rev: exRev, upd: exUpd }[kind];
+    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'], upd: ['TIME', 'TYPE', 'JOB / DOCTOR', 'WHAT CHANGED'], srch: ['DOCTOR', 'LEVEL · SPECIALTY', 'WANTS TO WORK', 'AVAILABILITY', 'BOOKING'] }[kind];
+    const exSrch = x => `<div class="tr">
+      <div style="min-width:0"><div class="site">${nameLink(x.d)}</div>${x.d.pgy ? `<div class="c13m">${esc(x.d.pgy)}</div>` : ''}</div>
+      <div class="c13m">${esc(dot(x.d.level, x.d.specAll || x.d.spec))}${x.d.prefs ? `<div class="s2">${esc(x.d.prefs)}</div>` : ''}</div>
+      <div class="c13m">${esc(x.d.base || '–')}</div>
+      <div class="c13">${esc(x.free)}${x.notes ? `<div class="s2">${esc(x.notes)}</div>` : ''}</div>
+      <div class="c13m">${esc(x.book)}</div></div>`;
+    const row = { job: exJob, free: exFree, end: exEnd, rev: exRev, upd: exUpd, srch: exSrch }[kind];
     const tbl = $('exTbl'), st = tbl.parentNode.scrollTop;
     tbl.style.setProperty('--cols', COLS[kind]);
     tbl.innerHTML = `<div class="th">${head.map(h => `<span>${h}</span>`).join('')}</div>` +
@@ -835,6 +887,11 @@ if (typeof firebase !== 'undefined') (function () {
     tbl.parentNode.scrollTop = st;
   }
   $('exQ').addEventListener('input', e => { q = e.target.value; renderEx(); });
+  let gqT = 0;
+  $('gq').addEventListener('input', e => { clearTimeout(gqT); gqT = setTimeout(() => { gq = e.target.value; render(); }, 120); });
+  $('gqX').addEventListener('click', e => { e.preventDefault(); gq = ''; $('gq').value = ''; render(); $('gq').focus(); });
+  $('gq').addEventListener('keydown', e => { if (e.key === 'Escape' && gq) { e.stopPropagation(); gq = ''; e.target.value = ''; render(); } });
+  document.addEventListener('keydown', e => { if (e.key === '/' && !/^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '') && $('ex').hidden) { e.preventDefault(); $('gq').focus(); } });
   document.addEventListener('click', e => { const t = e.target.closest('[data-updwin]'); if (!t) return; e.preventDefault(); e.stopPropagation(); updWin = t.dataset.updwin; store.set('focus.updWin', updWin); render(); }, true);
   document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('mailSet').hidden) { $('mailSet').hidden = true; return; } if (!$('expSet').hidden) { $('expSet').hidden = true; return; } if (open) closeEx(); });
 
