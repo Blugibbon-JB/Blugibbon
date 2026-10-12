@@ -4056,6 +4056,13 @@ function bgFindStates(text){
   for(const [re, s] of BG_STATE_WORDS) if(re.test(t)) out.push(s);
   return BG_STATES.filter(s => out.includes(s));
 }
+// "Where they want to work" text -> states. "ALL" / "National" = every state.
+function bgPlaceStates(text){
+  const t = String(text || "");
+  if(/\b(all|national|anywhere|any state)\b/i.test(t)) return BG_STATES.slice();
+  return bgFindStates(t.replace(/melbounre/ig, "Melbourne"));
+}
+function bgDoctorStates(d){ return d ? bgPlaceStates([bgArr(d.work_states).join(", "), d.where].filter(Boolean).join(", ")) : []; }
 function bgNorm(s){ return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
 function bgFindSites(text){
   const t = bgNorm(text); if(t.length < 4) return [];
@@ -4116,16 +4123,18 @@ function bgBlockFormValues(p, d){
   const status = p.status || "Available";
   const avail = BG_AVAIL_STATUSES.has(status);
   const profileSpec = bgDoctorDesired(d);
+  const profileStates = bgDoctorStates(d);
   if(bgIsV2(p)){
     const sites = bgArr(p.site_ids); if(!sites.length && p.site_id) sites.push(String(p.site_id));
     const req = String(p.requirements != null ? p.requirements : "");
     const n = String(p.notes || "");
     return { spec: bgArr(p.desired_specialties), states: bgArr(p.states), sites, req,
       legacyNotes: (n.trim() && n.trim() !== req.trim()) ? n : "",          // earlier v2 saves mirrored requirements into notes
-      label: (p.title && p.title !== status) ? p.title : "", legacyLoc: (!avail && !sites.length) ? String(p.location || "") : "", migrated: false, profileSpec };
+      label: (p.title && p.title !== status) ? p.title : "", legacyLoc: (!avail && !sites.length) ? String(p.location || "") : "", migrated: false, profileSpec, profileStates };
   }
   if(p.mode === "create" || p.mode === "add"){
-    return { spec: profileSpec.slice(), states: [], sites: [], req: "", legacyNotes: "", label: "", legacyLoc: "", migrated: false, profileSpec, fromProfile: profileSpec.length > 0 };
+    return { spec: profileSpec.slice(), states: profileStates.slice(), sites: [], req: "", legacyNotes: "", label: "", legacyLoc: "", migrated: false, profileSpec, profileStates,
+      fromProfile: profileSpec.length > 0, statesFromProfile: profileStates.length > 0 };
   }
   const title = String(p.title || "").trim(), loc = String(p.location || "").trim(), notes = String(p.notes || "").trim();
   const customTitle = !!title && title.toLowerCase() !== status.toLowerCase() && !/^(available|tentative|booked|booking.*|away|unavailable|holiday|sick|status)$/i.test(title);
@@ -4134,10 +4143,11 @@ function bgBlockFormValues(p, d){
   if(p.placement_data && p.placement_data.site_id) sites.push(String(p.placement_data.site_id));
   const locSites = bgFindSites(loc); sites.push(...locSites);
   if(avail && customTitle) sites.push(...bgFindSites(title));
-  const out = { spec: [], states: [], sites: bgUniq(sites), req: "", legacyNotes: notes, label: "", legacyLoc: "", migrated: false, profileSpec };
+  const out = { spec: [], states: [], sites: bgUniq(sites), req: "", legacyNotes: notes, label: "", legacyLoc: "", migrated: false, profileSpec, profileStates };
   const req = [];
   if(avail){
     out.states = bgFindStates([title, loc, notes].join("\n"));
+    if(!out.states.length && profileStates.length){ out.states = profileStates.slice(); out.statesFromProfile = true; }
     out.spec = bgFindSpecialities([title, loc, notes].join("\n"));
     if(!out.spec.length && profileSpec.length){ out.spec = profileSpec.slice(); out.fromProfile = true; }
     if(customTitle) req.push(title);
@@ -4149,7 +4159,7 @@ function bgBlockFormValues(p, d){
     out.legacyLoc = loc;           // booked/away: keep the old 'where' text on the block
   }
   out.req = req.join("\n");
-  out.migrated = avail && !!(customTitle || loc || out.states.length || (out.spec.length && !out.fromProfile));
+  out.migrated = avail && !!(customTitle || loc || (out.states.length && !out.statesFromProfile) || (out.spec.length && !out.fromProfile));
   return out;
 }
 
@@ -9639,6 +9649,9 @@ function openEventEditor(payload){
     <div class="field full bg-avail-only">
       <label>State(s) they'll work in</label>
       <div id="evStatePick"></div>
+      <div class="hint bgms-hint">Defaults to the doctor profile's states – add or remove for this block only.
+        ${__fv.profileStates.length ? `Profile: ${esc(__fv.profileStates.join(", "))} – <a href="#" id="evStatesFromProfile">reset to profile</a>` : `No states on the doctor profile yet.`}
+        ${__fv.statesFromProfile ? `<span class="bg-prefilled">pre-filled from profile</span>` : ``}</div>
     </div>
     <div class="field full">
       <label><span class="bg-avail-only-inline">Specific site(s) <span class="bg-optional">optional – only if they want particular sites</span></span><span class="bg-other-only-inline">Site(s) <span class="bg-optional">first site is used for the ClickUp order</span></span></label>
@@ -9764,6 +9777,8 @@ function openEventEditor(payload){
   }));
   const __fromProfile = document.getElementById("evSpecFromProfile");
   if(__fromProfile) __fromProfile.addEventListener("click", ev => { ev.preventDefault(); specPick.set(__fv.profileSpec); });
+  const __statesFromProfile = document.getElementById("evStatesFromProfile");
+  if(__statesFromProfile) __statesFromProfile.addEventListener("click", ev => { ev.preventDefault(); statePick.set(__fv.profileStates); });
   __applyStatusMode();
   __sync();
 
@@ -10429,6 +10444,8 @@ function openDoctorEditor(existing){
   const __specSel = BG_SPECIALITY_OPTIONS.find(o => o.toLowerCase() === __specRaw.toLowerCase()) || bgMapSpeciality(__specRaw)[0] || "";
   const __specUnmapped = (__specRaw && !__specSel) ? __specRaw : "";
   const __prefsLeft = String(existing?.prefs || "").split(/[,;•|\n]+/).map(s => s.trim()).filter(p => p && !bgFindSpecialities(p).length).join(", ");
+  const __whereLeft = String(existing?.where || "").split(/[,;•|/\n]+/).map(s => s.trim()).filter(p => p && (!bgPlaceStates(p).length || /[a-z]{3,}/i.test(p.replace(/\b(NSW|VIC|QLD|WA|SA|TAS|NT|ACT|all|national|anywhere|new south wales|victoria|queensland|western australia|south australia|tasmania|northern territory|sydney|melbourne|melbounre|brisbane|perth|adelaide|hobart|darwin|canberra|alice springs)\b/ig, "")))).join(", ");
+  const __whereLegacy = [existing?.where_legacy, __whereLeft].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(", ");
   const __prefsLegacy = [existing?.prefs_legacy, __prefsLeft].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(", ");
 
   modalBody.innerHTML = `
@@ -10449,21 +10466,6 @@ function openDoctorEditor(existing){
         value="${esc(existing?.clickup_url || "")}"
         placeholder="https://app.clickup.com/t/xxxxxxxx"
       />
-    </div>
-    <div class="field full">
-      <label>Desired specialities</label>
-      <div id="docDesiredPick"></div>
-      <div class="hint bgms-hint">Same list as <b>Desired Specialities/ Department</b> in ClickUp. Used as the default on every new availability block.${existing?.source === 'clickup' ? ' This doctor syncs from ClickUp, so a change in ClickUp will overwrite this.' : ''}</div>
-      <input type="hidden" id="docPrefs" value="${esc(existing?.prefs || "")}"/>
-    </div>
-    ${__prefsLegacy ? `
-    <div class="field full">
-      <label>Preferences (legacy) <span class="bg-optional">read only – old free-text preferences</span></label>
-      <textarea class="bg-legacy-notes" rows="2" readonly tabindex="-1">${esc(__prefsLegacy)}</textarea>
-    </div>` : ``}
-    <div class="field full">
-      <label>Where they want to work (optional)</label>
-      <input id="docWhere" value="${esc(existing?.where || "")}" placeholder="e.g., NSW rural • WA Pilbara • coastal"/>
     </div>
     <div class="field">
       <label>Speciality</label>
@@ -10487,6 +10489,28 @@ function openDoctorEditor(existing){
         <option value="Specialist">Specialist</option>
       </select>
     </div>
+    <div class="field full">
+      <label>Desired specialities</label>
+      <div id="docDesiredPick"></div>
+      <div class="hint bgms-hint">Same list as <b>Desired Specialities/ Department</b> in ClickUp. Used as the default on every new availability block.${existing?.source === 'clickup' ? ' This doctor syncs from ClickUp, so a change in ClickUp will overwrite this.' : ''}</div>
+      <input type="hidden" id="docPrefs" value="${esc(existing?.prefs || "")}"/>
+    </div>
+    ${__prefsLegacy ? `
+    <div class="field full">
+      <label>Preferences (legacy) <span class="bg-optional">read only – old free-text preferences</span></label>
+      <textarea class="bg-legacy-notes" rows="2" readonly tabindex="-1">${esc(__prefsLegacy)}</textarea>
+    </div>` : ``}
+    <div class="field full">
+      <label>State(s) they'll work in</label>
+      <div id="docStatePick"></div>
+      <div class="hint bgms-hint">Used as the default on every new availability block (can be changed per block).${existing?.source === 'clickup' ? ' Synced from ClickUp <b>📍 Preferred Location</b> – a change in ClickUp will overwrite this.' : ''}</div>
+      <input type="hidden" id="docWhere" value="${esc(existing?.where || "")}"/>
+    </div>
+    ${__whereLegacy ? `
+    <div class="field full">
+      <label>Where (legacy) <span class="bg-optional">read only – old free text</span></label>
+      <textarea class="bg-legacy-notes" rows="2" readonly tabindex="-1">${esc(__whereLegacy)}</textarea>
+    </div>` : ``}
     <div class="field full">
       <label>Tags (comma separated)</label>
       <input id="docTags" value="${esc((existing?.tags || []).join(", "))}" placeholder="e.g., ED, GP, Rural Gen, NSW, WA"/>
@@ -10522,7 +10546,13 @@ function openDoctorEditor(existing){
     const add = bgFindSpecialities(__docSpecEl.value);
     if(add.length) __docPick.set([...__docPick.get(), ...add]);
   });
-  const __docExtra = () => ({ desired_specialties: __docPick.get(), prefs_legacy: __prefsLegacy || "" });
+  const __docWhereEl = document.getElementById("docWhere");
+  const __docStatePick = bgMultiPick(document.getElementById("docStatePick"), {
+    options: BG_STATES, selected: bgDoctorStates(existing || {}), allButton: "All states", emptyText: "none selected",
+    onChange: sel => { __docWhereEl.value = sel.join(", "); }
+  });
+  __docWhereEl.value = __docStatePick.get().join(", ");
+  const __docExtra = () => ({ desired_specialties: __docPick.get(), prefs_legacy: __prefsLegacy || "", work_states: __docStatePick.get(), where_legacy: __whereLegacy || "" });
 
   // ClickUp-synced doctor: lock only the Med Reg # (it's what links this doctor to ClickUp)
   if(isEdit && existing?.source === 'clickup'){
