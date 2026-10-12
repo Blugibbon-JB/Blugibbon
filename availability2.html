@@ -4043,7 +4043,8 @@ function bgNormaliseDoctors(list){
       const m = bgMapSpeciality(sp);
       if(m.length){ d.specialty_legacy = d.specialty_legacy || sp; d.specialty = m[0]; changed = true; }
     }
-    if(!String(d.prefs || "").trim()){
+    // ClickUp-synced doctors: ClickUp owns prefs (the sync would just overwrite it again); the default is worked out when it's used
+    if(d.source !== "clickup" && !String(d.prefs || "").trim()){
       const des = bgFindSpecialities(d.specialty_legacy || d.specialty);
       if(des.length){ d.prefs = des.join(", "); changed = true; }
     }
@@ -10484,9 +10485,7 @@ function openDoctorEditor(existing){
     <div class="field">
       <label>Level</label>
       <select id="docLevel">
-        <option value="Junior">Junior</option>
-        <option value="Senior">Senior</option>
-        <option value="Specialist">Specialist</option>
+        ${["Junior","Senior","Registrar","Training Registrar","Specialist","Consultant","Director"].concat(existing?.level && !["Junior","Senior","Registrar","Training Registrar","Specialist","Consultant","Director"].some(x => x.toLowerCase() === String(existing.level).trim().toLowerCase()) ? [String(existing.level).trim()] : []).map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join("")}
       </select>
     </div>
     <div class="field full">
@@ -10528,7 +10527,8 @@ function openDoctorEditor(existing){
   `;
 
   // default Level selection
-  try{ document.getElementById("docLevel").value = (existing?.level || "Senior"); } catch(e) {}
+  try{ const __lv = document.getElementById("docLevel"); const __want = String(existing?.level || "Senior").trim().toLowerCase();
+    const __opt = [...__lv.options].find(o => o.value.toLowerCase() === __want); __lv.value = __opt ? __opt.value : "Senior"; } catch(e) {}
   // Speciality dropdown + desired specialities picker
   const __docSpecEl = document.getElementById("docSpec");
   const __docPrefsEl = document.getElementById("docPrefs");
