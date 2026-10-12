@@ -1870,6 +1870,47 @@ button.moreBtn[aria-expanded="true"]{
   margin: 0;
 }
 
+
+/* ===== Availability block editor v2 ===== */
+.modalBody[data-bgmode="avail"] .bg-other-only,
+.modalBody[data-bgmode="avail"] .bg-other-only-inline,
+.modalBody[data-bgmode="other"] .bg-avail-only,
+.modalBody[data-bgmode="other"] .bg-avail-only-inline{ display:none !important; }
+.bg-optional{ text-transform:none; letter-spacing:0; font-weight:500; color:#94a3b8; margin-left:4px; }
+.bgro-row{ display:flex; flex-wrap:wrap; gap:8px; align-items:stretch; padding:8px 10px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:10px; }
+.bgro{ min-width:120px; padding:2px 10px 2px 0; border-right:1px solid #e2e8f0; }
+.bgro-l{ font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#94a3b8; }
+.bgro-v{ font-size:13.5px; font-weight:600; color:#334155; margin-top:2px; }
+.bgro-v.empty{ color:#b0b8c4; font-weight:500; font-style:italic; }
+.bgro-lock{ margin-left:auto; align-self:center; font-size:11.5px; color:#94a3b8; }
+.bg-migrated{ padding:8px 10px; background:#eef6ff; border:1px solid #bfdbfe; color:#1e3a8a; border-radius:8px; font-size:12.5px; }
+.bg-prefilled{ display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:600; }
+.bgms{ border:1px solid #d6dde6; border-radius:10px; padding:8px; background:#fff; }
+.bgms-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+.bgms-tag{ font-size:11px; font-weight:700; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; padding:2px 8px; border-radius:999px; }
+.bgms-count{ font-size:12px; color:#94a3b8; }
+.bgms-count.has{ color:#0f766e; font-weight:700; }
+.bgms-btn{ font-size:11.5px !important; padding:3px 9px !important; border-radius:6px !important; background:#fff; border:1px solid #d6dde6; color:#475569; cursor:pointer; }
+.bgms-btn:hover{ background:#f1f5f9; }
+.bgms-sel{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+.bgms-pill{ display:inline-flex; align-items:center; gap:4px; padding:3px 4px 3px 10px; border-radius:999px; background:#2563eb; color:#fff; font-size:12.5px; font-weight:600; }
+.bgms-pill button{ border:none !important; background:rgba(255,255,255,.2) !important; color:#fff !important; width:18px; height:18px; padding:0 !important; border-radius:50% !important; line-height:16px; cursor:pointer; font-size:13px; }
+.bgms-search{ width:100%; box-sizing:border-box; margin-bottom:6px; }
+.bgms-opts{ display:flex; flex-wrap:wrap; gap:6px; }
+.bgms-opts.scroll{ max-height:132px; overflow-y:auto; padding:2px; }
+.bgms-opt{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 6px !important; border-radius:999px !important; border:1px solid #d6dde6 !important; background:#f8fafc !important; color:#334155 !important; box-shadow:none !important; font-size:12.5px !important; font-weight:500; cursor:pointer; }
+.bgms-opt:hover{ border-color:#93c5fd !important; background:#eff6ff !important; }
+.bgms-opt .bx{ width:15px; height:15px; border:1.5px solid #94a3b8; border-radius:4px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; line-height:1; background:#fff; color:#fff; }
+.bgms-opt.on, .bgms-opt.on:hover{ background:#2563eb !important; border-color:#2563eb !important; color:#fff !important; font-weight:600; }
+.bgms-opt.on .bx{ background:#fff; border-color:#fff; color:#2563eb; }
+.bgms-hint{ margin-top:4px; }
+.bgreq-quick{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+.bgreq-chip{ padding:3px 9px !important; border-radius:999px !important; border:1px dashed #94a3b8 !important; background:#fff !important; color:#475569 !important; font-size:12px !important; cursor:pointer; }
+.bgreq-chip:hover{ border-style:solid !important; border-color:#0f766e !important; color:#0f766e !important; background:#f0fdfa !important; }
+
+.bgms-div{ flex-basis:100%; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:5px; margin-top:2px; }
+.bgms-opt.pin{ font-weight:600; }
+.bg-legacy-notes{ background:#f8fafc !important; color:#475569 !important; cursor:default; border-style:dashed !important; }
 </style>
 
 
@@ -3881,6 +3922,290 @@ const STATUS = [
   { key:"Unavailable", color:"#424242" }
 ];
 const STATUS_COLOR = Object.fromEntries(STATUS.map(s=>[s.key, s.color]));
+
+/* ===== AVAILABILITY BLOCK FIELDS (v2 – matches Focus / job matching) =====
+   Structured fields stored on each block:
+     form_v: 2, desired_specialties: [], states: [], site_ids: [], site_id (first site, for ClickUp order),
+     requirements: "", min_block_days: number (0 = none)
+   Legacy mirrors still written for Focus + the Job Matches Make scenario:
+     title (status / calendar label), location (summary incl. requirements). notes = legacy, read only. */
+const BG_STATES = ["NSW","VIC","QLD","WA","SA","TAS","NT","ACT"];
+const BG_SPEC_PRIORITY_DESIRED = ["Emergency Medicine","General Medicine","Anaesthetics","Intensive Care","General Surgery","Psychiatry","General Practice"];
+const BG_SPEC_PRIORITY = ["Emergency Medicine","General Medicine","Anaesthetics","Intensive Care","Surgery","Psychiatry","General Practice"];
+function bgPriSort(list, pri){
+  const lc = x => String(x).trim().toLowerCase(), p = pri.map(lc);
+  return bgUniq(list.map(x => String(x).trim())).sort((a, b) => {
+    const ia = p.indexOf(lc(a)), ib = p.indexOf(lc(b));
+    if(ia >= 0 || ib >= 0) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    return a.localeCompare(b);
+  });
+}
+const BG_DESIRED_SPECIALITIES = bgPriSort(["Acute Medicine", "Addiction Medicine", "Addiction Psychiatry", "Adventure and Expedition Medicine", "Aerospace Medicine", "All", "Allergy and Immunology", "Anaesthetics", "Anxiety Psychiatry", "Bariatric Surgery", "Cardiology Medicine", "Cardiothoracic Surgery", "Child and Adolescent Psychiatry", "Colon and Rectal Surgery", "Consultation liaison Psychiatry", "Critical Care", "Critical Care Surgeon", "Custodial Medicine", "Dermatology Medicine", "Eating Disorder Psychiatry", "Emergency Medicine", "Endocrine Surgery", "Endocrinology Diabetes Medicine", "Family Medicine", "Forensic Psychiatry", "Gastroenterology Medicine", "General Adult Psychiatry", "General Medicine", "General Practice", "General Surgery", "Geriatric Psychiatry", "Geriatrics", "Gynecologic Oncology Surgery", "Haematology", "Hand Surgery", "Hepatology", "Hyperbaric Medicine", "Indigenous Health", "Infectious Disease Medicine", "Intensive Care", "Medical Administration", "Medical Oncology", "Medical Toxicology", "Military Psychiatry", "Neonatal", "Nephrology Medicine", "Neuro Psychiatry", "Neuro Surgery", "Neurology Medicine", "Nuclear Medicine", "Nursing", "Obstetrics and Gynaecology", "Occupational Medicine", "Occupational Therapy", "Oncology Surgery", "Ophthalmology", "Oral and Maxillofacial Surgery", "Orthopaedics", "Orthopedic Surgeon", "Otolaryngology Surgery ENT", "Paediatrics", "Paediatrics Emergency Medicine", "Pain Medicine", "Palliative Medicine", "Pathology Clinical", "Pediatric Surgery", "Physiotherapy", "Plastic Surgery", "Podiatric Surgery", "Preventive Medicine", "Psychiatry", "Psychology", "Public Health", "Radiology", "Rehabilitation Medicine", "Renal Medicine", "Respiratory Medicine", "Retrieval", "Rheumatology Medicine", "Rural Generalism", "Skin Checks", "Sports Medicine", "Sports Science", "Stroke Medicine", "Telehealth", "Trauma Surgery", "Tropical Medicine", "Urology", "Vascular Surgery", "Wards"], BG_SPEC_PRIORITY_DESIRED);     // ClickUp "Desired Specialities/ Department"
+const BG_SPECIALITY_OPTIONS = bgPriSort(["Allied Health", "Anaesthetics", "Cardiology", "Emergency Medicine", "Endoscopy", "ENT", "Family Medicine", "Gastroenterology", "General Medicine", "General Practice", "General Surgery", "Immunology and allergy", "Infectious Diseases", "Intensive Care", "Internal Medicine", "Medical Administration", "Microbiology", "Neurology", "Nuclear Medicine", "Nursing", "Obstetrics and Gynaecology", "Occupational and environmental medicine", "Occupational Medicine", "Occupational Therapy", "Ophthalmology", "Paediatrics", "Paediatrics Emergency Medicine", "Palliative care", "Pathology", "Pathology Clinical", "Physiotherapy", "Psychiatry", "Psychology", "Public Health", "Public health medicine", "Radiology", "Renal", "Sexual health medicine", "SHO", "Sleep Medicine", "Sports Science", "Surgery", "Urology"], BG_SPEC_PRIORITY);               // ClickUp "Speciality" dropdown
+// desired-speciality name -> ClickUp Speciality dropdown name (where they differ)
+const BG_DESIRED_TO_SPEC = { "Renal Medicine":"Renal", "Infectious Disease Medicine":"Infectious Diseases", "Cardiology Medicine":"Cardiology",
+  "Palliative Medicine":"Palliative care", "Gastroenterology Medicine":"Gastroenterology", "Neurology Medicine":"Neurology",
+  "Allergy and Immunology":"Immunology and allergy" };
+const BG_SPEC_EXACT = { "surgery":"General Surgery", "internal medicine":"General Medicine", "public health medicine":"Public Health",
+  "occupational and environmental medicine":"Occupational Medicine", "immunology and allergy":"Allergy and Immunology", "med":"General Medicine",
+  "medicine":"General Medicine", "psych":"Psychiatry", "ed":"Emergency Medicine", "gp":"General Practice", "icu":"Intensive Care" };
+const BG_AVAIL_STATUSES = new Set(["Available","Tentative"]);
+const BG_REQ_SUGGESTIONS = ["No nights","Days only","Nights only","No weekends","Weekdays only","Min 1 week blocks","Min 2 week blocks","Min 4 week blocks","Casual shifts only","Needs flights & accommodation","Rural / remote OK","Metro only","Can start ASAP"];
+const BG_SPEC_ALIASES = [
+  [/\bED\b|\bemergency\b/i, "Emergency Medicine"],
+  [/\bGP\b|general practi/i, "General Practice"],
+  [/\bgen\.? ?med\b|general medicine|\bMAU\b|\bIMU\b/i, "General Medicine"],
+  [/\bICU\b|intensive care/i, "Intensive Care"],
+  [/\bpsych(iatry)?\b/i, "Psychiatry"],
+  [/\bpaed(s|iatrics)?\b/i, "Paediatrics"],
+  [/\bO ?& ?G\b|\bobs\b|obstetric/i, "Obstetrics and Gynaecology"],
+  [/\banaes(th)?(etics)?\b/i, "Anaesthetics"],
+  [/rural gen/i, "Rural Generalism"],
+  [/\bwards?\b/i, "Wards"],
+  [/\brenal\b/i, "Renal Medicine"],
+  [/infectious dis/i, "Infectious Disease Medicine"],
+  [/\bortho(paedics?)?\b/i, "Orthopaedics"],
+  [/\bgen\.? ?surg|general surgery/i, "General Surgery"],
+  [/\bcardio(logy)?\b/i, "Cardiology Medicine"],
+  [/\bgeri(atrics?)?\b|aged care/i, "Geriatrics"],
+  [/palliative/i, "Palliative Medicine"],
+  [/\brehab(ilitation)?\b/i, "Rehabilitation Medicine"],
+  [/\bresp(iratory)?\b/i, "Respiratory Medicine"],
+  [/\bendo(crinology)?\b/i, "Endocrinology Diabetes Medicine"],
+  [/\bgastro(enterology)?\b/i, "Gastroenterology Medicine"],
+  [/\bhaem(atology)?\b/i, "Haematology"],
+  [/\bonc(ology)?\b/i, "Medical Oncology"],
+  [/\bneuro(logy)?\b(?! ?surg)/i, "Neurology Medicine"],
+  [/retrieval/i, "Retrieval"],
+  [/telehealth/i, "Telehealth"],
+  [/immunology/i, "Allergy and Immunology"],
+  [/public health/i, "Public Health"],
+  [/occupational (and environmental )?medicine/i, "Occupational Medicine"]
+];
+const BG_STATE_WORDS = [
+  [/new south wales|sydney|newcastle|wollongong/i, "NSW"], [/victoria\b|melbourne|geelong|bendigo|ballarat/i, "VIC"],
+  [/queensland|brisbane|townsville|cairns|gold coast/i, "QLD"], [/western australia|perth|pilbara|kimberley|kalgoorlie/i, "WA"],
+  [/south australia|adelaide/i, "SA"], [/tasmania|hobart|launceston/i, "TAS"],
+  [/northern territory|darwin|alice springs|katherine/i, "NT"], [/canberra/i, "ACT"]
+];
+
+function bgArr(v){
+  if(Array.isArray(v)) return v.filter(x => x != null && String(x).trim()).map(x => String(x).trim());
+  if(v && typeof v === "object") return Object.values(v).filter(x => x != null && String(x).trim()).map(x => String(x).trim());
+  if(typeof v === "string" && v.trim()) return v.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+  return [];
+}
+function bgUniq(a){ const seen = new Set(); return a.filter(x => { const k = String(x).toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; }); }
+function bgIsV2(e){ return !!e && (e.form_v === 2 || e.requirements != null || e.desired_specialties != null || e.states != null || e.site_ids != null); }
+
+function bgFindSpecialities(text){
+  const t = String(text || ""); if(!t.trim()) return [];
+  const out = [];
+  // piece by piece: an exact ClickUp label (profile prefs come straight from ClickUp) wins; otherwise look for names / abbreviations
+  for(const piece of t.split(/[,;/\n•|]+/).map(s => s.trim()).filter(Boolean)){
+    const lc = piece.toLowerCase();
+    const hit = BG_DESIRED_SPECIALITIES.find(o => o.toLowerCase() === lc) || BG_SPEC_EXACT[lc];
+    if(hit){ out.push(hit); continue; }
+    for(const o of BG_DESIRED_SPECIALITIES){
+      if(o.length > 5 && o !== "All" && new RegExp("\\b" + o.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(piece)) out.push(o);
+    }
+    for(const [re, name] of BG_SPEC_ALIASES) if(re.test(piece)) out.push(name);
+  }
+  return bgUniq(out);
+}
+// free text -> ClickUp Speciality dropdown values (first one is the doctor's speciality)
+function bgMapSpeciality(text){
+  const out = [];
+  for(const piece of String(text || "").split(/[,;/\n•|]+/).map(s => s.trim()).filter(Boolean)){
+    const exact = BG_SPECIALITY_OPTIONS.find(o => o.toLowerCase() === piece.toLowerCase());
+    if(exact){ out.push(exact); continue; }
+    for(const dsp of bgFindSpecialities(piece)){
+      const name = BG_DESIRED_TO_SPEC[dsp] || dsp;
+      const opt = BG_SPECIALITY_OPTIONS.find(o => o.toLowerCase() === name.toLowerCase());
+      if(opt) out.push(opt);
+    }
+  }
+  return bgUniq(out);
+}
+// A doctor's desired specialities: their profile list plus whatever their speciality maps to
+function bgDoctorDesired(d){
+  if(!d) return [];
+  return bgPriSort([...bgFindSpecialities(d.prefs), ...bgFindSpecialities(d.specialty)], BG_SPEC_PRIORITY_DESIRED);
+}
+// Bring older hand-entered doctors in line: speciality -> dropdown value, empty desired list -> filled from speciality.
+// Idempotent; returns true if anything changed. Originals are kept in specialty_legacy.
+function bgNormaliseDoctors(list){
+  let changed = false;
+  for(const d of (Array.isArray(list) ? list : [])){
+    if(!d) continue;
+    const sp = String(d.specialty || "").trim();
+    if(sp && !BG_SPECIALITY_OPTIONS.some(o => o.toLowerCase() === sp.toLowerCase())){
+      const m = bgMapSpeciality(sp);
+      if(m.length){ d.specialty_legacy = d.specialty_legacy || sp; d.specialty = m[0]; changed = true; }
+    }
+    if(!String(d.prefs || "").trim()){
+      const des = bgFindSpecialities(d.specialty_legacy || d.specialty);
+      if(des.length){ d.prefs = des.join(", "); changed = true; }
+    }
+  }
+  return changed;
+}
+function bgFindStates(text){
+  const t = String(text || ""); const out = [];
+  for(const s of BG_STATES) if(new RegExp("\\b" + s + "\\b").test(t)) out.push(s);   // codes: uppercase only
+  for(const [re, s] of BG_STATE_WORDS) if(re.test(t)) out.push(s);
+  return BG_STATES.filter(s => out.includes(s));
+}
+function bgNorm(s){ return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+function bgFindSites(text){
+  const t = bgNorm(text); if(t.length < 4) return [];
+  const cache = (typeof sitesCache !== "undefined" && sitesCache) ? sitesCache : {};
+  const out = [];
+  for(const s of Object.values(cache)){
+    if(!s || !s.id || !s.name) continue;
+    const n = bgNorm(s.name); if(n.length < 4) continue;
+    if(t.includes(n) || t === n) out.push(String(s.id));
+  }
+  if(!out.length){   // whole location text is part of exactly one site name (e.g. "Grafton")
+    const hits = Object.values(cache).filter(s => s && s.id && s.name && bgNorm(s.name).split(" ").length && (" " + bgNorm(s.name) + " ").includes(" " + t + " "));
+    if(hits.length === 1) out.push(String(hits[0].id));
+  }
+  return bgUniq(out);
+}
+function bgSiteName(id){
+  const cache = (typeof sitesCache !== "undefined" && sitesCache) ? sitesCache : {};
+  return (cache[id] && cache[id].name) || String(id);
+}
+function bgMinBlockDays(req){
+  const t = String(req || "");
+  const m = t.match(/\bmin(?:imum)?\.?\s*(?:of\s*)?(\d+)\s*(day|d|week|wk|w|month|mth)s?\b/i)
+         || t.match(/\b(\d+)\s*(day|week|wk|month|mth)s?\s*(?:block|blocks|stints?)?\s*(?:min|minimum)\b/i);
+  if(!m) return 0;
+  const n = parseInt(m[1], 10) || 0, u = m[2].toLowerCase();
+  return u.startsWith("m") ? n * 28 : (u.startsWith("w") ? n * 7 : n);
+}
+// Structured preference fields to carry when blocks are copied / pasted
+function bgPrefFields(e){
+  const o = {};
+  if(!e || !bgIsV2(e)) return o;
+  o.form_v = 2;
+  o.desired_specialties = bgArr(e.desired_specialties);
+  o.states = bgArr(e.states);
+  o.site_ids = bgArr(e.site_ids);
+  o.site_id = e.site_id || o.site_ids[0] || "";
+  o.requirements = String(e.requirements || "");
+  o.min_block_days = Number(e.min_block_days) || 0;
+  return o;
+}
+// Calendar label + short "where" for v2 blocks (null = use the old display)
+function bgCalDisplay(e){
+  if(!bgIsV2(e)) return null;
+  const sites = bgArr(e.site_ids);
+  if(!BG_AVAIL_STATUSES.has(e.status)){
+    return { title: e.title || e.status, where: sites.length ? sites.map(bgSiteName).join(", ") : (e.location || "") };
+  }
+  const states = bgArr(e.states), spec = bgArr(e.desired_specialties);
+  const firstReq = String(e.requirements || "").split(/\n|,/).map(s => s.trim()).filter(Boolean)[0] || "";
+  const where = [states.join("/"), sites.length ? bgSiteName(sites[0]) + (sites.length > 1 ? " +" + (sites.length - 1) : "") : ""].filter(Boolean).join(" · ");
+  const specShort = spec.length ? spec[0] + (spec.length > 1 ? " +" + (spec.length - 1) : "") : "";
+  const title = [e.status, specShort, firstReq.length > 32 ? firstReq.slice(0, 30) + "…" : firstReq].filter(Boolean).join(" · ");
+  return { title, where };
+}
+// Pre-fill the new form from a block – v2 blocks as stored, legacy blocks mapped from Title / Where / Notes
+function bgBlockFormValues(p, d){
+  const status = p.status || "Available";
+  const avail = BG_AVAIL_STATUSES.has(status);
+  const profileSpec = bgDoctorDesired(d);
+  if(bgIsV2(p)){
+    const sites = bgArr(p.site_ids); if(!sites.length && p.site_id) sites.push(String(p.site_id));
+    const req = String(p.requirements != null ? p.requirements : "");
+    const n = String(p.notes || "");
+    return { spec: bgArr(p.desired_specialties), states: bgArr(p.states), sites, req,
+      legacyNotes: (n.trim() && n.trim() !== req.trim()) ? n : "",          // earlier v2 saves mirrored requirements into notes
+      label: (p.title && p.title !== status) ? p.title : "", legacyLoc: (!avail && !sites.length) ? String(p.location || "") : "", migrated: false, profileSpec };
+  }
+  if(p.mode === "create" || p.mode === "add"){
+    return { spec: profileSpec.slice(), states: [], sites: [], req: "", legacyNotes: "", label: "", legacyLoc: "", migrated: false, profileSpec, fromProfile: profileSpec.length > 0 };
+  }
+  const title = String(p.title || "").trim(), loc = String(p.location || "").trim(), notes = String(p.notes || "").trim();
+  const customTitle = !!title && title.toLowerCase() !== status.toLowerCase() && !/^(available|tentative|booked|booking.*|away|unavailable|holiday|sick|status)$/i.test(title);
+  const sites = [];
+  if(p.site_id) sites.push(String(p.site_id));
+  if(p.placement_data && p.placement_data.site_id) sites.push(String(p.placement_data.site_id));
+  const locSites = bgFindSites(loc); sites.push(...locSites);
+  if(avail && customTitle) sites.push(...bgFindSites(title));
+  const out = { spec: [], states: [], sites: bgUniq(sites), req: "", legacyNotes: notes, label: "", legacyLoc: "", migrated: false, profileSpec };
+  const req = [];
+  if(avail){
+    out.states = bgFindStates([title, loc, notes].join("\n"));
+    out.spec = bgFindSpecialities([title, loc, notes].join("\n"));
+    if(!out.spec.length && profileSpec.length){ out.spec = profileSpec.slice(); out.fromProfile = true; }
+    if(customTitle) req.push(title);
+    const locCaptured = !loc || locSites.length > 0
+      || loc.split(/[\s,/&]+/).filter(Boolean).every(w => BG_STATES.includes(w.toUpperCase()));
+    if(!locCaptured) req.push("Where: " + loc);
+  } else {
+    if(customTitle) out.label = title;
+    out.legacyLoc = loc;           // booked/away: keep the old 'where' text on the block
+  }
+  out.req = req.join("\n");
+  out.migrated = avail && !!(customTitle || loc || out.states.length || (out.spec.length && !out.fromProfile));
+  return out;
+}
+
+/* Multi-select picker (chips with tick boxes). cfg: {options, selected, labelOf, searchable, placeholder, allButton, onChange, emptyText, pinned} */
+function bgMultiPick(host, cfg){
+  const st = { sel: bgUniq(bgArr(cfg.selected)), q: "" };
+  const labelOf = v => cfg.labelOf ? cfg.labelOf(v) : v;
+  host.classList.add("bgms");
+  host.innerHTML = `
+    <div class="bgms-top">
+      <span class="bgms-tag">☑ Multi-select – tick all that apply</span>
+      <span class="bgms-count"></span>
+      <span style="flex:1"></span>
+      ${cfg.allButton ? `<button type="button" class="bgms-btn bgms-all">${esc(cfg.allButton)}</button>` : ""}
+      <button type="button" class="bgms-btn bgms-clear">Clear</button>
+    </div>
+    <div class="bgms-sel"></div>
+    ${cfg.searchable ? `<input type="text" class="bgms-search" placeholder="${esc(cfg.placeholder || "Type to filter, click to add…")}" autocomplete="off">` : ""}
+    <div class="bgms-opts${cfg.searchable ? " scroll" : ""}"></div>`;
+  const selEl = host.querySelector(".bgms-sel"), optsEl = host.querySelector(".bgms-opts"), cntEl = host.querySelector(".bgms-count"), search = host.querySelector(".bgms-search");
+  const changed = () => { render(); if(cfg.onChange) cfg.onChange(st.sel.slice()); };
+  function render(){
+    cntEl.textContent = st.sel.length ? `${st.sel.length} selected` : (cfg.emptyText || "none selected");
+    cntEl.classList.toggle("has", st.sel.length > 0);
+    if(cfg.searchable){
+      selEl.innerHTML = st.sel.map(v => `<span class="bgms-pill">${esc(labelOf(v))}<button type="button" data-rm="${esc(v)}" title="Remove">×</button></span>`).join("");
+      selEl.style.display = st.sel.length ? "" : "none";
+    } else selEl.style.display = "none";
+    const q = st.q.toLowerCase();
+    const all = bgUniq([...(cfg.searchable ? [] : st.sel), ...cfg.options, ...st.sel]);
+    const list = all.filter(v => cfg.searchable ? (!st.sel.includes(v) && (!q || labelOf(v).toLowerCase().includes(q))) : true);
+    const pinned = new Set((cfg.pinned || []).map(x => String(x).toLowerCase()));
+    let seenPinned = false, divDone = false;
+    optsEl.innerHTML = list.map(v => { const on = st.sel.includes(v);
+      const isPin = pinned.has(String(v).toLowerCase()); let pre = "";
+      if(isPin) seenPinned = true;
+      else if(seenPinned && !divDone && !q){ divDone = true; pre = `<span class="bgms-div">All others A–Z</span>`; }
+      return pre + `<button type="button" class="bgms-opt${on ? " on" : ""}${isPin ? " pin" : ""}" data-v="${esc(v)}"><span class="bx">${on ? "✓" : ""}</span>${esc(labelOf(v))}</button>`; }).join("")
+      || `<div class="hint" style="padding:4px 2px;">${q ? "No match" : "All selected"}</div>`;
+  }
+  optsEl.addEventListener("click", ev => { const b = ev.target.closest(".bgms-opt"); if(!b) return; const v = b.dataset.v;
+    st.sel = st.sel.includes(v) ? st.sel.filter(x => x !== v) : [...st.sel, v]; changed(); if(search) search.focus(); });
+  selEl.addEventListener("click", ev => { const b = ev.target.closest("[data-rm]"); if(!b) return; st.sel = st.sel.filter(x => x !== b.dataset.rm); changed(); });
+  host.querySelector(".bgms-clear").addEventListener("click", () => { st.sel = []; changed(); });
+  const allBtn = host.querySelector(".bgms-all"); if(allBtn) allBtn.addEventListener("click", () => { st.sel = cfg.options.slice(); changed(); });
+  if(search){
+    search.addEventListener("input", () => { st.q = search.value; render(); });
+    search.addEventListener("keydown", ev => {
+      if(ev.key !== "Enter") return; ev.preventDefault();
+      const first = optsEl.querySelector(".bgms-opt"); if(first){ st.sel.push(first.dataset.v); st.q = ""; search.value = ""; changed(); }
+    });
+  }
+  render();
+  return { get: () => st.sel.slice(), set: a => { st.sel = bgUniq(bgArr(a)); changed(); } };
+}
+
 
 let doctors = window.__bgDoctors = loadDoctors();
 let events  = window.__bgEvents = sanitizeEventsForFirebase(loadEvents()); // Sanitize loaded events to remove any undefined properties
@@ -7912,12 +8237,23 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
         lines.push(`To: ${formatDateAU(endInc)}`);
       } catch(_){}
     }
-    if(e.location) lines.push(`Where: ${e.location}`);
+    const __b2 = e.bg_v2;
+    if(__b2){
+      if(__b2.avail){
+        if(__b2.spec.length) lines.push(`Wants: ${__b2.spec.join(", ")}`);
+        lines.push(`States: ${__b2.states.length ? __b2.states.join(", ") : "Any"}`);
+        if(__b2.sites.length) lines.push(`Sites: ${__b2.sites.join(", ")}`);
+        if(__b2.req) lines.push(`Requirements: ${__b2.req.replace(/\n+/g, " · ")}`);
+      } else {
+        if(e.location) lines.push(`Where: ${e.location}`);
+        if(__b2.req) lines.push(`Details: ${__b2.req}`);
+      }
+    } else if(e.location) lines.push(`Where: ${e.location}`);
     if(e.placement_id) lines.push(`Placement ID: ${e.placement_id}`);
     const cu = e.cu_info;
     if(cu){
       (typeof cuInfoLines === 'function' ? cuInfoLines(cu) : []).forEach(l => lines.push(l));
-    } else if(e.notes) lines.push(`Notes: ${e.notes}`);
+    } else if(e.notes && !(e.bg_v2 && e.notes.trim() === e.bg_v2.req.trim())) lines.push(`${e.bg_v2 ? "Notes (legacy)" : "Notes"}: ${e.notes}`);
 
     let content = `<div class="t">${esc(title)}</div>` + lines.map(l=>`<div class="row">${esc(l)}</div>`).join("");
     if(cu && cu.summary){
@@ -8259,6 +8595,12 @@ function renderHeader(){
 }
 
 function renderDoctorList(){
+  try {
+    if(bgNormaliseDoctors(doctors)){
+      clearTimeout(window.__bgNormT);
+      window.__bgNormT = setTimeout(() => { try { saveDoctors(doctors); } catch(_){} }, 1500);
+    }
+  } catch(err){ console.warn("doctor normalise", err); }
   const q = (doctorSearch.value||"").trim().toLowerCase();
 
   // Build upcoming window + counts when in Upcoming Availability (All doctors) mode
@@ -8508,7 +8850,8 @@ function copyAvailability(){
     status: e.status,
     title: e.title,
     location: e.location,
-    notes: e.notes
+    notes: e.notes,
+    ...bgPrefFields(e)
   })).sort((a,b)=>a.relStart-b.relStart);
 
   copiedAvailabilityBuffer = { sourceStartISO, items };
@@ -8578,6 +8921,7 @@ async function pasteAvailability(){
       title: it.title,
       location: it.location,
       notes: it.notes,
+      ...bgPrefFields(it),
       start: startISO,
       end: endISO
     };
@@ -8767,7 +9111,8 @@ function copyNext14Days(doctorId){
     status: e.status,
     title: e.title,
     location: e.location,
-    notes: e.notes
+    notes: e.notes,
+    ...bgPrefFields(e)
   })).sort((a,b)=>a.relStart-b.relStart);
 
   copiedAvailabilityBuffer = { sourceStartISO: startISO, items };
@@ -8832,6 +9177,7 @@ function duplicateLastMonth(doctorId){
       title: e.title,
       location: e.location,
       notes: e.notes,
+      ...bgPrefFields(e),
       start: ns,
       end: ne
     };
@@ -9071,9 +9417,11 @@ function renderCalendar(){
       expandPlacementToDailyEvents(e, docById);
     } else {
       // Regular event rendering (includes placements without day_shifts)
-      const displayLocation = (e.site_id && sitesCache[e.site_id])
+      const __v2 = bgCalDisplay(e);
+      const displayLocation = __v2 ? __v2.where : ((e.site_id && sitesCache[e.site_id])
         ? sitesCache[e.site_id].name
-        : (e.location || "");
+        : (e.location || ""));
+      const __t = __v2 ? __v2.title : e.title;
 
       // For calendar display, create lightweight event (no placement_data to reduce memory)
       const lightweightExtendedProps = {
@@ -9083,7 +9431,8 @@ function renderCalendar(){
         doctor_name: (docById.get(String(e.ahpra_id))?.name || String(e.ahpra_id)),
         placement_id: e.placement_id || e.placement_data?.placement_id || e.clickup_placement_id,
         event_id: e.id, // Store the full event ID for loading full data if needed
-        cu_info: e.source === 'clickup' ? (e.cu_info || {}) : null
+        cu_info: e.source === 'clickup' ? (e.cu_info || {}) : null,
+        bg_v2: bgIsV2(e) ? { spec: bgArr(e.desired_specialties), states: bgArr(e.states), sites: bgArr(e.site_ids).map(bgSiteName), req: String(e.requirements || ""), avail: BG_AVAIL_STATUSES.has(e.status) } : null
       };
 
       // Show doctor name in title if showing multiple doctors (all-doctors view or tag-filtered view)
@@ -9095,10 +9444,10 @@ function renderCalendar(){
           ? (()=>{
               const dd = docById.get(String(e.ahpra_id)) || {};
               const nm = (dd.name || dd.ahpra_id || "Doctor");
-              const base = (e.title ? (displayLocation ? `${e.title} - ${displayLocation}` : e.title) : (displayLocation ? `${e.status} - ${displayLocation}` : (e.status || "Status")));
+              const base = (__t ? (displayLocation ? `${__t} - ${displayLocation}` : __t) : (displayLocation ? `${e.status} - ${displayLocation}` : (e.status || "Status")));
               return `${nm}: ${base}`;
             })()
-          : (e.title ? (displayLocation ? `${e.title} - ${displayLocation}` : e.title) : (displayLocation ? `${e.status} - ${displayLocation}` : (e.status || "Status")))
+          : (__t ? (displayLocation ? `${__t} - ${displayLocation}` : __t) : (displayLocation ? `${e.status} - ${displayLocation}` : (e.status || "Status")))
         ),
         start: e.start,
         end: e.end,
@@ -9244,15 +9593,24 @@ function openEventEditor(payload){
   const endStrExclusive = formatDateAU(addDaysUTC(end, -1));
 
   const defaultStatus = payload.status || (mode === "create" ? "Available" : "Booked");
-  const defaultLocation = payload.location || "";
-  const defaultNotes = payload.notes || "";
-  const defaultTitle = payload.title || "";
+  const __fv = bgBlockFormValues({ ...payload, status: defaultStatus }, d);
+  const __pgy = String(d.pgy || "").trim();
+  const __pgyTxt = __pgy ? (/^pgy/i.test(__pgy) ? __pgy : "PGY " + __pgy) : "";
+  const __ro = (lbl, val) => `<div class="bgro"><div class="bgro-l">${lbl}</div><div class="bgro-v${val ? "" : " empty"}">${esc(val || "Not set")}</div></div>`;
 
   modalBody.innerHTML = `
+    <div id="bgBlockForm" style="display:contents">
     <div class="field full">
       <label>Doctor</label>
       <input value="${esc(doctorLabel(d))} (AHPRA ${esc(d.ahpra_id)})" disabled />
     </div>
+    <div class="field full">
+      <div class="bgro-row" title="Pulled from the doctor's profile. Edit the doctor to change these.">
+        ${__ro("Speciality", d.specialty)}${__ro("Level", d.level)}${__ro("PGY", __pgyTxt)}
+        <div class="bgro-lock">🔒 From doctor profile (read only)</div>
+      </div>
+    </div>
+    ${__fv.migrated ? `<div class="field full bg-migrated">↪ This block was made with the old form. Its Title / Where have been moved into the fields below and its Notes are kept (read only) at the bottom. Check them, then Save.</div>` : ``}
     <div class="field">
       <label>Start (dd/mm/yyyy)</label>
       <input id="evStart" value="${esc(startStr)}" />
@@ -9265,30 +9623,42 @@ function openEventEditor(payload){
       <label>Status</label>
       <select id="evStatus">${statusOptions}</select>
     </div>
-    <div class="field">
-      <label>Title (optional)</label>
-      <input id="evTitle" value="${esc(defaultTitle)}" placeholder="e.g., Booked – Port Hedland" />
+    <div class="field bg-other-only">
+      <label>Calendar label <span class="bg-optional">optional</span></label>
+      <input id="evLabel" value="${esc(__fv.label)}" placeholder="e.g., Days EVO REF 12345, IN UK" />
+    </div>
+    <div class="field bg-avail-only"></div>
+
+    <div class="field full bg-avail-only">
+      <label>Desired specialities</label>
+      <div id="evSpecPick"></div>
+      <div class="hint bgms-hint">Defaults to the doctor profile's desired specialities – add or remove for this block only.
+        ${__fv.profileSpec.length ? `Profile: ${esc(__fv.profileSpec.join(", "))} – <a href="#" id="evSpecFromProfile">reset to profile</a>` : `No desired specialities on the doctor profile yet.`}
+        ${__fv.fromProfile ? `<span class="bg-prefilled">pre-filled from profile</span>` : ``}</div>
+    </div>
+    <div class="field full bg-avail-only">
+      <label>State(s) they'll work in</label>
+      <div id="evStatePick"></div>
     </div>
     <div class="field full">
-      <label>Where / working location (optional)</label>
-      <input id="evLocation" value="${esc(defaultLocation)}" placeholder="e.g., Port Hedland Hospital, Perth Clinic" />
-      <div class="hint" style="margin-top:4px; font-size:11px;">Free text location where the doctor will be working.</div>
-    </div>
-    <div class="field full">
-      <label>Site <span style="color:red;">*</span> (required for ClickUp order)</label>
-      <select id="evSite" style="background:#fff; border:1px solid #ccc;">
-        <option value="">-- Select a site --</option>
-        ${renderSitesDropdown()}
-      </select>
-      <div class="hint" style="margin-top:4px; font-size:11px;">Select the site for ClickUp order creation. To add new sites, import the ClickUp Sites CSV.</div>
+      <label><span class="bg-avail-only-inline">Specific site(s) <span class="bg-optional">optional – only if they want particular sites</span></span><span class="bg-other-only-inline">Site(s) <span class="bg-optional">first site is used for the ClickUp order</span></span></label>
+      <div id="evSitePick"></div>
     </div>
     <div class="field full" style="display:none; padding:8px; background:#fef3cd; border:1px solid #ffc107; border-radius:6px;" id="siteWarning">
       ⚠️ You must select a site to create an order on ClickUp
     </div>
     <div class="field full">
-      <label>Notes (optional)</label>
-      <textarea id="evNotes" placeholder="Why off, roster notes, contact details...">${esc(defaultNotes)}</textarea>
+      <label><span class="bg-avail-only-inline">Requirements <span class="bg-optional">what a job must have to suit them</span></span><span class="bg-other-only-inline">Booking details <span class="bg-optional">roster, EVO ref, shifts</span></span></label>
+      <div class="bgreq-quick bg-avail-only">${BG_REQ_SUGGESTIONS.map(s => `<button type="button" class="bgreq-chip" data-req="${esc(s)}">+ ${esc(s)}</button>`).join("")}</div>
+      <textarea id="evReq" rows="4">${esc(__fv.req)}</textarea>
+      <div class="hint bg-avail-only" style="margin-top:4px;">One requirement per line. Write block length as <b>“Min 2 week blocks”</b> (or “Min 5 days”) so shorter jobs can be filtered out. Click a suggestion to add it.</div>
     </div>
+    ${__fv.legacyNotes ? `
+    <div class="field full">
+      <label>Notes (legacy) <span class="bg-optional">read only – kept from the old form</span></label>
+      <textarea id="evLegacyNotes" class="bg-legacy-notes" rows="3" readonly tabindex="-1">${esc(__fv.legacyNotes)}</textarea>
+    </div>` : ``}
+    <input type="hidden" id="evTitle" /><input type="hidden" id="evLocation" /><input type="hidden" id="evNotes" /><input type="hidden" id="evSite" />
     
     ${mode === "create" ? `
     <div class="field full" style="border-top:1px dashed #e7e7e7; padding-top:10px; margin-top:6px;">
@@ -9322,20 +9692,80 @@ function openEventEditor(payload){
     ` : ``}
 
     <div class="hint full">End date is inclusive here. Internally we store end as “next day”.</div>
+    </div>
   `;
   document.getElementById("evStatus").value = defaultStatus;
 
-  // Set site dropdown value if editing
-  const evSiteEl = document.getElementById("evSite");
-  if(evSiteEl){
-    if(mode === "edit"){
-      // Check both regular site_id and placement_data.site_id
-      const siteId = payload.site_id || (payload.placement_data?.site_id);
-      evSiteEl.value = siteId || "";
-    } else {
-      evSiteEl.value = "";
-    }
+  // ---- v2 block fields: pickers, status mode, legacy mirrors ----
+  const __siteOpts = Object.values((typeof sitesCache !== "undefined" && sitesCache) || {})
+    .filter(s => s && s.id).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))).map(s => String(s.id));
+  const __specOpts = bgPriSort([...BG_DESIRED_SPECIALITIES, ...__fv.profileSpec, ...__fv.spec], BG_SPEC_PRIORITY_DESIRED);
+  const __reqEl = document.getElementById("evReq");
+  const __labelEl = document.getElementById("evLabel");
+  const __statusEl = document.getElementById("evStatus");
+  let specPick = null, statePick = null, sitePick = null;
+
+  function bgCollect(){
+    const status = __statusEl.value;
+    const avail = BG_AVAIL_STATUSES.has(status);
+    const spec = avail && specPick ? specPick.get() : [];
+    const states = avail && statePick ? statePick.get() : [];
+    const sites = sitePick ? sitePick.get() : [];
+    const req = String(__reqEl.value || "").trim();
+    const label = avail ? "" : String(__labelEl.value || "").trim();
+    const siteNames = sites.map(bgSiteName);
+    const location = avail
+      ? [spec.length ? "Wants: " + spec.join(", ") : "", states.length ? "States: " + states.join(", ") : "", siteNames.length ? "Sites: " + siteNames.join(", ") : "",
+         req ? "Requirements: " + req.split("\n").map(s => s.trim()).filter(Boolean).join("; ") : ""].filter(Boolean).join(" · ")
+      : (siteNames.join(", ") || __fv.legacyLoc || "");
+    return {
+      form_v: 2, status, title: label || status,
+      desired_specialties: spec, states, site_ids: sites, site_id: sites[0] || "",
+      requirements: req, min_block_days: avail ? bgMinBlockDays(req) : 0,
+      notes: __fv.legacyNotes || "", location
+    };
   }
+  function __sync(){
+    try {
+      const b = bgCollect();
+      document.getElementById("evTitle").value = b.title;
+      document.getElementById("evLocation").value = b.location;
+      document.getElementById("evNotes").value = b.notes;
+      document.getElementById("evSite").value = b.site_id;
+      if(b.site_id){ const w = document.getElementById("siteWarning"); if(w) w.style.display = "none"; }
+    } catch(err){ console.warn("block form sync", err); }
+  }
+  function __applyStatusMode(){
+    const avail = BG_AVAIL_STATUSES.has(__statusEl.value);
+    modalBody.dataset.bgmode = avail ? "avail" : "other";
+    __reqEl.placeholder = avail
+      ? "e.g.\nNo nights\nMin 2 week blocks\nNeeds flights & accommodation"
+      : "e.g. EVO REF 12345 – Gen Med RMO 0800-1630, Mon–Fri";
+  }
+
+  specPick = bgMultiPick(document.getElementById("evSpecPick"), {
+    options: __specOpts, selected: __fv.spec, searchable: true,
+    placeholder: "Type to find a speciality (e.g. emerg, gen med, psych)… Enter adds the first match", pinned: BG_SPEC_PRIORITY_DESIRED, onChange: __sync });
+  statePick = bgMultiPick(document.getElementById("evStatePick"), {
+    options: BG_STATES, selected: __fv.states, allButton: "All states", emptyText: "none selected", onChange: __sync });
+  sitePick = bgMultiPick(document.getElementById("evSitePick"), {
+    options: __siteOpts, selected: __fv.sites, labelOf: bgSiteName, searchable: true,
+    placeholder: __siteOpts.length ? "Type a site name… Enter adds the first match" : "No sites loaded – import the ClickUp Sites CSV",
+    emptyText: "none selected", onChange: __sync });
+
+  document.getElementById("bgBlockForm").addEventListener("input", __sync);
+  document.getElementById("bgBlockForm").addEventListener("change", __sync);
+  __statusEl.addEventListener("change", () => { __applyStatusMode(); __sync(); });
+  document.querySelectorAll("#bgBlockForm .bgreq-chip").forEach(btn => btn.addEventListener("click", () => {
+    const add = btn.dataset.req;
+    const lines = String(__reqEl.value || "").split("\n").map(s => s.trim()).filter(Boolean);
+    if(!lines.some(l => l.toLowerCase() === add.toLowerCase())) lines.push(add);
+    __reqEl.value = lines.join("\n"); __sync(); __reqEl.focus();
+  }));
+  const __fromProfile = document.getElementById("evSpecFromProfile");
+  if(__fromProfile) __fromProfile.addEventListener("click", ev => { ev.preventDefault(); specPick.set(__fv.profileSpec); });
+  __applyStatusMode();
+  __sync();
 
   // Recurrence UI wiring (create mode only)
   if(mode === "create"){
@@ -9418,11 +9848,7 @@ function openEventEditor(payload){
       const __onDays = Math.round((normalizeToUTCDate(sEndEx).getTime() - normalizeToUTCDate(sStart).getTime()) / (24*3600*1000));
       if(__onDays <= 0){ statusChip.textContent = "⚠ Select at least 1 day."; return; }
 
-      const status = document.getElementById("evStatus").value;
-      const title = (document.getElementById("evTitle").value||"").trim();
-      const location = (document.getElementById("evLocation").value||"").trim();
-      const siteId = (document.getElementById("evSite").value||"").trim();
-      const notes = (document.getElementById("evNotes").value||"").trim();
+      const __blk = bgCollect();   // v2 fields + legacy mirrors (title / location / notes / site_id)
 
       // Recurrence (create mode only)
       const recMode = (mode === "create" && document.getElementById("evRecurrence")) ? document.getElementById("evRecurrence").value : "none";
@@ -9482,11 +9908,7 @@ function openEventEditor(payload){
           id: newId,
           ahpra_id: String(payload.ahpra_id),
           type: 'availability',
-          status,
-          title: title || status,
-          location,
-          site_id: siteId,  // ClickUp site ID for placement creation
-          notes,
+          ...__blk,
           created_by: firebase_user?.email || "unknown",  // Email of user who created/edited
           start: blkStartISO,
           end: blkEndISO,
@@ -9574,6 +9996,7 @@ function openEventEditor(payload){
             events[eventIndex].location = location;
             events[eventIndex].notes = notes;
             events[eventIndex].site_id = siteId;
+            Object.assign(events[eventIndex], bgCollect());
             // UPDATE TIMESTAMP: Mark as manually edited
             events[eventIndex].lastModified = new Date().toISOString();
             events[eventIndex].lastModifiedBy = 'manual';
@@ -9604,6 +10027,10 @@ function openEventEditor(payload){
             status: status,
             title: title,
             notes: notes,
+            desired_specialties: bgCollect().desired_specialties,
+            states: bgCollect().states,
+            site_ids: bgCollect().site_ids,
+            requirements: bgCollect().requirements,
             start_date: normalizeToUTCDate(sStart).toISOString().split('T')[0],
             end_date: normalizeToUTCDate(sEndInc).toISOString().split('T')[0],
             created_at: new Date().toISOString()
@@ -9821,6 +10248,7 @@ function openEventEditor(payload){
             events[eventIndex].title = title || status;
             events[eventIndex].location = location;
             events[eventIndex].notes = notes;
+            Object.assign(events[eventIndex], bgCollect());
           }
 
           // Get doctor and site info
@@ -9848,6 +10276,10 @@ function openEventEditor(payload){
             status: status,
             title: title,
             notes: notes,
+            desired_specialties: bgCollect().desired_specialties,
+            states: bgCollect().states,
+            site_ids: bgCollect().site_ids,
+            requirements: bgCollect().requirements,
             start_date: normalizeToUTCDate(sStart).toISOString().split('T')[0],
             end_date: normalizeToUTCDate(sEndInc).toISOString().split('T')[0],
             created_at: new Date().toISOString()
@@ -9993,6 +10425,11 @@ function openDoctorEditor(existing){
   }
 
   modalTitle.textContent = isEdit ? "Edit doctor" : "Add doctor";
+  const __specRaw = String(existing?.specialty || "").trim();
+  const __specSel = BG_SPECIALITY_OPTIONS.find(o => o.toLowerCase() === __specRaw.toLowerCase()) || bgMapSpeciality(__specRaw)[0] || "";
+  const __specUnmapped = (__specRaw && !__specSel) ? __specRaw : "";
+  const __prefsLeft = String(existing?.prefs || "").split(/[,;•|\n]+/).map(s => s.trim()).filter(p => p && !bgFindSpecialities(p).length).join(", ");
+  const __prefsLegacy = [existing?.prefs_legacy, __prefsLeft].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(", ");
 
   modalBody.innerHTML = `
     <div id="docErrorMsg" style="display:none; background:#ffebee; color:#c62828; padding:10px; border-radius:4px; margin-bottom:12px; font-size:14px; border-left:4px solid #c62828;"></div>
@@ -10014,16 +10451,29 @@ function openDoctorEditor(existing){
       />
     </div>
     <div class="field full">
-      <label>Preferences (optional)</label>
-      <input id="docPrefs" value="${esc(existing?.prefs || "")}" placeholder="e.g., ED • nights ok • solo RG"/>
+      <label>Desired specialities</label>
+      <div id="docDesiredPick"></div>
+      <div class="hint bgms-hint">Same list as <b>Desired Specialities/ Department</b> in ClickUp. Used as the default on every new availability block.${existing?.source === 'clickup' ? ' This doctor syncs from ClickUp, so a change in ClickUp will overwrite this.' : ''}</div>
+      <input type="hidden" id="docPrefs" value="${esc(existing?.prefs || "")}"/>
     </div>
+    ${__prefsLegacy ? `
+    <div class="field full">
+      <label>Preferences (legacy) <span class="bg-optional">read only – old free-text preferences</span></label>
+      <textarea class="bg-legacy-notes" rows="2" readonly tabindex="-1">${esc(__prefsLegacy)}</textarea>
+    </div>` : ``}
     <div class="field full">
       <label>Where they want to work (optional)</label>
       <input id="docWhere" value="${esc(existing?.where || "")}" placeholder="e.g., NSW rural • WA Pilbara • coastal"/>
     </div>
     <div class="field">
-      <label>Specialty (e.g., ED, GP, MED, ICU)</label>
-      <input id="docSpec" value="${esc(existing?.specialty || "")}" placeholder="e.g., ED, GP, MED"/>
+      <label>Speciality</label>
+      <select id="docSpec">
+        <option value="">— Select speciality —</option>
+        ${__specUnmapped ? `<option value="${esc(__specUnmapped)}">${esc(__specUnmapped)} (old value – pick from the list)</option>` : ``}
+        <optgroup label="Most common">${BG_SPECIALITY_OPTIONS.filter(o => BG_SPEC_PRIORITY.includes(o)).map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join("")}</optgroup>
+        <optgroup label="All others A–Z">${BG_SPECIALITY_OPTIONS.filter(o => !BG_SPEC_PRIORITY.includes(o)).map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join("")}</optgroup>
+      </select>
+      ${(existing?.specialty_legacy || (__specRaw && __specRaw !== __specSel && !__specUnmapped)) ? `<div class="hint" style="margin-top:4px;">Was “${esc(existing?.specialty_legacy || __specRaw)}” before the dropdown.</div>` : ``}
     </div>
     <div class="field">
       <label>PGY (optional)</label>
@@ -10055,6 +10505,24 @@ function openDoctorEditor(existing){
 
   // default Level selection
   try{ document.getElementById("docLevel").value = (existing?.level || "Senior"); } catch(e) {}
+  // Speciality dropdown + desired specialities picker
+  const __docSpecEl = document.getElementById("docSpec");
+  const __docPrefsEl = document.getElementById("docPrefs");
+  __docSpecEl.value = __specSel || __specUnmapped || "";
+  const __docPick = bgMultiPick(document.getElementById("docDesiredPick"), {
+    options: bgPriSort([...BG_DESIRED_SPECIALITIES, ...bgDoctorDesired(existing || {})], BG_SPEC_PRIORITY_DESIRED),
+    selected: bgDoctorDesired(existing ? { ...existing, specialty: __specSel || __specRaw } : {}),
+    searchable: true, pinned: BG_SPEC_PRIORITY_DESIRED,
+    placeholder: "Type to find a speciality (e.g. emerg, gen med, psych)… Enter adds the first match",
+    onChange: sel => { __docPrefsEl.value = sel.join(", "); }
+  });
+  __docPrefsEl.value = __docPick.get().join(", ");
+  // picking a speciality also adds it to the desired list
+  __docSpecEl.addEventListener("change", () => {
+    const add = bgFindSpecialities(__docSpecEl.value);
+    if(add.length) __docPick.set([...__docPick.get(), ...add]);
+  });
+  const __docExtra = () => ({ desired_specialties: __docPick.get(), prefs_legacy: __prefsLegacy || "" });
 
   // ClickUp-synced doctor: lock only the Med Reg # (it's what links this doctor to ClickUp)
   if(isEdit && existing?.source === 'clickup'){
@@ -10146,7 +10614,7 @@ function openDoctorEditor(existing){
             // Add timestamp to mark as manually edited
             doctors[idx] = addManualEditTimestamp({
               ...doctors[idx],
-              name, clickup_url, prefs, where, specialty, pgy, level, tags
+              name, clickup_url, prefs, where, specialty, pgy, level, tags, ...__docExtra()
             });
           }
         } else {
@@ -10164,7 +10632,7 @@ function openDoctorEditor(existing){
           // Add timestamp to new doctor
           doctors.push(addManualEditTimestamp({
             ahpra_id: ahpra,
-            name, clickup_url, prefs, where, specialty, pgy, level, tags
+            name, clickup_url, prefs, where, specialty, pgy, level, tags, ...__docExtra()
           }));
         }
 
