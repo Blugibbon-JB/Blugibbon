@@ -807,7 +807,11 @@ if (typeof firebase !== 'undefined') (function () {
     return { rows, byJob, byDoc };
   }
   const agoMs = ms => ago({ ms });
-  const presStatus = r => { const s = PRES_LABEL[r.status] || PRES_LABEL.recording; const tip = [].concat(r.notes || []).join(' · ');
+  // notes from Make + any ClickUp refusals (errors: {safeK: message}) written by the scenario's error route
+  const presNotes = r => [].concat(r.notes || []).concat(Object.entries(r.errors || {}).map(([sk, m]) => {
+    const d = [].concat(r.docs || []).find(d => d && String(d.k || '').replace(/[.#$\[\]\/]/g, '_') === sk);
+    return `ClickUp refused ${d && d.name ? d.name : sk}: ${String(m || '').slice(0, 160)}`; })).filter(Boolean);
+  const presStatus = r => { const s = PRES_LABEL[r.status] || PRES_LABEL.recording; const tip = presNotes(r).join(' · ');
     return `<span class="pTag ${s[0]}"${tip ? ` title="${esc(tip)}"` : ''}>${s[1]}${tip && r.status !== 'withdrawn' ? ' ⚠' : ''}</span>`; };
   const canWithdraw = r => user && r.byUid === user.uid && ['recorded', 'partial', 'error'].includes(r.status) && Date.now() - r.at < 2 * 864e5;
   const presDocChips = r => r.docs.map(d => { const href = d.task || d.cu, tip = d.task ? 'Open the ClickUp submission' : 'Open the doctor in ClickUp';
@@ -823,7 +827,7 @@ if (typeof firebase !== 'undefined') (function () {
       <div style="min-width:0"><div class="site">${esc(r.site || 'Job')}</div><div class="c13m">${esc(dot(r.role, r.dates, r.evo ? 'EVO ' + r.evo : ''))}</div></div>
       <div class="chips w">${presDocChips(r)}</div>
       <div class="c13m">${esc(presTo(r))}${r.mode !== 'evo' && r.to && r.toName ? `<div class="s2">${esc(r.to)}</div>` : ''}</div>
-      <div>${presStatus(r)}${[].concat(r.notes || []).length ? `<div class="s2" style="margin-top:4px">${esc([].concat(r.notes).join(' · '))}</div>` : ''}${canWithdraw(r) ? `<div style="margin-top:4px"><button class="lnkBtn" data-withdraw="${esc(r.pid)}">Withdraw</button></div>` : ''}</div></div>`;
+      <div>${presStatus(r)}${presNotes(r).length ? `<div class="s2" style="margin-top:4px">${esc(presNotes(r).join(' · '))}</div>` : ''}${canWithdraw(r) ? `<div style="margin-top:4px"><button class="lnkBtn" data-withdraw="${esc(r.pid)}">Withdraw</button></div>` : ''}</div></div>`;
   // job cards: "Presented: Dr A, Dr B · 2d ago"
   const presLine = (x, wide) => { const ps = (V && V.presByJob[x.jk]) || []; if (!ps.length) return '';
     const names = []; ps.forEach(p => p.docs.forEach(d => { if (!names.some(n => n.k === d.k)) names.push({ k: d.k, name: d.name, at: p.at, href: d.task || d.cu }); }));
@@ -1134,7 +1138,12 @@ if (typeof firebase !== 'undefined') (function () {
   const isEvoJob = j => !!evoOf(j) && /evo/i.test(String(j.from || '') + ' ' + String(j.subject || ''));
   const cleanName = n => String(n || '').replace(/\s*\((?:[A-Z]{2,3}|Perth|SYD|VIC|WA|NSW|QLD)\)\s*$/i, '').trim();
   const drName = n => /^dr\.?\s/i.test(cleanName(n)) ? cleanName(n) : 'Dr ' + cleanName(n);
-  const firstOf = n => (String(n || '').replace(/\s*\(.*?\)\s*/g, ' ').trim().split(/\s+/)[0] || '').replace(/[^A-Za-z'’-]/g, '');
+  // first name only; handles "Kristy Ewers", "Ewers, Kristy" and "Ewers, Kristy (Medical Admin)"
+  const firstOf = n => { let t = String(n || '').replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    const m = t.match(/^([^,]+),\s*([^,]+)$/); if (m) t = m[2];
+    return (t.split(' ')[0] || '').replace(/[^A-Za-z'’-]/g, ''); };
+  const fullOf = n => { let t = String(n || '').replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    const m = t.match(/^([^,]+),\s*([^,]+)$/); return m ? m[2] + ' ' + m[1] : t; };
   const fromCache = jk => { try { return JSON.parse(store.get('focus.from2.' + jk, 'null')); } catch (e) { return null; } };
   function findAnyJob(jk) { for (const id of ['match', 'close', 'rev']) { const x = V && V.lists[id].find(y => y.jk === jk); if (x) return x; } return null; }
   function presCandidates(x) {
@@ -1285,7 +1294,7 @@ if (typeof firebase !== 'undefined') (function () {
     const uids = [...new Set(sel.flatMap(c => c.uids || []))];
     const rec = { pid, at: Date.now(), by: user.email, byUid: user.uid, jk: PM.jk, site: j.site || x.site, state: x.st || '', role: x.roleFull || x.role || '', title: j.title || '', dates: x.dates,
       evo: evoOf(j), mode, to: mode === 'email' ? to : '', toName: mode === 'email' ? (toName || '') : '', subject, mail: j.mail || '', docs, uids, status: 'recording' };
-    const payload = { pid, by: user.email, byUid: user.uid, mode, subject, contact: { email: mode === 'email' ? to : '', name: (PM.fullName && firstOf(PM.fullName) === toName ? PM.fullName : toName) || '' },
+    const payload = { pid, by: user.email, byUid: user.uid, mode, subject, contact: { email: mode === 'email' ? to : '', name: (PM.fullName && firstOf(PM.fullName) === toName ? fullOf(PM.fullName) : toName) || '' },
       job: { jk: PM.jk, site: j.site || x.site, state: j.state || '', title: j.title || '', specialty: j.specialty || '', level: j.level || '', dates: x.ds || [], start: j.start || '', end: j.end || '', evo: evoOf(j), rate: j.rate || '', mail: j.mail || '', when: j.when || x.dates },
       docs: sel.map(c => ({ k: c.k, name: c.name, cu: c.cu || '', uids: c.uids || [], fit: c.fit || '' })) };
     presNow[pid] = rec; presClose(); render();
