@@ -581,8 +581,8 @@ const Focus = (() => {
       for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) {
         const j = rec && rec.job; if (!j || !j.end || tooLate(j, today)) continue;
         if (seenJob.has(jk)) continue; seenJob.add(jk);
-        const state = rec.state || null;
-        if ((state && state.s) || (opts.dismissed || {})[jk]) continue;   // answered (accepted / not suitable) -> gone
+        const state = rec.state && (!opts.me || String(rec.state.by || '').toLowerCase() === opts.me) ? rec.state : null;   // someone else's answer doesn't count for you
+        if ((opts.dismissed || {})[jk]) continue;   // answered by you (accepted / not suitable / removed) -> gone for you only
         const dates = arr(j.dates).filter(d => d >= today).sort();
         // Make's matches (made when the email came in) + anyone on these calendars who fits now
         const pageRows = liveMatch(j, dates), mk = new Set(arr(j.docs).map(m => key(m && m.k)));
@@ -810,18 +810,22 @@ if (typeof firebase !== 'undefined') (function () {
   }
   const hiddenNow = new Set();        // hidden the instant you click, before Firebase answers
   const removedNow = new Set(), unremovedNow = new Set();   // instant feedback before Firebase answers
+  // Accept / Not suitable / removed jobs and doctors taken off a job are personal: they live in YOUR calendar
+  // (users/{you}/focus/...) and never change anyone else's Doctor Focus. Older marks saved on the shared job card only count if you made them.
+  const mine = r => r && String(r.by || '').toLowerCase() === String((user && user.email) || '').toLowerCase();
   function removedSet() {
-    const out = new Set();
-    for (const node of Object.values(data)) {
-      for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) for (const dk of Object.keys((rec && rec.removed) || {})) out.add(jk + '|' + dk);
-      for (const [jk, ds] of Object.entries((node && node.focus && node.focus.removed) || {})) for (const dk of Object.keys(ds || {})) out.add(jk + '|' + dk);
-    }
+    const out = new Set(), me = data[user.uid] || {};
+    for (const node of Object.values(data))
+      for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) for (const [dk, r] of Object.entries((rec && rec.removed) || {})) if (mine(r)) out.add(jk + '|' + dk);
+    for (const [jk, ds] of Object.entries((me.focus && me.focus.removed) || {})) for (const dk of Object.keys(ds || {})) out.add(jk + '|' + dk);
     removedNow.forEach(k => out.add(k)); unremovedNow.forEach(k => out.delete(k));
     return out;
   }
   function dismissedMap() {
     const out = {};
-    for (const node of Object.values(data)) for (const k of Object.keys((node && node.focus && node.focus.dismissed) || {})) out[k] = 1;
+    const me = data[user.uid] || {};
+    for (const k of Object.keys((me.focus && me.focus.dismissed) || {})) out[k] = 1;
+    for (const node of Object.values(data)) for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) if (rec && rec.state && rec.state.s && mine(rec.state)) out[jk] = 1;
     hiddenNow.forEach(k => out[k] = 1);
     return out;
   }
@@ -834,7 +838,7 @@ if (typeof firebase !== 'undefined') (function () {
   // ---------- view models ----------
   function build() {
     const today = N.sydToday();
-    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, contacted: contactedMap(), dismissed: dismissedMap(), removed: removedSet() });
+    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, me: String(user.email || '').toLowerCase(), contacted: contactedMap(), dismissed: dismissedMap(), removed: removedSet() });
     const pops = {}; let pi = 0;
     const jobVM = (x, near) => {
       const j = x.j, { site, role } = shortTitle(j.title), docs = near ? x.near : x.live, n = x.dates.length;
@@ -968,7 +972,8 @@ if (typeof firebase !== 'undefined') (function () {
   const PRES_LABEL = { recording: ['st-wait', 'Recording…'], recorded: ['st-rec', 'In ClickUp'], partial: ['st-err', 'Partly recorded'], error: ['st-err', 'Not recorded'], withdrawing: ['st-wait', 'Withdrawing…'], withdrawn: ['st-wd', 'Withdrawn'] };
   function presentedVM() {
     const all = {}, cutoff = Date.now() - 30 * 864e5;
-    for (const node of Object.values(data)) for (const [pid, r] of Object.entries((node && node.focus && node.focus.presented) || {})) if (r && r.at) all[pid] = Object.assign({ pid }, r);
+    const me = data[user.uid] || {};      // your own presentations only (Izzy sees hers, you see yours)
+    for (const [pid, r] of Object.entries((me.focus && me.focus.presented) || {})) if (r && r.at) all[pid] = Object.assign({ pid }, r);
     for (const [pid, r] of Object.entries(presNow)) { const fb = all[pid]; all[pid] = Object.assign({}, r, fb || {}, r.status === 'withdrawing' && !(fb && fb.status === 'withdrawn') ? { status: 'withdrawing' } : {}, r.status === 'error' && fb && fb.status === 'recording' ? { status: 'error', notes: r.notes } : {}); }
     const rows = [], byJob = {}, byDoc = {};
     for (const r of Object.values(all)) {
@@ -1508,13 +1513,12 @@ if (typeof firebase !== 'undefined') (function () {
     hiddenNow.add(jk); sel.delete(jk); render();
     const rec = { s: 'removed', by: user.email, at: new Date().toISOString() };
     const p = (async () => {
-      try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).set(rec); } catch (e) { console.warn(e); }
-      try { await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).set(rec); } catch (e) { /* view only */ }
+      try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).set(rec); } catch (e) { console.warn(e); }   // yours only
     })();
     toast(`${x.site} removed from reverse market`, async () => {
       await p;
       try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).remove(); } catch (e) {}
-      try { await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).remove(); } catch (e) {}
+      try { const st = await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).once('value'); if (mine(st.val())) await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).remove(); } catch (e) {}
       hiddenNow.delete(jk); render();
     });
   }
@@ -1532,26 +1536,23 @@ if (typeof firebase !== 'undefined') (function () {
     else if (url) { try { fetch(url, { mode: 'no-cors', cache: 'no-store' }); } catch (e) { new Image().src = url; } }   // Not suitable: recorded quietly, no tab
     const rec = { s: act, by: user.email, at: new Date().toISOString() };
     const p = (async () => {
-      try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).set(rec); } catch (e) { console.warn(e); }
-      try { await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).set(rec); } catch (e) { /* someone else's calendar – view only */ }
+      try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).set(rec); } catch (e) { console.warn(e); }   // yours only
     })();
     toast(`${x.site} marked ${act === 'accepted' ? 'accepted – order opened' : 'not suitable'}`, async () => {
       await p;
       try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).remove(); } catch (e) { console.warn(e); }
-      try { await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).remove(); } catch (e) { /* view only */ }
+      try { const st = await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).once('value'); if (mine(st.val())) await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).remove(); } catch (e) {}
       hiddenNow.delete(jk); render();
     });
   }
   async function removeDoc(jk, dk, uid, name, site) {
     const s = N.safeKey(dk), k = jk + '|' + s, rec = { by: user.email, at: new Date().toISOString() };
     unremovedNow.delete(k); removedNow.add(k); render();
-    let where = '';
-    try { await db.ref(`users/${uid}/jobmatches/${jk}/removed/${s}`).set(rec); where = 'job'; }          // deleted with the job when it finishes
-    catch (e) { try { await db.ref(`users/${user.uid}/focus/removed/${jk}/${s}`).set(rec); where = 'own'; } catch (e2) { console.warn(e2); } }
+    try { await db.ref(`users/${user.uid}/focus/removed/${jk}/${s}`).set(rec); } catch (e) { console.warn(e); }   // yours only
     toast(`${name} removed from ${site}`, async () => {
       removedNow.delete(k); unremovedNow.add(k); render();
-      try { await db.ref(`users/${uid}/jobmatches/${jk}/removed/${s}`).remove(); } catch (e) {}
       try { await db.ref(`users/${user.uid}/focus/removed/${jk}/${s}`).remove(); } catch (e) {}
+      try { const r = await db.ref(`users/${uid}/jobmatches/${jk}/removed/${s}`).once('value'); if (mine(r.val())) await db.ref(`users/${uid}/jobmatches/${jk}/removed/${s}`).remove(); } catch (e) {}
       unremovedNow.delete(k);
     });
   }
