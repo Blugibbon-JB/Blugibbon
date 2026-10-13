@@ -197,6 +197,46 @@ mark{background:#fff3b0;color:inherit;border-radius:3px;padding:0 1px}
 .expPrev{border:1px solid #e3e8ef;border-radius:12px;overflow:hidden;background:#f4f6fa;height:min(62vh,560px)}
 .expPrev iframe{width:100%;height:100%;border:0;background:#fff}
 @media (max-width:820px){.expGrid{grid-template-columns:1fr}.expPrev{height:360px}}
+/* present doctors */
+.ib.pr{border:0;background:linear-gradient(180deg,#3b82f6,#1f5ccc);color:#fff;box-shadow:0 2px 6px -2px rgba(31,98,214,.5)}
+.ib.pr:hover{background:#174aa3;color:#fff}
+.prLine{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:12px;color:#174aa3}
+.prLine .pl{font-size:11px;font-weight:800;letter-spacing:.04em;color:#174aa3;margin-right:2px}
+.chip.b,.chip.b:hover{background:#e5eefd;color:#174aa3;padding-right:9px}
+.modal.pres{width:980px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;padding:0;overflow:hidden}
+.pHead{padding:18px 22px 12px;border-bottom:1px solid #eef1f6}
+.pHead .mT{margin:0}
+.pSub{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:#5b6475;margin-top:4px}
+.pBody{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:0}
+.pCol{padding:14px 22px;min-width:0}
+.pCol+.pCol{border-left:1px solid #eef1f6;background:#fafbfd}
+.pH{font-size:11px;font-weight:800;letter-spacing:.08em;color:#8a93a3;margin:4px 0 8px;display:flex;align-items:center;gap:8px}
+.pDoc{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:10px;align-items:start;padding:8px 10px;border-radius:10px;cursor:pointer}
+.pDoc:hover{background:#f4f6fa}
+.pDoc.on{background:#e8effc}
+.pDoc input{width:16px;height:16px;margin:2px 0 0;accent-color:#1f62d6}
+.pDoc .nm{white-space:normal}
+.pDoc .s2{white-space:normal}
+.pTag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:#fde8e8;color:#9b1c1c;white-space:nowrap}
+.pTag.g{background:#e4f4ec;color:#15603f}.pTag.a{background:#fbf1e0;color:#8a560c}.pTag.p{background:#efeafb;color:#4b2f92}.pTag.b{background:#e5eefd;color:#174aa3}
+.pAdd{position:relative;margin-top:8px}
+.pAdd input{width:100%;height:36px;border:1px solid #dde2ea;border-radius:10px;padding:0 12px;font:inherit;font-size:13px}
+.pAddList{position:absolute;left:0;right:0;top:40px;z-index:5;background:#fff;border:1px solid #e3e8ef;border-radius:12px;box-shadow:0 18px 40px -12px rgba(16,24,40,.25);max-height:260px;overflow:auto}
+.pAddList button{all:unset;box-sizing:border-box;display:block;width:100%;padding:8px 12px;cursor:pointer;font-size:13px}
+.pAddList button:hover,.pAddList button.on{background:#f4f6fa}
+.pF{display:grid;grid-template-columns:64px minmax(0,1fr);gap:8px;align-items:center;margin-bottom:8px}
+.pF label{font-size:12px;font-weight:600;color:#5b6475}
+.pF input{height:36px;border:1px solid #dde2ea;border-radius:9px;padding:0 10px;font:inherit;font-size:13px;color:#1b2230;width:100%}
+.pBodyTxt{width:100%;min-height:300px;border:1px solid #dde2ea;border-radius:10px;padding:10px 12px;font:inherit;font-size:13px;line-height:1.5;color:#1b2230;resize:vertical;background:#fff}
+.pOpts{display:flex;flex-wrap:wrap;gap:6px 16px;margin:8px 0 2px}
+.pFoot{display:flex;align-items:center;gap:8px;padding:12px 22px;border-top:1px solid #eef1f6;flex-wrap:wrap}
+.pFoot .primary{margin-top:0}
+.pNote{font-size:12px;color:#8a93a3;flex:1;min-width:220px}
+.pWarn{font-size:12px;color:#8a560c;background:#fbf1e0;border-radius:8px;padding:6px 10px;margin:6px 0}
+.evoBox{background:#fff;border:1px solid #e3e8ef;border-radius:12px;padding:14px 16px;font-size:13px;color:#3b4252;line-height:1.5}
+.st-rec{background:#e4f4ec;color:#15603f}.st-wait{background:#eef1f6;color:#3b4252}.st-err{background:#fde8e8;color:#9b1c1c}.st-wd{background:#f1f2f5;color:#6b7280;text-decoration:line-through}
+.lnkBtn{border:0;background:none;color:#1f62d6;font-size:12px;font-weight:600;padding:0;cursor:pointer}
+@media (max-width:820px){.pBody{grid-template-columns:1fr}.pCol+.pCol{border-left:0;border-top:1px solid #eef1f6}}
 .toast{position:fixed;left:24px;bottom:24px;z-index:60;display:flex;align-items:center;gap:16px;padding:12px 16px;background:#1b2230;color:#fff;border-radius:12px;font-size:13px;box-shadow:0 18px 40px -12px rgba(16,24,40,.4)}
 .toast button{border:0;background:transparent;color:#8fb4f5;font-weight:800;font-size:13px;padding:0}
 /* loading / sign-in */
@@ -205,6 +245,7 @@ mark{background:#fff3b0;color:inherit;border-radius:3px;padding:0 1px}
 .stCard b{display:block;color:#1b2230;font-size:17px;font-weight:800;margin-bottom:6px}
 .primary{margin-top:16px;border:0;padding:9px 16px;border-radius:9px;background:linear-gradient(135deg,#3b82f6,#1f5ccc);color:#fff;font-weight:600;font-size:14px;box-shadow:0 4px 12px -4px rgba(31,98,214,.55)}
 .primary:hover{background:linear-gradient(135deg,#2f6fe0,#174aa3)}
+.primary[disabled],.sec[disabled]{opacity:.5;cursor:default}
 [hidden]{display:none!important}
 @media (max-width:560px){ .hd{padding:10px 16px} .grid{padding:16px;gap:16px} .exHead,.exBody{padding-left:16px;padding-right:16px} .exTop{padding:0 16px} .toast{left:16px;right:16px;bottom:16px} }
 </style>
@@ -273,6 +314,45 @@ mark{background:#fff3b0;color:inherit;border-radius:3px;padding:0 1px}
   <div class="mBtns"><span class="mHint" id="expMsg" style="margin:0!important"></span><span class="sp"></span>
     <button class="sec" id="expCsv">Download CSV</button><button class="sec" id="expHtml">Download HTML</button>
     <button class="sec" id="expClose">Close</button><button class="primary" id="expCopy" style="margin-top:0">Copy for email</button></div>
+</div></div>
+<div class="modalBg" id="presSet" hidden><div class="modal pres" role="dialog" aria-labelledby="pTitle">
+  <div class="pHead"><span class="mT" id="pTitle">Present doctors</span><div class="pSub" id="pSub"></div></div>
+  <div class="pBody">
+    <div class="pCol">
+      <div class="pH">DOCTORS TO PUT FORWARD <span class="sp"></span><span id="pCount" style="letter-spacing:0;font-weight:600;color:#5b6475"></span></div>
+      <div id="pDocs"></div>
+      <div class="pAdd"><input id="pAddQ" placeholder="+ Add another doctor from your calendar…" autocomplete="off" spellcheck="false"><div class="pAddList" id="pAddList" hidden></div></div>
+      <div class="pH" style="margin-top:16px">ALREADY PRESENTED TO THIS JOB</div>
+      <div id="pPrev" class="s2">None yet.</div>
+    </div>
+    <div class="pCol" id="pMailCol">
+      <div id="pEmail">
+        <div class="pH">EMAIL <span class="sp"></span><span id="pLook" class="s2" style="letter-spacing:0;font-weight:400"></span></div>
+        <div class="pF"><label for="pTo">To</label><input id="pTo" placeholder="contact@hospital…" autocomplete="off"></div>
+        <div class="pF"><label for="pToName">Name</label><input id="pToName" placeholder="First name for the greeting" autocomplete="off"></div>
+        <div class="pF"><label for="pSubj">Subject</label><input id="pSubj" autocomplete="off"></div>
+        <div class="pOpts">
+          <label class="ck"><input type="checkbox" id="pOptReg" checked> Med Reg #</label>
+          <label class="ck"><input type="checkbox" id="pOptAv" checked> Their availability</label>
+          <label class="ck"><input type="checkbox" id="pOptNote"> Calendar notes</label>
+          <span class="sp"></span><button class="lnkBtn" id="pRebuild" hidden title="Throw away your edits and rebuild the email from the doctors ticked">Rebuild email</button>
+        </div>
+        <textarea class="pBodyTxt" id="pBodyTxt" spellcheck="true"></textarea>
+        <p class="mHint" style="margin-top:6px!important">Opens in your Gmail with this text – your signature is added there. Attach CVs in Gmail (paperclip or Drive). Don't BCC the CV mailhook: this already records it.</p>
+      </div>
+      <div id="pEvo" hidden>
+        <div class="pH">EVO ORDER</div>
+        <div class="evoBox" id="pEvoTxt"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pFoot">
+    <span class="pNote" id="pNote">Records a <b>Presented</b> submission in ClickUp for each doctor (linked to the doctor, site and contact) and a Tentative “Presented” block in your calendar.</span>
+    <button class="sec" id="pCancel" style="border:1px solid #dde2ea;background:#fff;border-radius:9px;padding:8px 14px;font-weight:600;font-size:13px">Cancel</button>
+    <button class="sec" id="pCopy" style="border:1px solid #dde2ea;background:#fff;border-radius:9px;padding:8px 14px;font-weight:600;font-size:13px" title="Copy the email, then record it with Record only">Copy email</button>
+    <button class="sec" id="pRecOnly" style="border:1px solid #dde2ea;background:#fff;border-radius:9px;padding:8px 14px;font-weight:600;font-size:13px" title="Record the presentation without opening Gmail (e.g. you sent it another way)">Record only</button>
+    <button class="primary" id="pGo">Open in Gmail &amp; record</button>
+  </div>
 </div></div>
 <div class="toast" id="toast" hidden><span id="toastMsg"></span><button id="toastUndo">Undo</button></div>
 <script>
@@ -420,7 +500,8 @@ const Focus = (() => {
       const t = [x.ev.title, x.ev.notes].filter(v => v && !/^(available|tentative|status)$/i.test(String(v).trim())).join(' · '); if (t && !out.includes(t)) out.push(t); } return out; };
     const lastBookedFor = k => (evBy[k] || []).filter(x => x.k === 'booked' && x.e <= today).map(x => addDays(x.e, -1)).sort().pop() || '';
     const currentBookingFor = k => (evBy[k] || []).filter(x => x.k === 'booked' && x.s <= today && x.e > today).map(x => addDays(x.e, -1)).sort().pop() || '';
-    return { today, win, jobs, nearJobs, unmatched, anyUm, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
+    const coverFor = (k, ds) => (ds || []).filter(d => freeOn(k, d)).length;     // how many of these days the doctor is free (presenting)
+    return { today, win, jobs, nearJobs, unmatched, anyUm, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, coverFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
   }
   return { build, safeKey, addDays, nice, short, span, ranges, sydToday, key };
 })();
@@ -441,7 +522,8 @@ if (typeof firebase !== 'undefined') (function () {
   const arr = v => Array.isArray(v) ? v : Object.values(v || {});
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} } };
-  const ALL_IDS = ['match', 'close', 'free', 'end', 'rev', 'upd'];
+  const ALL_IDS = ['match', 'close', 'free', 'end', 'rev', 'upd', 'pres'];
+  const PRESENT_HOOK = 'https://hook.us2.make.com/8ggkmdfw3g0vrn8kbd1gua8999pezfx4';   // Make 6622466 "Doctor Focus – present doctors"
   let IDS = ['match', 'close', 'free', 'end'];
   let user = null, scope = store.get('focus.scope', 'mine'), win = Number(store.get('focus.win', '28')) || 28;
   let updWin = store.get('focus.updWin', 'last') === 'today' ? 'today' : 'last';
@@ -458,7 +540,8 @@ if (typeof firebase !== 'undefined') (function () {
     check: w => svg(w, '<path d="M20 6 9 17l-5-5"/>', 2.5),
     x: w => svg(w, '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', 2.5),
     clock: w => svg(w, '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
-    mail: w => svg(w, '<rect width="20" height="16" x="2" y="4"/><path d="m22 7-10 6L2 7"/>')
+    mail: w => svg(w, '<rect width="20" height="16" x="2" y="4"/><path d="m22 7-10 6L2 7"/>'),
+    send: w => svg(w, '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>')
   };
 
   // ---------- card meta ----------
@@ -469,7 +552,8 @@ if (typeof firebase !== 'undefined') (function () {
     rev: { label: 'REVERSE MARKET', tab: 'Reverse market', c: '#0f766e', t: '#dcf3ee', hint: () => 'Desk jobs with no doctor free (any date) – market them to candidates', exHint: 'Jobs that fit your desk but none of your doctors are free – shown whatever the start date. "Could suit" lists doctors who fit the job but have no availability logged for those dates. Tick jobs to export them to a mailer.', empty: 'No unmatched desk jobs right now.' },
     srch: { label: 'SEARCH – DOCTORS', tab: 'Search', c: '#1b2230', t: '#eef1f6', hint: () => (V && V.srchHint) || '', exHint: 'Every doctor on the calendar matching your search (name, level, specialty, preferences, where they want to work, tags, notes) – whether or not they are in another card. The other cards are filtered by the same search.', empty: 'No doctors match.' },
     upd: { label: 'UPDATES', tab: 'Updates', c: '#475467', t: '#eceff3', hint: () => (V && V.updHint) || 'What the last update changed', exHint: 'What changed: new, updated and removed jobs, and doctors whose availability, bookings, away dates or status changed. "Last update" = the most recent update that changed something; "Today" = every update since midnight. Updates run every 30 min, 8:30–5:30 weekdays.', empty: 'Nothing has changed yet.' },
-    end: { label: 'FINISHING SOON', tab: 'Finishing', c: '#c27a12', t: '#fcf0dd', hint: () => 'Bookings ending in 2 weeks with nothing lined up', exHint: 'Bookings ending in the next 2 weeks with nothing lined up after.', empty: 'No gaps coming up.' }
+    end: { label: 'FINISHING SOON', tab: 'Finishing', c: '#c27a12', t: '#fcf0dd', hint: () => 'Bookings ending in 2 weeks with nothing lined up', exHint: 'Bookings ending in the next 2 weeks with nothing lined up after.', empty: 'No gaps coming up.' },
+    pres: { label: 'PRESENTED', tab: 'Presented', c: '#174aa3', t: '#e5eefd', hint: () => 'Doctors you put forward – last 30 days', exHint: 'Every presentation made from this page in the last 30 days: who went to which job, who it was sent to and the ClickUp submission it created. Withdraw undoes one recorded by mistake (within 2 days) – it deletes those ClickUp submissions and the calendar blocks.', empty: 'Nothing presented yet – use the blue Present button on a job.' }
   };
 
   // ---------- formatting helpers ----------
@@ -580,7 +664,7 @@ if (typeof firebase !== 'undefined') (function () {
         pid = 'p' + (pi++); pops[pid] = { k: r.k, name: r.name, level: r.level && r.level !== '?' ? r.level : '', jobLevel: j.level || '', fit: tip, all, near, c: r.c, n: r.n };
         return { ...r, cls: near ? 'p' : all ? 'g' : 'a', mark: near ? '' : all ? '✓ ' : '◐ ', tip, pid };
       });
-      return { kind: near ? 'close' : 'match', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, st: j.state || '', n,
+      return { kind: near ? 'close' : 'match', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, st: j.state || '', n, ds: x.dates, cand: docs,
         dates: compactDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a', chips,
         q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo, ...docs.map(r => r.name + ' ' + lvWords(r.level) + ' ' + (r.why || ''))].join(' ').toLowerCase() };
     };
@@ -599,14 +683,15 @@ if (typeof firebase !== 'undefined') (function () {
     });
     const rev = F.unmatched.map(x => {
       const j = x.j, { site, role } = shortTitle(j.title), n = x.dates.length;
-      return { kind: 'rev', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, roleFull: String(j.title || '').split(' – ').slice(1).join(' – ') || j.specialty || '',
+      return { kind: 'rev', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, ds: x.dates, roleFull: String(j.title || '').split(' – ').slice(1).join(' – ') || j.specialty || '',
         st: j.state || '', n, dates: compactDates(x.dates), when: longDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a',
         req: [j.req, j.travel].filter(Boolean).join(' · '), fit: arr(j.fit),
         q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), j.req, j.travel, j.ref, j.evo, ...arr(j.fit).map(f => f.name)].join(' ').toLowerCase() };
     });
     const U = updatesVM(today);
+    const P = presentedVM();
     for (const k of [...sel]) if (!rev.some(r => r.jk === k)) sel.delete(k);   // forget ticks on jobs that have gone
-    const lists = { match, close, free, end, rev, upd: U.rows };
+    const lists = { match, close, free, end, rev, upd: U.rows, pres: P.rows };
     const T = gTerms(); let srchHint = '';
     if (T.length) {
       for (const id of Object.keys(lists)) lists[id] = lists[id].filter(x => gHit(x.q || '', T));
@@ -614,8 +699,8 @@ if (typeof firebase !== 'undefined') (function () {
       const tot = Object.values(lists).reduce((n, l) => n + l.length, 0) - lists.srch.length;
       srchHint = `${lists.srch.length} doctor${lists.srch.length === 1 ? '' : 's'} match “${gq.trim()}” · ${tot} item${tot === 1 ? '' : 's'} in the other cards`;
     }
-    const counts = { match: lists.match.length, close: lists.close.length, free: lists.free.filter(a => !a.contacted).length, end: lists.end.length, rev: lists.rev.length, upd: lists.upd.length, srch: (lists.srch || []).length };
-    return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0, updHint: U.hint, srchHint, searching: T.length > 0 };
+    const counts = { match: lists.match.length, close: lists.close.length, free: lists.free.filter(a => !a.contacted).length, end: lists.end.length, rev: lists.rev.length, upd: lists.upd.length, srch: (lists.srch || []).length, pres: lists.pres.filter(r => r.status !== 'withdrawn').length };
+    return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0, updHint: U.hint, srchHint, searching: T.length > 0, presByJob: P.byJob, presByDoc: P.byDoc };
   }
 
   // ---------- master search ----------
@@ -698,6 +783,52 @@ if (typeof firebase !== 'undefined') (function () {
         <div class="chs">${x.chs.map(c => `<span class="ch ${c[0]}"${c[0] === 'rm' ? ' title="Removed from the calendar"' : ''}>${esc(c[1])}</span>`).join('')}</div></div>`;
   const updBar = wide => `<div class="updBar${wide ? ' wide' : ''}"><div class="seg"><button class="${updWin === 'last' ? 'on' : ''}" data-updwin="last">Last update</button><button class="${updWin === 'today' ? 'on' : ''}" data-updwin="today">Today</button></div></div>`;
 
+  // ---------- Presented: users/{uid}/focus/presented/{pid} (written here, completed by Make 6622466) ----------
+  const presNow = {};                       // shown the instant you click, before Firebase answers
+  const PRES_LABEL = { recording: ['st-wait', 'Recording…'], recorded: ['st-rec', 'In ClickUp'], partial: ['st-err', 'Partly recorded'], error: ['st-err', 'Not recorded'], withdrawing: ['st-wait', 'Withdrawing…'], withdrawn: ['st-wd', 'Withdrawn'] };
+  function presentedVM() {
+    const all = {}, cutoff = Date.now() - 30 * 864e5;
+    for (const node of Object.values(data)) for (const [pid, r] of Object.entries((node && node.focus && node.focus.presented) || {})) if (r && r.at) all[pid] = Object.assign({ pid }, r);
+    for (const [pid, r] of Object.entries(presNow)) { const fb = all[pid]; all[pid] = Object.assign({}, r, fb || {}, r.status === 'withdrawing' && !(fb && fb.status === 'withdrawn') ? { status: 'withdrawing' } : {}, r.status === 'error' && fb && fb.status === 'recording' ? { status: 'error', notes: r.notes } : {}); }
+    const rows = [], byJob = {}, byDoc = {};
+    for (const r of Object.values(all)) {
+      let status = r.status || 'recording';
+      if (status === 'recording' && Date.now() - r.at > 3 * 6e4) status = 'error';        // Make never answered
+      const docs = Object.entries(r.docs || {}).map(([sk, d]) => ({ k: d.k || sk, name: d.name || d.k || sk, cu: d.cu || '', task: ((r.tasks || {})[sk] || {}).url || '' }));
+      const row = Object.assign({}, r, { kind: 'pres', status, docs, q: [r.site, r.title, r.to, r.toName, r.evo, ...docs.map(d => d.name)].join(' ').toLowerCase() });
+      if (status !== 'withdrawn' && status !== 'withdrawing') {
+        if (r.jk) (byJob[r.jk] = byJob[r.jk] || []).push(row);
+        for (const d of docs) (byDoc[N.key(d.k)] = byDoc[N.key(d.k)] || []).push(row);
+      }
+      if (r.at >= cutoff) rows.push(row);
+    }
+    rows.sort((a, b) => b.at - a.at);
+    return { rows, byJob, byDoc };
+  }
+  const agoMs = ms => ago({ ms });
+  const presStatus = r => { const s = PRES_LABEL[r.status] || PRES_LABEL.recording; const tip = [].concat(r.notes || []).join(' · ');
+    return `<span class="pTag ${s[0]}"${tip ? ` title="${esc(tip)}"` : ''}>${s[1]}${tip && r.status !== 'withdrawn' ? ' ⚠' : ''}</span>`; };
+  const canWithdraw = r => user && r.byUid === user.uid && ['recorded', 'partial', 'error'].includes(r.status) && Date.now() - r.at < 2 * 864e5;
+  const presDocChips = r => r.docs.map(d => { const href = d.task || d.cu, tip = d.task ? 'Open the ClickUp submission' : 'Open the doctor in ClickUp';
+    return href ? `<a class="chip b" href="${esc(href)}" target="_blank" rel="noopener" title="${tip}"><span class="cn">${esc(d.name)}</span></a>` : `<span class="chip b"><span class="cn">${esc(d.name)}</span></span>`; }).join('');
+  const presTo = r => r.mode === 'evo' ? `EVO ${r.evo || ''}` : (r.toName || r.to || 'no email');
+  const presRow = r => `<div class="jrow${r.status === 'withdrawn' ? ' dim' : ''}">
+      <div class="jtop"><div><div class="site">${esc(r.site || 'Job')} <span class="st">${esc(r.state || '')}</span></div><div class="role">${esc(dot(r.role, r.dates))}</div></div>
+        <div class="acts" style="align-items:center">${presStatus(r)}</div></div>
+      <div class="jmeta"><span class="ago" title="${esc(fullTime({ ms: r.at }))}">${I.send(12)}${esc(agoMs(r.at))}</span><span class="d">to ${esc(presTo(r))}</span>${canWithdraw(r) ? `<button class="lnkBtn" data-withdraw="${esc(r.pid)}" title="Recorded by mistake? Deletes these ClickUp submissions and the calendar blocks">Withdraw</button>` : ''}</div>
+      <div class="chips">${presDocChips(r)}</div></div>`;
+  const exPres = r => `<div class="tr job${r.status === 'withdrawn' ? ' dim' : ''}">
+      <div class="c13">${esc(fullTime({ ms: r.at }))}<div class="s2">${esc(r.by || '')}</div></div>
+      <div style="min-width:0"><div class="site">${esc(r.site || 'Job')}</div><div class="c13m">${esc(dot(r.role, r.dates, r.evo ? 'EVO ' + r.evo : ''))}</div></div>
+      <div class="chips w">${presDocChips(r)}</div>
+      <div class="c13m">${esc(presTo(r))}${r.mode !== 'evo' && r.to && r.toName ? `<div class="s2">${esc(r.to)}</div>` : ''}</div>
+      <div>${presStatus(r)}${[].concat(r.notes || []).length ? `<div class="s2" style="margin-top:4px">${esc([].concat(r.notes).join(' · '))}</div>` : ''}${canWithdraw(r) ? `<div style="margin-top:4px"><button class="lnkBtn" data-withdraw="${esc(r.pid)}">Withdraw</button></div>` : ''}</div></div>`;
+  // job cards: "Presented: Dr A, Dr B · 2d ago"
+  const presLine = (x, wide) => { const ps = (V && V.presByJob[x.jk]) || []; if (!ps.length) return '';
+    const names = []; ps.forEach(p => p.docs.forEach(d => { if (!names.some(n => n.k === d.k)) names.push({ k: d.k, name: d.name, at: p.at, href: d.task || d.cu }); }));
+    return `<div class="prLine"${wide ? '' : ' style="padding-left:0"'}><span class="pl">PRESENTED</span>${names.map(n => n.href ? `<a class="chip b" href="${esc(n.href)}" target="_blank" rel="noopener" title="Presented ${esc(agoMs(n.at))}"><span class="cn">${esc(n.name)}</span></a>` : `<span class="chip b" title="Presented ${esc(agoMs(n.at))}"><span class="cn">${esc(n.name)}</span></span>`).join('')}</div>`; };
+  const presBtn = (x, big) => `<button class="ib pr${big ? ' big' : ''}" title="Present doctors to this job – email + record in ClickUp" data-present="${esc(x.jk)}">${I.send(16)}</button>`;
+
   // ---------- card rows ----------
   // when the job came in: Gmail ids carry the arrival time; only trusted when it falls on the received date (a reply in an old thread points at the thread's first email)
   const sydDate = ms => new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
@@ -752,13 +883,13 @@ if (typeof firebase !== 'undefined') (function () {
     const nm = c.cu ? `<a class="cn" href="${esc(c.cu)}" target="_blank" rel="noopener">${inner}</a>` : `<span class="cn">${inner}</span>`;
     return `<span class="chip ${c.cls}${wide ? ' wide' : ''}" ${c.pid ? `data-pop="${c.pid}"` : `title="${esc(c.tip)}"`}>${nm}<button class="cx" title="Remove ${esc(c.name)} from this job (keeps their availability)" data-rm="${esc(c.k)}" data-jk="${esc(x.jk)}" data-uid="${esc(x.uid)}" data-nm="${esc(c.name)}" data-site="${esc(x.site)}">${I.x(11)}</button></span>`;
   };
-  const actBtns = (x, big) => `<button class="ib ok${big ? ' big' : ''}" title="Accept – create order" data-act="accepted" data-jk="${esc(x.jk)}">${I.check(18)}</button>
+  const actBtns = (x, big) => `${presBtn(x, big)}<button class="ib ok${big ? ' big' : ''}" title="Accept – create order" data-act="accepted" data-jk="${esc(x.jk)}">${I.check(18)}</button>
       <button class="ib${big ? ' big' : ''}" title="Not suitable" data-act="notsuitable" data-jk="${esc(x.jk)}">${I.x(18)}</button>`;
   const jobRow = x => `<div class="jrow">
       <div class="jtop"><div><div class="site">${esc(x.site)} <span class="st">${esc(x.st)}</span></div>${x.role ? `<div class="role">${esc(x.role)}</div>` : ''}</div>
         <div class="acts">${actBtns(x)}</div></div>
       <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span>${flagsHTML(x)}${addedHTML(x)}${mailHTML(x)}</div>
-      <div class="chips">${x.chips.map(c => chipHTML(c, false, x)).join('')}</div></div>`;
+      <div class="chips">${x.chips.map(c => chipHTML(c, false, x)).join('')}</div>${presLine(x)}</div>`;
   const contactBtn = (a, wide) => {
     const on = !!a.contacted, tip = on ? `Contacted ${day(a.contacted)} – click to undo` : 'Mark as contacted (hides for 7 days)';
     return wide ? `<button class="cbtn${on ? ' on' : ''}" title="${esc(tip)}" data-contact="${esc(a.a.k)}" data-on="${on ? '1' : ''}">${I.check(14)}${on ? 'Contacted ' + esc(day(a.contacted)) : 'Mark contacted'}</button>`
@@ -784,9 +915,9 @@ if (typeof firebase !== 'undefined') (function () {
   };
   const revRow = x => `<div class="jrow rev${sel.has(x.jk) ? ' on' : ''}">
       <div class="jtop">${selBox(x)}<div><div class="site">${esc(x.site)} <span class="st">${esc(x.st)}</span></div>${x.role ? `<div class="role">${esc(x.role)}</div>` : ''}</div>
-        <div class="acts">${rmBtn(x)}</div></div>
+        <div class="acts">${presBtn(x)}${rmBtn(x)}</div></div>
       <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span>${flagsHTML(x)}${addedHTML(x)}${mailHTML(x)}</div>
-      ${x.req ? `<div class="sub" title="${esc(x.req)}" style="padding-left:30px">${esc(x.req)}</div>` : ''}${fitHTML(x, false)}</div>`;
+      ${x.req ? `<div class="sub" title="${esc(x.req)}" style="padding-left:30px">${esc(x.req)}</div>` : ''}${fitHTML(x, false)}${presLine(x) ? `<div style="padding-left:30px">${presLine(x)}</div>` : ''}</div>`;
   const selBar = (wide) => { const n = V.lists.rev.length, k = sel.size;
     return `<div class="selBar${wide ? ' wide' : ''}"><label><input type="checkbox" data-selall${n && k === n ? ' checked' : ''}${n ? '' : ' disabled'}> Select all</label>
       <span class="selN">${k ? `${k} selected` : 'None selected'}</span>${k ? '<button class="lnk2" data-selnone>Clear</button>' : ''}<span class="sp"></span>
@@ -795,7 +926,7 @@ if (typeof firebase !== 'undefined') (function () {
       <div style="min-width:0"><div class="nm">${nameLink(x.d)} <span class="x">· ${esc(dot(lvShort(x.d.level), x.d.spec))}</span></div>
         <div class="sub" title="${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.free, x.book, x.notes))}">${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.freeShort, x.book))}</div></div>
       <span class="lb">${x.days ? x.days + 'd free' : ''}</span></div>`;
-  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow, rev: revRow, upd: updRow, srch: srchRow };
+  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow, rev: revRow, upd: updRow, srch: srchRow, pres: presRow };
 
   // ---------- render ----------
   function render() {
@@ -828,10 +959,11 @@ if (typeof firebase !== 'undefined') (function () {
 
   // ---------- full-screen view ----------
   const COLS = {
-    job: 'minmax(0,2fr) 130px 150px minmax(0,2.4fr) 110px',
+    job: 'minmax(0,2fr) 130px 150px minmax(0,2.4fr) 150px',
+    pres: '150px minmax(0,1.6fr) minmax(0,1.8fr) minmax(0,1.2fr) 170px',
     free: 'minmax(0,1.6fr) minmax(0,1.6fr) 60px 130px minmax(0,1.4fr) 150px',
     end: 'minmax(0,1.4fr) minmax(0,1.4fr) 120px minmax(0,1.6fr)',
-    rev: '28px minmax(0,2fr) 150px 140px minmax(0,2fr) 60px',
+    rev: '28px minmax(0,2fr) 150px 140px minmax(0,2fr) 100px',
     upd: '80px 120px minmax(0,1.4fr) minmax(0,2.4fr)',
     srch: 'minmax(0,1.4fr) minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.6fr) 150px'
   };
@@ -839,7 +971,7 @@ if (typeof firebase !== 'undefined') (function () {
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
       <div class="c13">${esc(x.dates)}<div class="s2">${x.n} day${x.n === 1 ? '' : 's'}</div></div>
       <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
-      <div class="chips w">${x.chips.map(c => chipHTML(c, true, x)).join('')}</div>
+      <div class="chips w">${x.chips.map(c => chipHTML(c, true, x)).join('')}${presLine(x, true)}</div>
       <div class="acts">${actBtns(x, true)}</div></div>`;
   const exFree = a => `<div class="tr${a.contacted ? ' dim' : ''}">
       <div style="min-width:0"><div class="site">${nameLink(a.d)}</div><div class="c13m">${esc(dot(lvShort(a.d.level), a.d.spec))}</div></div>
@@ -859,8 +991,8 @@ if (typeof firebase !== 'undefined') (function () {
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.roleFull ? `<div class="c13m">${esc(x.roleFull)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
       <div class="c13">${esc(x.dates)}<div class="s2">${esc(x.when.includes('·') ? x.when.replace(/^[^·]*·\s*/, '') : x.n + ' day' + (x.n === 1 ? '' : 's'))}</div></div>
       <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
-      <div class="c13m">${esc(x.req || '–')}${fitHTML(x, true)}</div>
-      <div class="acts">${rmBtn(x, true)}</div></div>`;
+      <div class="c13m">${esc(x.req || '–')}${fitHTML(x, true)}${presLine(x, true)}</div>
+      <div class="acts">${presBtn(x, true)}${rmBtn(x, true)}</div></div>`;
   function openEx(id) { open = id; q = ''; $('exQ').value = ''; store.set('focus.open', id); $('ex').hidden = false; renderEx(); $('exQ').focus({ preventScroll: true }); }
   function closeEx(silent) { open = null; q = ''; $('ex').hidden = true; if (!silent) store.set('focus.open', null); hidePop(); }
   function renderEx() {
@@ -872,14 +1004,14 @@ if (typeof firebase !== 'undefined') (function () {
       <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>${open === 'rev' ? selBar(true) : open === 'upd' ? updBar(true) : ''}`;
     const list = V.lists[open].filter(x => !qq || x.q.includes(qq));
     const kind = open === 'match' || open === 'close' ? 'job' : open;
-    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'], upd: ['TIME', 'TYPE', 'JOB / DOCTOR', 'WHAT CHANGED'], srch: ['DOCTOR', 'LEVEL · SPECIALTY', 'WANTS TO WORK', 'AVAILABILITY', 'BOOKING'] }[kind];
+    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'], upd: ['TIME', 'TYPE', 'JOB / DOCTOR', 'WHAT CHANGED'], srch: ['DOCTOR', 'LEVEL · SPECIALTY', 'WANTS TO WORK', 'AVAILABILITY', 'BOOKING'], pres: ['PRESENTED', 'JOB', 'DOCTORS', 'SENT TO', 'STATUS'] }[kind];
     const exSrch = x => `<div class="tr">
       <div style="min-width:0"><div class="site">${nameLink(x.d)}</div>${x.d.pgy ? `<div class="c13m">${esc(x.d.pgy)}</div>` : ''}</div>
       <div class="c13m">${esc(dot(x.d.level, x.d.specAll || x.d.spec))}${x.d.prefs ? `<div class="s2">${esc(x.d.prefs)}</div>` : ''}</div>
       <div class="c13m">${esc(x.d.base || '–')}</div>
       <div class="c13">${esc(x.free)}${x.notes ? `<div class="s2">${esc(x.notes)}</div>` : ''}</div>
       <div class="c13m">${esc(x.book)}</div></div>`;
-    const row = { job: exJob, free: exFree, end: exEnd, rev: exRev, upd: exUpd, srch: exSrch }[kind];
+    const row = { job: exJob, free: exFree, end: exEnd, rev: exRev, upd: exUpd, srch: exSrch, pres: exPres }[kind];
     const tbl = $('exTbl'), st = tbl.parentNode.scrollTop;
     tbl.style.setProperty('--cols', COLS[kind]);
     tbl.innerHTML = `<div class="th">${head.map(h => `<span>${h}</span>`).join('')}</div>` +
@@ -893,7 +1025,7 @@ if (typeof firebase !== 'undefined') (function () {
   $('gq').addEventListener('keydown', e => { if (e.key === 'Escape' && gq) { e.stopPropagation(); gq = ''; e.target.value = ''; render(); } });
   document.addEventListener('keydown', e => { if (e.key === '/' && !/^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '') && $('ex').hidden) { e.preventDefault(); $('gq').focus(); } });
   document.addEventListener('click', e => { const t = e.target.closest('[data-updwin]'); if (!t) return; e.preventDefault(); e.stopPropagation(); updWin = t.dataset.updwin; store.set('focus.updWin', updWin); render(); }, true);
-  document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('mailSet').hidden) { $('mailSet').hidden = true; return; } if (!$('expSet').hidden) { $('expSet').hidden = true; return; } if (open) closeEx(); });
+  document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('mailSet').hidden) { $('mailSet').hidden = true; return; } if (!$('expSet').hidden) { $('expSet').hidden = true; return; } if (!$('presSet').hidden) { presClose(); return; } if (open) closeEx(); });
 
   // ---------- doctor hover card ----------
   function showPop(el) {
@@ -912,7 +1044,8 @@ if (typeof firebase !== 'undefined') (function () {
       ['PGY', esc(doc.pgy || '')],
       ['TAGS', (doc.tags || []).length ? doc.tags.map(t => `<span class="ptag">${esc(t)}</span>`).join(' ') : ''],
       ['NOTES', notes.length ? notes.slice(0, 3).map(esc).join('<br>') : ''],
-      ['LAST BOOKED', cur ? 'Current – ends ' + esc(day(cur)) : last ? esc(day(last)) : '']
+      ['LAST BOOKED', cur ? 'Current – ends ' + esc(day(cur)) : last ? esc(day(last)) : ''],
+      ['PRESENTED', ((V.presByDoc || {})[p.k] || []).slice().sort((a, b) => b.at - a.at).slice(0, 4).map(r => `${esc(r.site || 'Job')} <span style="color:#8a93a3">${esc(agoMs(r.at))}</span>`).join('<br>')]
     ].filter(r => r[1]);
     const pop = $('pop');
     pop.classList.toggle('near', !!p.near);
@@ -994,6 +1127,188 @@ if (typeof firebase !== 'undefined') (function () {
     $('expMsg').textContent = ok ? 'Copied – paste it straight into your email' : 'Copy was blocked here – use Download HTML instead';
   };
 
+  // ---------- present doctors to a job ----------
+  let PM = null;                                       // the open present dialog
+  const enc = encodeURIComponent;
+  const isEvoJob = j => !!evoOf(j) && /evo/i.test(String(j.from || '') + ' ' + String(j.subject || ''));
+  const cleanName = n => String(n || '').replace(/\s*\((?:[A-Z]{2,3}|Perth|SYD|VIC|WA|NSW|QLD)\)\s*$/i, '').trim();
+  const drName = n => /^dr\.?\s/i.test(cleanName(n)) ? cleanName(n) : 'Dr ' + cleanName(n);
+  const firstOf = n => (String(n || '').replace(/\s*\(.*?\)\s*/g, ' ').trim().split(/\s+/)[0] || '').replace(/[^A-Za-z'’-]/g, '');
+  const fromCache = jk => { try { return JSON.parse(store.get('focus.from.' + jk, 'null')); } catch (e) { return null; } };
+  function findAnyJob(jk) { for (const id of ['match', 'close', 'rev']) { const x = V && V.lists[id].find(y => y.jk === jk); if (x) return x; } return null; }
+  function presCandidates(x) {
+    const out = [];
+    const add = (k, name, extra) => { k = N.key(k); if (!k || out.some(o => o.k === k)) return; const d = V.F.docs[k] || {};
+      out.push(Object.assign({ k, name: d.name || name || k, level: d.level || '', spec: d.specAll || d.spec || '', pgy: d.pgy || '', cu: d.cu || '', uids: (d.uids || []).slice() }, extra)); };
+    if (x.kind === 'rev') x.fit.forEach(f => add(f.k, f.name, { fit: f.av ? 'availability logged to ' + day(f.av) : 'no availability logged', tag: ['p', 'Could suit'], cu0: f.cu, lv0: f.lv }));
+    else x.cand.forEach(r => add(r.k, r.name, { fit: x.kind === 'close' ? (r.why || 'close match') : r.c === r.n ? `free all ${r.n} days` : `free ${r.c} of ${r.n} days`,
+      tag: x.kind === 'close' ? ['p', 'Close'] : r.c === r.n ? ['g', '✓ All days'] : ['a', `◐ ${r.c}/${r.n}`], cu0: r.cu, lv0: r.level }));
+    out.forEach(o => { o.cu = o.cu || o.cu0 || ''; o.level = o.level || (o.lv0 && o.lv0 !== '?' ? o.lv0 : ''); });
+    return out;
+  }
+  function presOpen(jk) {
+    const x = findAnyJob(jk); if (!x) return;
+    hidePop();
+    const j = x.j, prev = (V.presByJob[jk] || []), done = new Set(); prev.forEach(p => p.docs.forEach(d => done.add(N.key(d.k))));
+    const cands = presCandidates(x).filter(c => !done.has(c.k));
+    const mode = isEvoJob(j) ? 'evo' : 'email';
+    PM = { x, jk, j, mode, cands, picked: new Set(cands.length === 1 ? [cands[0].k] : []), extra: [], edited: false, prev };
+    const cached = j.fromEmail ? { email: j.fromEmail, name: j.from || '' } : fromCache(jk);
+    $('pTo').value = cached ? cached.email : ''; $('pToName').value = firstOf(cached ? cached.name : (j.from && !/evo|support|admin|roster|workforce|team|medical/i.test(j.from) ? j.from : ''));
+    $('pLook').textContent = ''; $('pAddQ').value = ''; $('pAddList').hidden = true; $('pRebuild').hidden = true;
+    $('pTitle').textContent = `Present to ${j.site || x.site}`;
+    $('pSub').innerHTML = [x.role || j.specialty || '', `${I.cal(12)} ${esc(x.dates)}`, x.rate, evoOf(j) ? 'EVO ' + esc(evoOf(j)) : '', j.mail ? `<a href="${esc(mailHref(j.mail))}" data-mail="${esc(j.mail)}" target="_blank" rel="noopener">Original email</a>` : '']
+      .filter(Boolean).map(h => `<span class="d" style="display:flex;align-items:center;gap:4px">${h.startsWith('<') || h.includes('<svg') ? h : esc(h)}</span>`).join('');
+    $('pPrev').innerHTML = prev.length ? prev.map(p => `<div style="margin-bottom:4px">${p.docs.map(d => esc(d.name)).join(', ')} <span class="s2">· ${esc(agoMs(p.at))} · to ${esc(presTo(p))}</span></div>`).join('') : 'None yet.';
+    presMode(mode);
+    presRenderDocs(); presRebuild();
+    $('presSet').hidden = false;
+    if (mode === 'email' && !cached && j.mail && threadOf(j.mail)) presLookup(jk, threadOf(j.mail));
+  }
+  function presMode(mode) {
+    PM.mode = mode;
+    const evo = mode === 'evo', ev = evoOf(PM.j);
+    $('pEmail').hidden = evo; $('pEvo').hidden = !evo; $('pCopy').hidden = evo; $('pRecOnly').hidden = evo;
+    $('pGo').textContent = evo ? 'Record EVO submission' : 'Open in Gmail & record';
+    $('pEvoTxt').innerHTML = `This order came through <b>EVO${ev ? ' (order ' + esc(ev) + ')' : ''}</b>. Submit the doctors in the <a href="https://impellam.evovms.com.au" target="_blank" rel="noopener">EVO portal</a>, then click <b>Record EVO submission</b>.<br><br>They're saved as EVO submissions on that order number, so the EVO spreadsheet upload sees them and won't add them twice.<br><br><button class="lnkBtn" id="pToEmail">Present by email instead</button>`;
+    const b = $('pToEmail'); if (b) b.onclick = () => { presMode('email'); presRebuild(); const t = PM.j.mail && threadOf(PM.j.mail); if (!$('pTo').value && t) presLookup(PM.jk, t); };
+  }
+  async function presLookup(jk, thread) {
+    $('pLook').textContent = 'Finding who sent the job…';
+    try {
+      const r = await fetch(PRESENT_HOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'lookup', thread }) });
+      const v = await r.json();
+      if (!PM || PM.jk !== jk) return;
+      if (v && v.found && v.email) {
+        store.set('focus.from.' + jk, JSON.stringify({ email: v.email, name: v.name || '' }));
+        if (!$('pTo').value) $('pTo').value = v.email;
+        if (!$('pToName').value && v.name) $('pToName').value = firstOf(v.name);
+        $('pLook').textContent = 'From the job email' + (v.name ? ' – ' + v.name : '');
+        presRebuild(true);
+      } else $('pLook').textContent = v && v.evo ? 'EVO job – no email contact' : 'Couldn’t find the sender – type the email';
+    } catch (e) { if (PM && PM.jk === jk) $('pLook').textContent = 'Couldn’t look up the sender – type the email'; }
+  }
+  const presSel = () => PM.cands.concat(PM.extra).filter(c => PM.picked.has(c.k));
+  function presRenderDocs() {
+    const row = c => { const on = PM.picked.has(c.k), cover = PM.x.ds && PM.x.ds.length ? V.F.coverFor(c.k, PM.x.ds) : 0;
+      const tag = c.tag || (cover ? (cover === PM.x.ds.length ? ['g', '✓ All days'] : ['a', `◐ ${cover}/${PM.x.ds.length}`]) : ['b', 'Not free']);
+      return `<label class="pDoc${on ? ' on' : ''}"><input type="checkbox" data-pk="${esc(c.k)}"${on ? ' checked' : ''}>
+        <div style="min-width:0"><div class="nm">${esc(cleanName(c.name))} <span class="x">${esc(dot(lvShort(c.level), c.pgy ? (/pgy/i.test(c.pgy) ? c.pgy : 'PGY' + c.pgy) : ''))}</span></div><div class="s2">${esc(dot(c.spec, c.fit || (PM.x.ds ? `free ${cover} of ${PM.x.ds.length} job days` : '')))}</div></div>
+        <span class="pTag ${tag[0]}">${esc(tag[1])}</span></label>`; };
+    const all = PM.cands.concat(PM.extra);
+    $('pDocs').innerHTML = all.length ? all.map(row).join('') : '<div class="s2" style="padding:6px 10px">No matched doctors left on this job – add one below.</div>';
+    const n = PM.picked.size; $('pCount').textContent = n ? `${n} selected` : 'none selected';
+    $('pGo').disabled = !n; $('pRecOnly').disabled = !n;
+  }
+  function presDocText(c, o) {
+    const d = V.F.docs[c.k] || {}, ds = PM.x.ds || [];
+    const free = ds.filter(x => V.F.coverFor(c.k, [x]));
+    const lines = [`• ${drName(c.name)} – ${[c.level, c.pgy ? (/pgy/i.test(c.pgy) ? c.pgy : 'PGY' + c.pgy) : ''].filter(Boolean).join(', ') || 'Doctor'}${c.spec ? ' · ' + c.spec.split(/[,;]/).slice(0, 2).join(', ') : ''}`];
+    if (o.reg && /^MED\d/i.test(c.k)) lines.push(`   Med Reg: ${c.k}`);
+    if (o.av) lines.push(`   Availability: ${!ds.length ? 'to confirm' : free.length === ds.length ? 'available for all ' + ds.length + ' day' + (ds.length === 1 ? '' : 's') : free.length ? `${free.length} of ${ds.length} days – ${longDates(free).replace(/ · \d+ days?$/, '')}` : 'to confirm'}`);
+    if (o.note) { const nt = V.F.notesFor(c.k).filter(t => !/available|tentative/i.test(t)).slice(0, 1); if (nt.length) lines.push(`   Notes: ${nt[0]}`); }
+    return lines.join('\n');
+  }
+  function presRebuild(soft) {
+    if (!PM || (soft && PM.edited)) return;
+    const sel = presSel(), x = PM.x, j = PM.j, o = { reg: $('pOptReg').checked, av: $('pOptAv').checked, note: $('pOptNote').checked };
+    const role = (x.roleFull || x.role || [j.level, j.specialty].filter(Boolean).join(' ') || 'locum').replace(/\s+/g, ' ').trim();
+    const siteFull = j.site || x.site, when = x.ds && x.ds.length ? longDates(x.ds) : x.dates;
+    const names = sel.map(c => drName(c.name));
+    $('pSubj').value = `${names.length > 2 ? names.length + ' doctors' : names.join(' & ') || 'Doctor'} – ${role} – ${siteFull} (${x.dates})${evoOf(j) ? ' – EVO ' + evoOf(j) : ''}`;
+    const hi = $('pToName').value.trim();
+    $('pBodyTxt').value = [`Hi ${hi || 'there'},`, '',
+      `Thanks for sending through the ${role} locum at ${siteFull} (${when}).`, '',
+      sel.length > 1 ? `I'd like to put forward the following doctors for your consideration:` : `I'd like to put forward ${names[0] || 'the following doctor'} for your consideration:`, '',
+      sel.map(c => presDocText(c, o)).join('\n\n'), '',
+      `${sel.length > 1 ? 'Their CVs are' : 'Their CV is'} attached. Please let me know if you'd like to go ahead or need anything else.`, '',
+      'Kind regards,'].join('\n');
+    PM.edited = false; $('pRebuild').hidden = true;
+  }
+  function presClose() { $('presSet').hidden = true; $('pAddList').hidden = true; PM = null; }
+  $('pCancel').onclick = presClose;
+  $('presSet').addEventListener('mousedown', e => { if (e.target === $('presSet')) presClose(); });
+  $('pDocs').addEventListener('change', e => { const k = e.target.dataset.pk; if (!k || !PM) return; if (e.target.checked) PM.picked.add(k); else PM.picked.delete(k); presRenderDocs(); presRebuild(true); });
+  ['pOptReg', 'pOptAv', 'pOptNote'].forEach(id => $(id).addEventListener('change', () => presRebuild(true)));
+  $('pToName').addEventListener('input', () => presRebuild(true));
+  $('pBodyTxt').addEventListener('input', () => { if (PM) { PM.edited = true; $('pRebuild').hidden = false; } });
+  $('pRebuild').onclick = () => presRebuild();
+  // add any doctor on the calendar(s) in view
+  let addHits = [], addSel = 0;
+  function addSearch() {
+    const T = $('pAddQ').value.toLowerCase().split(/\s+/).filter(Boolean), box = $('pAddList');
+    if (!T.length || !PM) { box.hidden = true; return; }
+    const have = new Set(PM.cands.concat(PM.extra).map(c => c.k)), ds = PM.x.ds || [];
+    addHits = Object.values(V.F.docs).filter(d => !d.hidden && !have.has(d.k) && gHit([d.name, lvWords(d.level), d.specAll, d.prefs, d.base, (d.tags || []).join(' ')].join(' ').toLowerCase(), T))
+      .map(d => ({ d, c: V.F.coverFor(d.k, ds) })).sort((a, b) => b.c - a.c || a.d.name.localeCompare(b.d.name)).slice(0, 12);
+    addSel = 0;
+    box.innerHTML = addHits.length ? addHits.map((h, i) => `<button class="${i === 0 ? 'on' : ''}" data-addk="${esc(h.d.k)}"><b>${esc(cleanName(h.d.name))}</b> <span class="s2">${esc(dot(lvShort(h.d.level), h.d.spec, ds.length ? `free ${h.c}/${ds.length} job days` : ''))}</span></button>`).join('') : '<div class="s2" style="padding:8px 12px">No doctor matches.</div>';
+    box.hidden = false;
+  }
+  function addDoc(k) {
+    const d = V.F.docs[k]; if (!d || !PM) return;
+    PM.extra.push({ k: d.k, name: d.name, level: d.level || '', spec: d.specAll || d.spec || '', pgy: d.pgy || '', cu: d.cu || '', uids: (d.uids || []).slice(), fit: '' });
+    PM.picked.add(d.k); $('pAddQ').value = ''; $('pAddList').hidden = true; presRenderDocs(); presRebuild(true); $('pAddQ').focus();
+  }
+  $('pAddQ').addEventListener('input', addSearch);
+  $('pAddQ').addEventListener('keydown', e => {
+    if ($('pAddList').hidden || !addHits.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); addSel = (addSel + (e.key === 'ArrowDown' ? 1 : addHits.length - 1)) % addHits.length; $('pAddList').querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === addSel)); }
+    else if (e.key === 'Enter') { e.preventDefault(); addDoc(addHits[addSel].d.k); }
+    else if (e.key === 'Escape') { e.stopPropagation(); $('pAddList').hidden = true; }
+  });
+  $('pAddList').addEventListener('mousedown', e => { const b = e.target.closest('[data-addk]'); if (b) { e.preventDefault(); addDoc(b.dataset.addk); } });
+  $('pAddQ').addEventListener('blur', () => setTimeout(() => { $('pAddList').hidden = true; }, 150));
+  $('pCopy').onclick = async () => {
+    const txt = `To: ${$('pTo').value}\nSubject: ${$('pSubj').value}\n\n${$('pBodyTxt').value}`;
+    let ok = false; try { await navigator.clipboard.writeText(txt); ok = true; } catch (e) {}
+    if (!ok) { const t = document.createElement('textarea'); t.value = txt; t.style.cssText = 'position:fixed;left:-9999px'; document.body.appendChild(t); t.select(); try { ok = document.execCommand('copy'); } catch (e) {} t.remove(); }
+    toast(ok ? 'Email copied – click Record only once you’ve sent it' : 'Copy was blocked here');
+  };
+  $('pGo').onclick = () => presRecord(PM && PM.mode === 'email');
+  $('pRecOnly').onclick = () => presRecord(false);
+  function presRecord(openMail) {
+    if (!PM) return;
+    const sel = presSel(); if (!sel.length) return;
+    const x = PM.x, j = PM.j, mode = PM.mode, to = $('pTo').value.trim().toLowerCase(), toName = $('pToName').value.trim(), subject = mode === 'email' ? $('pSubj').value.trim() : '';
+    if (mode === 'email' && to && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { $('pLook').textContent = '⚠ That email address doesn’t look right'; $('pTo').focus(); return; }
+    if (openMail) {   // open Gmail first, straight from the click, so the pop-up isn't blocked
+      const u = `https://mail.google.com/mail/?authuser=${enc(user.email)}&view=cm&fs=1&tf=1&to=${enc(to)}&su=${enc(subject)}&body=${enc($('pBodyTxt').value)}`;
+      window.open(u, '_blank', 'noopener');
+    }
+    const pid = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const docs = {}; sel.forEach(c => { docs[N.safeKey(c.k)] = { k: c.k, name: cleanName(c.name), cu: c.cu || '' }; });
+    const uids = [...new Set(sel.flatMap(c => c.uids || []))];
+    const rec = { pid, at: Date.now(), by: user.email, byUid: user.uid, jk: PM.jk, site: j.site || x.site, state: x.st || '', role: x.roleFull || x.role || '', title: j.title || '', dates: x.dates,
+      evo: evoOf(j), mode, to: mode === 'email' ? to : '', toName: mode === 'email' ? (toName || '') : '', subject, mail: j.mail || '', docs, uids, status: 'recording' };
+    const payload = { pid, by: user.email, byUid: user.uid, mode, subject, contact: { email: mode === 'email' ? to : '', name: toName || (fromCache(PM.jk) || {}).name || j.from || '' },
+      job: { jk: PM.jk, site: j.site || x.site, state: j.state || '', title: j.title || '', specialty: j.specialty || '', level: j.level || '', dates: x.ds || [], start: j.start || '', end: j.end || '', evo: evoOf(j), rate: j.rate || '', mail: j.mail || '', when: j.when || x.dates },
+      docs: sel.map(c => ({ k: c.k, name: c.name, cu: c.cu || '', uids: c.uids || [], fit: c.fit || '' })) };
+    presNow[pid] = rec; presClose(); render();
+    toast(`${sel.length} doctor${sel.length === 1 ? '' : 's'} presented to ${rec.site} – recording in ClickUp`);
+    (async () => {
+      try { await db.ref(`users/${user.uid}/focus/presented/${pid}`).set(rec); } catch (e) { console.warn(e); }
+      try {
+        const r = await fetch(PRESENT_HOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'present', pid, by: user.email, uid: user.uid, email: payload.contact.email, payload: JSON.stringify(payload) }) });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+      } catch (e) {
+        console.warn('present webhook', e); presNow[pid] = Object.assign({}, rec, { status: 'error', notes: ['Couldn’t reach Make – nothing was recorded in ClickUp. Present again.'] });
+        try { await db.ref(`users/${user.uid}/focus/presented/${pid}`).update({ status: 'error', notes: ['Couldn’t reach Make – nothing was recorded in ClickUp. Present again.'] }); } catch (e2) {}
+        render();
+      }
+    })();
+  }
+  async function presWithdraw(pid) {
+    const r = V && V.lists.pres.find(p => p.pid === pid); if (!r || !canWithdraw(r)) return;
+    presNow[pid] = Object.assign({}, r, { status: 'withdrawing' }); render();
+    try {
+      await fetch(PRESENT_HOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'undo', pid, by: user.email, uid: user.uid,
+        payload: JSON.stringify({ pid, byUid: r.byUid, by: user.email, tasks: Object.values(r.tasks || {}).map(t => t.id).filter(Boolean), uids: r.uids || [] }) }) });
+      toast(`Withdrawn – ${r.site} presentation removed from ClickUp and the calendar`);
+    } catch (e) { delete presNow[pid]; render(); toast('Couldn’t reach Make – try again'); }
+    setTimeout(() => { delete presNow[pid]; render(); }, 20000);
+  }
+
   function findRev(jk) { return V && V.lists.rev.find(y => y.jk === jk); }
   function removeRev(jk) {
     const x = findRev(jk); if (!x) return;
@@ -1053,7 +1368,9 @@ if (typeof firebase !== 'undefined') (function () {
     if (on) toast(`${name} marked contacted`, () => setContacted(k, false));
   }
   document.addEventListener('click', e => {
-    const t = e.target.closest('[data-rmjob],[data-export],[data-selnone],[data-rm],[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
+    const t = e.target.closest('[data-present],[data-withdraw],[data-rmjob],[data-export],[data-selnone],[data-rm],[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
+    if (t.dataset.present) { e.preventDefault(); presOpen(t.dataset.present); return; }
+    if (t.dataset.withdraw) { e.preventDefault(); presWithdraw(t.dataset.withdraw); return; }
     if (t.dataset.rmjob) { removeRev(t.dataset.rmjob); return; }
     if (t.dataset.export != null) { openExport(); return; }
     if (t.dataset.selnone != null) { sel.clear(); render(); return; }
