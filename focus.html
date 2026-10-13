@@ -524,6 +524,7 @@ if (typeof firebase !== 'undefined') (function () {
   const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} } };
   const ALL_IDS = ['match', 'close', 'free', 'end', 'rev', 'upd', 'pres'];
   const PRESENT_HOOK = 'https://hook.us2.make.com/8ggkmdfw3g0vrn8kbd1gua8999pezfx4';   // Make 6622466 "Doctor Focus – present doctors"
+  const LOOKUP_HOOK = 'https://hook.us2.make.com/q59nzaswg8idallwal14bzfdlxcnpnht';    // Make 6622723 "Doctor Focus – job sender lookup"
   let IDS = ['match', 'close', 'free', 'end'];
   let user = null, scope = store.get('focus.scope', 'mine'), win = Number(store.get('focus.win', '28')) || 28;
   let updWin = store.get('focus.updWin', 'last') === 'today' ? 'today' : 'last';
@@ -1134,7 +1135,7 @@ if (typeof firebase !== 'undefined') (function () {
   const cleanName = n => String(n || '').replace(/\s*\((?:[A-Z]{2,3}|Perth|SYD|VIC|WA|NSW|QLD)\)\s*$/i, '').trim();
   const drName = n => /^dr\.?\s/i.test(cleanName(n)) ? cleanName(n) : 'Dr ' + cleanName(n);
   const firstOf = n => (String(n || '').replace(/\s*\(.*?\)\s*/g, ' ').trim().split(/\s+/)[0] || '').replace(/[^A-Za-z'’-]/g, '');
-  const fromCache = jk => { try { return JSON.parse(store.get('focus.from.' + jk, 'null')); } catch (e) { return null; } };
+  const fromCache = jk => { try { return JSON.parse(store.get('focus.from2.' + jk, 'null')); } catch (e) { return null; } };
   function findAnyJob(jk) { for (const id of ['match', 'close', 'rev']) { const x = V && V.lists[id].find(y => y.jk === jk); if (x) return x; } return null; }
   function presCandidates(x) {
     const out = [];
@@ -1153,9 +1154,11 @@ if (typeof firebase !== 'undefined') (function () {
     const cands = presCandidates(x).filter(c => !done.has(c.k));
     const mode = isEvoJob(j) ? 'evo' : 'email';
     PM = { x, jk, j, mode, cands, picked: new Set(cands.length === 1 ? [cands[0].k] : []), extra: [], edited: false, prev };
-    const cached = j.fromEmail ? { email: j.fromEmail, name: j.from || '' } : fromCache(jk);
-    $('pTo').value = cached ? cached.email : ''; $('pToName').value = firstOf(cached ? cached.name : (j.from && !/evo|support|admin|roster|workforce|team|medical/i.test(j.from) ? j.from : ''));
-    $('pLook').textContent = ''; $('pAddQ').value = ''; $('pAddList').hidden = true; $('pRebuild').hidden = true;
+    const personName = n => n && !/[_\d@]|-\S*-|\b(evo|support|admin|roster|rostering|workforce|team|medical|unit|office|health|hospital|lhd|locums?|recruitment)\b/i.test(n) ? n : '';
+    const cached = j.fromEmail ? { email: j.fromEmail, name: j.fromName || personName(j.from) } : fromCache(jk);   // jobs parsed since the Job Matches update carry the sender
+    PM.fullName = cached ? cached.name : personName(j.from);
+    $('pTo').value = cached ? cached.email : ''; $('pToName').value = firstOf(PM.fullName);
+    $('pLook').textContent = cached ? 'From the job email' + (cached.name ? ' – ' + cached.name : '') : ''; $('pAddQ').value = ''; $('pAddList').hidden = true; $('pRebuild').hidden = true;
     $('pTitle').textContent = `Present to ${j.site || x.site}`;
     $('pSub').innerHTML = [x.role || j.specialty || '', `${I.cal(12)} ${esc(x.dates)}`, x.rate, evoOf(j) ? 'EVO ' + esc(evoOf(j)) : '', j.mail ? `<a href="${esc(mailHref(j.mail))}" data-mail="${esc(j.mail)}" target="_blank" rel="noopener">Original email</a>` : '']
       .filter(Boolean).map(h => `<span class="d" style="display:flex;align-items:center;gap:4px">${h.startsWith('<') || h.includes('<svg') ? h : esc(h)}</span>`).join('');
@@ -1176,14 +1179,15 @@ if (typeof firebase !== 'undefined') (function () {
   async function presLookup(jk, thread) {
     $('pLook').textContent = 'Finding who sent the job…';
     try {
-      const r = await fetch(PRESENT_HOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'lookup', thread }) });
+      const r = await fetch(LOOKUP_HOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'lookup', thread }) });
       const v = await r.json();
       if (!PM || PM.jk !== jk) return;
       if (v && v.found && v.email) {
-        store.set('focus.from.' + jk, JSON.stringify({ email: v.email, name: v.name || '' }));
+        store.set('focus.from2.' + jk, JSON.stringify({ email: v.email, name: v.name || '' }));
         if (!$('pTo').value) $('pTo').value = v.email;
+        if (v.name) PM.fullName = v.name;
         if (!$('pToName').value && v.name) $('pToName').value = firstOf(v.name);
-        $('pLook').textContent = 'From the job email' + (v.name ? ' – ' + v.name : '');
+        $('pLook').textContent = 'From the job email' + (v.name ? ' – ' + v.name + (v.how === 'signed the email' ? ' (signed it)' : '') : '');
         presRebuild(true);
       } else $('pLook').textContent = v && v.evo ? 'EVO job – no email contact' : 'Couldn’t find the sender – type the email';
     } catch (e) { if (PM && PM.jk === jk) $('pLook').textContent = 'Couldn’t look up the sender – type the email'; }
@@ -1281,7 +1285,7 @@ if (typeof firebase !== 'undefined') (function () {
     const uids = [...new Set(sel.flatMap(c => c.uids || []))];
     const rec = { pid, at: Date.now(), by: user.email, byUid: user.uid, jk: PM.jk, site: j.site || x.site, state: x.st || '', role: x.roleFull || x.role || '', title: j.title || '', dates: x.dates,
       evo: evoOf(j), mode, to: mode === 'email' ? to : '', toName: mode === 'email' ? (toName || '') : '', subject, mail: j.mail || '', docs, uids, status: 'recording' };
-    const payload = { pid, by: user.email, byUid: user.uid, mode, subject, contact: { email: mode === 'email' ? to : '', name: toName || (fromCache(PM.jk) || {}).name || j.from || '' },
+    const payload = { pid, by: user.email, byUid: user.uid, mode, subject, contact: { email: mode === 'email' ? to : '', name: (PM.fullName && firstOf(PM.fullName) === toName ? PM.fullName : toName) || '' },
       job: { jk: PM.jk, site: j.site || x.site, state: j.state || '', title: j.title || '', specialty: j.specialty || '', level: j.level || '', dates: x.ds || [], start: j.start || '', end: j.end || '', evo: evoOf(j), rate: j.rate || '', mail: j.mail || '', when: j.when || x.dates },
       docs: sel.map(c => ({ k: c.k, name: c.name, cu: c.cu || '', uids: c.uids || [], fit: c.fit || '' })) };
     presNow[pid] = rec; presClose(); render();
