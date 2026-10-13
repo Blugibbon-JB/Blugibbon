@@ -390,6 +390,104 @@ const Focus = (() => {
     const out = []; for (const d of days) { const r = out[out.length - 1]; if (r && addDays(r[1], 1) === d) r[1] = d; else out.push([d, d]); } return out;
   }
 
+
+  // ---------- live matching on the page (same rules as the Job Matches scenario, module 9) ----------
+  // Make matches a job once, when the email arrives, and only against Izzy's calendar. The page re-matches every job
+  // against the calendars you're looking at, every time it loads, so availability added later shows up straight away (no Make run).
+  const CANON = [
+    [/paed(iatric)?s?\s*emergency|paediatrics emergency/i, ['Paediatrics', 'Emergency Medicine']],
+    [/emerg|\bed\b|urgent care|\bucc\b|facem|acem|nights in charge/i, ['Emergency Medicine']],
+    [/intensive|\bicu\b|critical care/i, ['Intensive Care']],
+    [/an(a)?esth/i, ['Anaesthetics']],
+    [/obstet|gyn|o\s*&\s*g|\bobs\b/i, ['Obstetrics and Gynaecology']],
+    [/neonat/i, ['Neonatal', 'Paediatrics']],
+    [/paed|peds|peads|child health/i, ['Paediatrics']],
+    [/psych|mental health/i, ['Psychiatry']],
+    [/orthop/i, ['Orthopaedics']],
+    [/urolog/i, ['Urology']], [/plastic/i, ['Plastic Surgery']], [/\bent\b|otolaryng/i, ['Otolaryngology Surgery ENT']],
+    [/neuro\s*surg/i, ['Neuro Surgery']], [/vascular/i, ['Vascular Surgery']], [/cardiothor/i, ['Cardiothoracic Surgery']],
+    [/maxillo|oral and max/i, ['Oral and Maxillofacial Surgery']], [/trauma/i, ['Trauma Surgery']],
+    [/general practice|\bgp\b|family medicine/i, ['General Practice']], [/rural gen/i, ['Rural Generalism']],
+    [/geriat|aged care/i, ['Geriatrics']], [/palliat/i, ['Palliative Medicine']], [/rehab/i, ['Rehabilitation Medicine']],
+    [/radiation onc/i, ['Radiation Oncology']], [/oncolog/i, ['Medical Oncology']], [/haemat|hemat/i, ['Haematology']],
+    [/cardiol/i, ['Cardiology Medicine']], [/respir|thoracic med/i, ['Respiratory Medicine']], [/gastro|hepatol/i, ['Gastroenterology Medicine']],
+    [/nephro|renal/i, ['Nephrology Medicine']], [/neurolog/i, ['Neurology Medicine']], [/endocrin|endocin|diabet/i, ['Endocrinology Diabetes Medicine']],
+    [/infectious/i, ['Infectious Disease Medicine']], [/rheumat/i, ['Rheumatology Medicine']], [/dermat/i, ['Dermatology Medicine']],
+    [/addiction|drug (and|&) alcohol/i, ['Addiction Medicine']], [/radiolog/i, ['Radiology']], [/ophthal/i, ['Ophthalmology']],
+    [/acute med/i, ['Acute Medicine', 'General Medicine']], [/retriev/i, ['Retrieval']],
+    [/general med|mediicine|internal med|\bwards?\b|\bmedicine\b/i, ['General Medicine']],
+    [/general surg|\bsurgery\b/i, ['General Surgery']]
+  ];
+  const canonCache = {};
+  function canonSet(text) {
+    text = String(text || ''); if (canonCache[text]) return canonCache[text];
+    const out = new Set();
+    text.split(/[,;\/|]+/).forEach(p => { for (const [re, v] of CANON) if (re.test(p)) { v.forEach(x => out.add(x)); break; } });
+    return (canonCache[text] = out);
+  }
+  const evSpecCache = {};
+  function eventSpecs(txt) {
+    txt = String(txt || ''); if (evSpecCache[txt]) return evSpecCache[txt];
+    const out = new Set();
+    txt.replace(/emergency contact/gi, ' ').split(/[,;\/|·\n]+/).forEach(p => {
+      if (/\b(no|not|don'?t|doesn'?t|won'?t|avoid|except|never)\b/i.test(p)) return;
+      if (/\b(might|maybe|possibly|perhaps|considering|thinking|hoping|planning|plans?|applying|applied|starting|commencing|future|will be|going to)\b/i.test(p)) return;
+      for (const [re, v] of CANON) if (re.test(p)) { v.forEach(x => out.add(x)); break; }
+    });
+    return (evSpecCache[txt] = out);
+  }
+  const MED_SUB = new Set(['Cardiology Medicine', 'Respiratory Medicine', 'Gastroenterology Medicine', 'Nephrology Medicine', 'Neurology Medicine', 'Endocrinology Diabetes Medicine', 'Infectious Disease Medicine', 'Rheumatology Medicine', 'Geriatrics', 'Medical Oncology', 'Haematology', 'Acute Medicine', 'Palliative Medicine', 'Rehabilitation Medicine', 'Dermatology Medicine']);
+  const SURG_SUB = new Set(['Orthopaedics', 'Urology', 'Plastic Surgery', 'Otolaryngology Surgery ENT', 'Neuro Surgery', 'Vascular Surgery', 'Cardiothoracic Surgery', 'Trauma Surgery']);
+  const LEVEL_OK = { Junior: ['junior', 'senior'], Senior: ['senior', 'registrar', 'training registrar'], Registrar: ['registrar', 'training registrar'],
+    Specialist: ['specialist', 'consultant'], GP: ['specialist', 'senior', 'registrar', 'training registrar', 'consultant'], Unknown: null };
+  const RUNG = { junior: 0, senior: 1, registrar: 2, 'training registrar': 2, specialist: 3, consultant: 3 };
+  function acceptSpecs(sp, lv, raw) {
+    const acc = new Set([sp]);
+    if (sp === 'Other' || !sp) canonSet(raw).forEach(x => acc.add(x));
+    if (sp === 'General Practice' || sp === 'Rural Generalism' || lv === 'GP') { acc.add('General Practice'); acc.add('Rural Generalism'); }
+    if ((lv === 'Junior' || lv === 'Senior') && (MED_SUB.has(sp) || sp === 'General Medicine')) { acc.add('General Medicine'); acc.add('Acute Medicine'); }
+    if ((lv === 'Junior' || lv === 'Senior') && SURG_SUB.has(sp)) acc.add('General Surgery');
+    if (sp === 'Neonatal') acc.add('Paediatrics');
+    acc.delete('Other'); acc.delete(''); acc.delete(undefined);
+    return acc;
+  }
+  // minimum block a doctor wants, written on an availability entry ("min 1 week blocks", "2 wks+", "at least a fortnight") -> days (0 = not stated)
+  function minBlockDays(txt) {
+    const t = String(txt || '').toLowerCase().replace(/\b(?:an?|one)\s+fortnight/g, '2 weeks').replace(/fortnight(ly|s)?/g, '2 weeks');
+    const NUM = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+    const Q = '(\\d+(?:\\.\\d+)?|an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)';
+    const U = '(days?|d|shifts?|nights?|weeks?|wks?|w|months?|mths?|\\/7|\\/52|\\/12)(?![a-z])(?!\\s*notice)';
+    const RES = [
+      new RegExp('\\b(?:min(?:imum)?|at\\s+least|no\\s+(?:less|shorter)\\s+than)\\b\\.?\\s*(?:block\\s*(?:length)?|blocks?|stints?|length)?\\s*(?:of|[:=-])?\\s*' + Q + '\\s*\\+?\\s*' + U, 'g'),
+      new RegExp('(?<![\\w\\/.])' + Q + '\\s*\\+?\\s*' + U + '\\s*\\+?\\s*(?:-\\s*)?(?:min(?:imum)?\\b|blocks?\\b|stints?\\b|or\\s+(?:more|longer)\\b|plus\\b)', 'g'),
+      new RegExp('\\b(?:blocks?|stints?)\\s+of\\s+' + Q + '\\s*\\+?\\s*' + U, 'g'),
+      new RegExp('(?<![\\w\\/.])(\\d+)\\s*\\+\\s*' + U, 'g'),
+      new RegExp('(?<![\\w\\/.])' + Q + '\\s*' + U + '\\s*\\+', 'g')
+    ];
+    let best = 0;
+    for (const re of RES) for (const m of t.matchAll(re)) {
+      const q = NUM[m[1]] != null ? NUM[m[1]] : parseFloat(m[1]); if (!(q > 0)) continue;
+      const mult = /^(w|wks?|weeks?|\/52)$/.test(m[2]) ? 7 : /^(months?|mths?|\/12)$/.test(m[2]) ? 30 : 1;
+      best = Math.max(best, Math.round(q * mult));
+    }
+    return best > 365 ? 0 : best;
+  }
+  // level from the card wording (cards written before the normalised level was stored)
+  function lvFromText(t) {
+    t = String(t || '');
+    if (/\b(gp|general practi\w*|rural generalist|sole doctor)\b/i.test(t)) return 'GP';
+    if (/\b(consultants?|staff specialists?|specialists?|spec|vmos?|facem|fracp|physicians?)\b/i.test(t) && !/\b(registrar|trainee|rmo|hmo|jmo|resident|intern)\b/i.test(t)) return 'Specialist';
+    if (/\bregistrar|\breg\b/i.test(t)) return 'Registrar';
+    if (/\b(smo|cmo|srmo|senior resident|career medical officer|senior medical officer)\b/i.test(t)) return 'Senior';
+    if (/\b(rmo|hmo|jmo|jho|resident|intern|pgy\s?[1-3])\b/i.test(t)) return 'Junior';
+    return 'Unknown';
+  }
+  function workLen(dates) {
+    let best = 0, from = null, prev = null;
+    for (const d of dates) { if (!prev || dayDiff(prev, d) > 3) from = d; prev = d; best = Math.max(best, dayDiff(from, d) + 1); }
+    return best;
+  }
+
   /* nodes: [{uid, node}] where node = users/{uid}; opts: {today, win, contacted:{AHPRA: date}} */
   function build(nodes, opts) {
     const today = opts.today, win = opts.win || 28, until = addDays(today, win);   // window = [today, until)
@@ -400,6 +498,8 @@ const Focus = (() => {
         if (!d) continue; const k = key(d.ahpra_id || d.name); if (!k) continue;
         const o = docs[k] || (docs[k] = { k, name: String(d.name || '').trim() || k, level: '', spec: '', cu: '', base: '', specAll: '', prefs: '', pgy: '', tags: [], hidden: true, uids: [] });
         o.base = o.base || String(d.where || '').trim();   // calendar 'Where' = where they want to work
+        const pf = [d.prefs, d.specialty, arr(d.desired_specialties).join(', '), arr(d.tags).join(', ')].filter(Boolean).join(', ');
+        o.pf = o.pf || ''; if (pf && !o.pf.includes(pf)) o.pf = (o.pf ? o.pf + ', ' : '') + pf;
         o.specAll = o.specAll || String(d.specialty || '').trim(); o.prefs = o.prefs || String(d.prefs || '').trim(); o.pgy = o.pgy || String(d.pgy || '').trim();
         if (!o.tags.length && d.tags) o.tags = (Array.isArray(d.tags) ? d.tags : Object.values(d.tags)).map(t => String(t).trim()).filter(Boolean);
         if (!d.hidden) o.hidden = false;
@@ -415,6 +515,64 @@ const Focus = (() => {
     const isBusy = (k, d) => (evBy[k] || []).some(x => (x.k === 'booked' || x.k === 'away') && d >= x.s && d < x.e);
     const freeOn = (k, d) => !isBusy(k, d) && (evBy[k] || []).some(x => (x.k === 'avail' || x.k === 'tent') && d >= x.s && d < x.e);
 
+    // doctors with availability still to come, prepared once for the live matcher
+    const pool = [];
+    for (const [k, doc] of Object.entries(docs)) {
+      if (doc.hidden) continue;
+      const avs = (evBy[k] || []).filter(x => (x.k === 'avail' || x.k === 'tent') && x.e > today).map(x => {
+        const ds = x.ev.desired_specialties, want = (Array.isArray(ds) ? ds : Object.values(ds || {})).join(', ');   // block-form "Wants:" specialties
+        const txt = [x.ev.title, x.ev.notes, want].filter(Boolean).join(' / ');
+        return { s: x.s, e: x.e, t: x.k === 'tent', specs: eventSpecs(txt), min: Number(x.ev.min_block_days || x.ev.minBlockDays) || minBlockDays([x.ev.title, x.ev.notes].filter(Boolean).join(' \n ')) };
+      });
+      if (!avs.length) continue;
+      pool.push({ k, doc, dspecs: canonSet(doc.pf), dl: String(doc.level || '').toLowerCase().trim(), avs });
+    }
+    // job -> doctors on these calendars whose specialty + level fit and who are free (full / part), or one level off / free near the dates (g:'near')
+    function liveMatch(j, dates) {
+      const out = []; if (opts.liveMatch === false || !dates.length) return out;
+      const title = String(j.title || ''), raw = title.split(' – ').slice(1).join(' – ');
+      const lv = j.lvN || lvFromText([j.level, raw].join(' '));    // older cards have no normalised level
+      const specs = acceptSpecs(j.specialty, lv, raw); if (!specs.size) return out;
+      const lvText = [j.level, raw].join(' ');
+      let lvOk = LEVEL_OK[lv] || null;
+      const rm = String(j.rate || '').replace(/,/g, '').match(/\$\s*(\d+(?:\.\d+)?)\s*(?:\/|per\s*)\s*(day|shift)/i);
+      if (!lvOk && rm && Number(rm[1]) >= 1500) lvOk = ['senior', 'registrar', 'training registrar', 'specialist', 'consultant'];
+      if (lvOk && /\bnot\b[^,;]{0,25}\bregistrar/i.test(lvText)) lvOk = lvOk.filter(l => !/registrar/.test(l));
+      const L = workLen(dates), lo = addDays(dates[0], -7), hi = addDays(dates[dates.length - 1], 8);
+      for (const p of pool) {
+        const evOk = a => [...a.specs].some(s => specs.has(s));
+        const profOk = [...specs].some(s => p.dspecs.has(s));
+        if (!profOk && !p.avs.some(evOk)) continue;
+        const dl = p.dl, lvUnknown = !dl || dl === '-';
+        if (lv === 'GP') {
+          if (dl === 'junior') continue;
+          const gpPref = p.dspecs.has('General Practice') || p.dspecs.has('Rural Generalism') || p.avs.some(a => a.specs.has('General Practice') || a.specs.has('Rural Generalism'));
+          if (!lvUnknown && !['specialist', 'consultant'].includes(dl) && !gpPref) continue;
+        } else if (lv === 'Specialist' && !['specialist', 'consultant'].includes(dl)) continue;
+        let lvNear = false;
+        if (lv !== 'GP' && lvOk && !lvUnknown && !lvOk.includes(dl)) {
+          const okR = lvOk.map(x => RUNG[x]).filter(x => x != null);
+          if (RUNG[dl] == null || !okR.length || Math.min(...okR.map(r => Math.abs(r - RUNG[dl]))) !== 1) continue;
+          if (dl === 'junior' && okR.every(r => r >= 2)) continue;
+          lvNear = true;
+        }
+        const avs = p.avs.filter(a => !a.min || L >= a.min - 2);
+        if (!avs.length) continue;                       // every entry wants longer blocks than this job
+        let c = 0, tent = false;
+        for (const d of dates) { const a = avs.find(a => d >= a.s && d < a.e && (profOk || evOk(a))); if (a && !isBusy(p.k, d)) { c++; if (a.t) tent = true; } }
+        const row = { k: p.k, name: p.doc.name, lv: p.doc.level || '', cu: p.doc.cu || '', c, n: dates.length, tent, viaNote: !profOk, page: true };
+        if (!c) {
+          const nb = avs.find(a => a.s < hi && a.e > lo && (profOk || evOk(a)));
+          if (nb && !lvNear) { let f = ''; for (let d = nb.s < today ? today : nb.s; d < nb.e && d < hi; d = addDays(d, 1)) if (!isBusy(p.k, d)) { f = d; break; }
+            if (f) out.push(Object.assign(row, { g: 'near', why: `free from ${nice(f)}, near the job dates` })); }
+          continue;
+        }
+        if (lvNear) { out.push(Object.assign(row, { g: 'near', why: `level ${p.doc.level} (job wants ${lv})` })); continue; }
+        out.push(row);
+      }
+      return out;
+    }
+
     // ---------- 1 + 2: job matches ----------
     const jobs = [], nearJobs = [], unmatched = [], inJob = new Set(), inNear = new Set();
     const anyUm = nodes.some(({ node }) => Object.values((node && node.jobmatches) || {}).some(r => r && r.job && r.job.um));
@@ -426,16 +584,21 @@ const Focus = (() => {
         const state = rec.state || null;
         if ((state && state.s) || (opts.dismissed || {})[jk]) continue;   // answered (accepted / not suitable) -> gone
         const dates = arr(j.dates).filter(d => d >= today).sort();
-        if (dates.length && j.um) { unmatched.push({ jk, uid, j, state, dates }); continue; }   // desk job with no doctor free -> reverse market (any start date)
+        // Make's matches (made when the email came in) + anyone on these calendars who fits now
+        const pageRows = liveMatch(j, dates), mk = new Set(arr(j.docs).map(m => key(m && m.k)));
+        const cands = arr(j.docs).concat(pageRows.filter(r => !mk.has(r.k)));
+        const pageHit = pageRows.some(r => r.g !== 'near' && r.c && (r.c === r.n || r.c / r.n >= 0.5));
+        if (dates.length && j.um && !(pageHit && dates[0] < until)) { unmatched.push({ jk, uid, j, state, dates }); continue; }   // desk job with no doctor free -> reverse market (any start date)
         if (!dates.length || dates[0] >= until) continue;          // only jobs starting inside the look-ahead window
         const live = [], near = [];
-        for (const m of arr(j.docs)) {
+        for (const m of cands) {
+          if (!m) continue;
           const dk = key(m.k), doc = docs[dk];
           if (opts.removed && opts.removed.has(jk + '|' + safeKey(dk))) continue;   // taken off this job by a recruiter (availability untouched)
           if (doc && doc.hidden) continue;
           const c = dates.filter(d => freeOn(dk, d)).length;
           const row = { k: dk, name: (doc && doc.name) || m.name, level: (doc && doc.level) || m.lv || '', cu: (doc && doc.cu) || m.cu || '', c, n: dates.length,
-            tent: !!m.tent, viaNote: !!m.viaNote, why: m.why || '', note: m.note || '' };
+            tent: !!m.tent, viaNote: !!m.viaNote, why: m.why || '', note: m.note || '', page: !!m.page };
           const strong = m.g !== 'near' && c > 0 && (c === dates.length || c / dates.length >= 0.5);
           if (strong) live.push(row);
           else { if (m.g !== 'near') row.why = c ? `free ${c} of ${dates.length} days` : 'no longer free on the job dates'; near.push(row); }
@@ -660,7 +823,7 @@ if (typeof firebase !== 'undefined') (function () {
     const jobVM = (x, near) => {
       const j = x.j, { site, role } = shortTitle(j.title), docs = near ? x.near : x.live, n = x.dates.length;
       const chips = docs.map(r => {
-        const all = r.c === r.n, tip = near ? (r.why || 'Close match') : all ? `Free all ${r.n} days` : `Free ${r.c} of ${r.n} days`;
+        const all = r.c === r.n, tip = (near ? (r.why || 'Close match') : all ? `Free all ${r.n} days` : `Free ${r.c} of ${r.n} days`) + (r.page ? ' · matched from current availability' : '');
         let pid = '';
         pid = 'p' + (pi++); pops[pid] = { k: r.k, name: r.name, level: r.level && r.level !== '?' ? r.level : '', jobLevel: j.level || '', fit: tip, all, near, c: r.c, n: r.n };
         return { ...r, cls: near ? 'p' : all ? 'g' : 'a', mark: near ? '' : all ? '✓ ' : '◐ ', tip, pid };
