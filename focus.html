@@ -1349,7 +1349,11 @@ if (typeof firebase !== 'undefined') (function () {
     const mode = isEvoJob(j) ? 'evo' : 'email';
     PM = { x, jk, j, mode, cands, picked: new Set(cands.length === 1 ? [cands[0].k] : []), extra: [], edited: false, prev };
     const personName = n => n && !/[_\d@]|-\S*-|\b(evo|support|admin|roster|rostering|workforce|team|medical|unit|office|health|hospital|lhd|locums?|recruitment)\b/i.test(n) ? n : '';
-    const cached = j.fromEmail ? { email: j.fromEmail, name: j.fromName || personName(j.from) } : fromCache(jk);   // jobs parsed since the Job Matches update carry the sender
+    // who to greet: the sender's own name on the email wins ("Rachael Gehlert <rachael.gehlert@…>"); the sign-off read from the body is only
+    // used when the email came from a shared inbox (the body can quote other people's sign-offs further down the thread); last resort = first.last@
+    const fromAddr = e => { const m = String(e || '').split('@')[0].match(/^([a-z'-]{2,})[._]([a-z'-]{2,})\d*$/i); return m ? [m[1], m[2]].map(w => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ') : ''; };
+    const senderName = () => personName(j.from) || personName(j.fromName) || fromAddr(j.fromEmail);
+    const cached = j.fromEmail ? { email: j.fromEmail, name: senderName() } : fromCache(jk);   // jobs parsed since the Job Matches update carry the sender
     PM.fullName = cached ? cached.name : personName(j.from);
     $('pTo').value = cached ? cached.email : ''; $('pToName').value = firstOf(PM.fullName);
     $('pLook').textContent = cached ? 'From the job email' + (cached.name ? ' – ' + cached.name : '') : ''; $('pAddQ').value = ''; $('pAddList').hidden = true; $('pRebuild').hidden = true;
