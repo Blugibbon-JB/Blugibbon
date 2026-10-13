@@ -594,6 +594,7 @@ const Focus = (() => {
         for (const m of cands) {
           if (!m) continue;
           const dk = key(m.k), doc = docs[dk];
+          if (!doc) continue;                     // doctor isn't on the calendars you're looking at
           if (opts.removed && opts.removed.has(jk + '|' + safeKey(dk))) continue;   // taken off this job by a recruiter (availability untouched)
           if (doc && doc.hidden) continue;
           const c = dates.filter(d => freeOn(dk, d)).length;
@@ -785,12 +786,27 @@ if (typeof firebase !== 'undefined') (function () {
     setSeg($('scopeSeg'), 's', scope); setSeg($('winSeg'), 'w', win);
     listen();
   });
+  // Job Matches (Make 6526556) writes the jobs-inbox cards onto these calendars. In "Mine" the page reads them too and
+  // matches them against your own doctors, so jobs aren't limited to whichever calendar Make happened to write them on.
+  const JOB_CALS = ['tzGXQIyx5Ybpxt0lv7JtkCaFFaa2'];   // Izzy
+  let jobRefs = [], own = {}, extJobs = {};
+  function compose() {
+    if (scope === 'all') return;
+    data = { [user.uid]: own };
+    for (const [uid, jm] of Object.entries(extJobs)) if (uid !== user.uid && jm) data[uid] = { jobmatches: jm };
+    loaded = true; render();
+  }
   function listen() {
-    if (ref) ref.off();
+    if (ref) ref.off(); jobRefs.forEach(r => r.off()); jobRefs = []; own = {}; extJobs = {};
     loaded = false; statusView('Loading…');
     ref = scope === 'all' ? db.ref('users') : db.ref('users/' + user.uid);
-    ref.on('value', snap => { const v = snap.val() || {}; data = scope === 'all' ? v : { [user.uid]: v }; loaded = true; render(); },
+    ref.on('value', snap => { const v = snap.val() || {}; if (scope === 'all') { data = v; loaded = true; render(); } else { own = v; compose(); } },
       err => statusView(`<b>Couldn't read the calendar</b>${esc(err.code || err.message)}`));
+    if (scope !== 'all') for (const uid of JOB_CALS) {
+      if (uid === user.uid) continue;
+      const r = db.ref(`users/${uid}/jobmatches`); jobRefs.push(r);
+      r.on('value', snap => { extJobs[uid] = snap.val() || null; if (loaded || Object.keys(own).length) compose(); }, () => { /* no access to that calendar – just your own jobs */ });
+    }
   }
   const hiddenNow = new Set();        // hidden the instant you click, before Firebase answers
   const removedNow = new Set(), unremovedNow = new Set();   // instant feedback before Firebase answers
@@ -846,11 +862,11 @@ if (typeof firebase !== 'undefined') (function () {
         q: [d.name, lvWords(d.level), d.spec, d.specAll, d.base, where, t, b.location].join(' ').toLowerCase() };
     });
     const rev = F.unmatched.map(x => {
-      const j = x.j, { site, role } = shortTitle(j.title), n = x.dates.length;
+      const j = x.j, { site, role } = shortTitle(j.title), n = x.dates.length, fit = arr(j.fit).filter(f => f && F.docs[N.key(f.k)] && !F.docs[N.key(f.k)].hidden);   // only doctors on the calendars you're viewing
       return { kind: 'rev', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, ds: x.dates, roleFull: String(j.title || '').split(' – ').slice(1).join(' – ') || j.specialty || '',
         st: j.state || '', n, dates: compactDates(x.dates), when: longDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a',
-        req: [j.req, j.travel].filter(Boolean).join(' · '), fit: arr(j.fit),
-        q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), j.req, j.travel, j.ref, j.evo, ...arr(j.fit).map(f => f.name)].join(' ').toLowerCase() };
+        req: [j.req, j.travel].filter(Boolean).join(' · '), fit,
+        q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), j.req, j.travel, j.ref, j.evo, ...fit.map(f => f.name)].join(' ').toLowerCase() };
     });
     const U = updatesVM(today);
     const P = presentedVM();
@@ -959,7 +975,8 @@ if (typeof firebase !== 'undefined') (function () {
       let status = r.status || 'recording';
       if (status === 'recording' && Date.now() - r.at > 3 * 6e4) status = 'error';        // Make never answered
       const docs = Object.entries(r.docs || {}).map(([sk, d]) => ({ k: d.k || sk, name: d.name || d.k || sk, cu: d.cu || '', task: ((r.tasks || {})[sk] || {}).url || '' }));
-      const row = Object.assign({}, r, { kind: 'pres', status, docs, q: [r.site, r.title, r.to, r.toName, r.evo, ...docs.map(d => d.name)].join(' ').toLowerCase() });
+      const site = r.site && typeof r.site === 'object' ? (r.site.name || String(r.title || '').split(' – ')[0]) : r.site;   // Make stores {id, name}
+      const row = Object.assign({}, r, { kind: 'pres', status, docs, site, q: [site, r.title, r.to, r.toName, r.evo, ...docs.map(d => d.name)].join(' ').toLowerCase() });
       if (status !== 'withdrawn' && status !== 'withdrawing') {
         if (r.jk) (byJob[r.jk] = byJob[r.jk] || []).push(row);
         for (const d of docs) (byDoc[N.key(d.k)] = byDoc[N.key(d.k)] || []).push(row);
