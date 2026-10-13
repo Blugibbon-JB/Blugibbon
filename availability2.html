@@ -1911,6 +1911,10 @@ button.moreBtn[aria-expanded="true"]{
 .bgms-div{ flex-basis:100%; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:5px; margin-top:2px; }
 .bgms-opt.pin{ font-weight:600; }
 .bg-legacy-notes{ background:#f8fafc !important; color:#475569 !important; cursor:default; border-style:dashed !important; }
+
+.bg-status-badge{ display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:700; vertical-align:middle; letter-spacing:.02em; }
+.bg-status-badge.passive{ background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
+.bg-status-badge.prescreen{ background:#e0f7fa; color:#006064; border:1px solid #80deea; }
 </style>
 
 
@@ -4064,6 +4068,13 @@ function bgPlaceStates(text){
   return bgFindStates(t.replace(/melbounre/ig, "Melbourne"));
 }
 function bgDoctorStates(d){ return d ? bgPlaceStates([bgArr(d.work_states).join(", "), d.where].filter(Boolean).join(", ")) : []; }
+// small badge for doctors who aren't plain Active (e.g. Passive Candidate from ClickUp BG Status)
+function bgStatusBadge(d){
+  const s = String((d && d.bg_status) || "").trim();
+  if(/^passive/i.test(s)) return ` <span class="bg-status-badge passive" title="BG Status: Passive Candidate – not actively looking, open to the right offer">Passive</span>`;
+  if(/^pre-?screen/i.test(s)) return ` <span class="bg-status-badge prescreen" title="BG Status: Pre-screen">Pre-screen</span>`;
+  return "";
+}
 function bgNorm(s){ return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
 function bgFindSites(text){
   const t = bgNorm(text); if(t.length < 4) return [];
@@ -8724,7 +8735,7 @@ function renderDoctorList(){
       <div class="docLeft" style="display: flex; align-items: center; gap: 10px; flex: 1;">
         <input type="checkbox" class="docCheckbox" ${isSelected ? 'checked' : ''} style="cursor: pointer; width: 18px; height: 18px;" />
         <div style="flex: 1;">
-          <div class="docName">${esc(d.name || "(no name)")}</div>
+          <div class="docName">${esc(d.name || "(no name)")}${bgStatusBadge(d)}</div>
           <div class="docMeta">AHPRA ${esc(d.ahpra_id || "")}</div>
           <div class="docMeta">${esc([d.specialty, d.prefs, d.pgy ? `PGY ${d.pgy}`:"", d.level].filter(Boolean).join(" • "))}</div>
           <div class="docActions">
@@ -9617,7 +9628,7 @@ function openEventEditor(payload){
     </div>
     <div class="field full">
       <div class="bgro-row" title="Pulled from the doctor's profile. Edit the doctor to change these.">
-        ${__ro("Speciality", d.specialty)}${__ro("Level", d.level)}${__ro("PGY", __pgyTxt)}
+        ${__ro("Speciality", d.specialty)}${__ro("Level", d.level)}${__ro("PGY", __pgyTxt)}${d.bg_status ? __ro("BG Status", d.bg_status) : ""}
         <div class="bgro-lock">🔒 From doctor profile (read only)</div>
       </div>
     </div>
