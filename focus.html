@@ -1011,6 +1011,7 @@ if (typeof firebase !== 'undefined') (function () {
     return `<div class="prLine"${wide ? '' : ' style="padding-left:0"'}><span class="pl" style="color:#15603f">ORDER</span>${o.url ? `<a class="chip g" href="${esc(o.url)}" target="_blank" rel="noopener" title="Open the ClickUp Order"><span class="cn">Order created ${esc(agoMs(o.at))} ↗</span></a>` : `<span class="chip g"><span class="cn">${o.status === 'pending' ? 'Still creating – check back shortly' : 'Creating order…'}</span></span>`}</div>`; };
 
   const presNow = {};                       // shown the instant you click, before Firebase answers
+  const presHidden = new Set();
   const PRES_LABEL = { recording: ['st-wait', 'Recording…'], recorded: ['st-rec', 'In ClickUp'], partial: ['st-err', 'Partly recorded'], error: ['st-err', 'Not recorded'], withdrawing: ['st-wait', 'Withdrawing…'], withdrawn: ['st-wd', 'Withdrawn'] };
   function presentedVM() {
     const all = {}, cutoff = Date.now() - 30 * 864e5;
@@ -1028,7 +1029,7 @@ if (typeof firebase !== 'undefined') (function () {
         if (r.jk) (byJob[r.jk] = byJob[r.jk] || []).push(row);
         for (const d of docs) (byDoc[N.key(d.k)] = byDoc[N.key(d.k)] || []).push(row);
       }
-      if (r.at >= cutoff) rows.push(row);
+      if (r.at >= cutoff && !r.hidden && !presHidden.has(r.pid)) rows.push(row);
     }
     rows.sort((a, b) => b.at - a.at);
     return { rows, byJob, byDoc };
@@ -1044,17 +1045,27 @@ if (typeof firebase !== 'undefined') (function () {
   const presDocChips = r => r.docs.map(d => { const href = d.task || d.cu, tip = d.task ? 'Open the ClickUp submission' : 'Open the doctor in ClickUp';
     return href ? `<a class="chip b" href="${esc(href)}" target="_blank" rel="noopener" title="${tip}"><span class="cn">${esc(d.name)}</span></a>` : `<span class="chip b"><span class="cn">${esc(d.name)}</span></span>`; }).join('');
   const presTo = r => r.mode === 'evo' ? `EVO ${r.evo || ''}` : (r.toName || r.to || 'no email');
+  // Presented row actions: create the Order (same as Accept on Matched) and remove from this list
+  const presActs = (r, big) => { if (r.status === 'withdrawn' || r.status === 'withdrawing') return `<button class="ib${big ? ' big' : ''}" title="Remove from this list" data-hidepres="${esc(r.pid)}">${I.x(16)}</button>`;
+    const o = V && V.ordByJob && V.ordByJob[r.jk];
+    const acc = o && o.url ? `<a class="ib ok on${big ? ' big' : ''}" href="${esc(o.url)}" target="_blank" rel="noopener" title="Order created – open it in ClickUp">${I.check(16)}</a>`
+      : o && o.status !== 'failed' ? `<button class="ib ok on${big ? ' big' : ''}" title="Creating the order…" disabled>${I.clock(15)}</button>`
+      : `<button class="ib ok${big ? ' big' : ''}" title="Accept – create order" data-presacc="${esc(r.pid)}" data-jk="${esc(r.jk || '')}">${I.check(16)}</button>`;
+    return `${r.jk ? acc : ''}<button class="ib${big ? ' big' : ''}" title="Remove from this list (the ClickUp submission stays – use Withdraw to delete it)" data-hidepres="${esc(r.pid)}">${I.x(16)}</button>`; };
+  const presOrdLine = r => { const o = V && V.ordByJob && V.ordByJob[r.jk]; if (!o || o.status === 'failed') return o && o.note ? `<div class="sub" style="color:#9b1c1c">${esc(o.note)}</div>` : '';
+    return `<div class="prLine" style="padding-left:0"><span class="pl" style="color:#15603f">ORDER</span>${o.url ? `<a class="chip g" href="${esc(o.url)}" target="_blank" rel="noopener"><span class="cn">Order created ${esc(agoMs(o.at))} ↗</span></a>` : `<span class="chip g"><span class="cn">${o.status === 'pending' ? 'Still creating – check back shortly' : 'Creating order…'}</span></span>`}</div>`; };
   const presRow = r => `<div class="jrow${r.status === 'withdrawn' ? ' dim' : ''}">
       <div class="jtop"><div><div class="site">${esc(r.site || 'Job')} <span class="st">${esc(r.state || '')}</span></div><div class="role">${esc(dot(r.role, r.dates))}</div></div>
-        <div class="acts" style="align-items:center">${presStatus(r)}</div></div>
+        <div class="acts" style="align-items:center">${presStatus(r)}${presActs(r)}</div></div>
       <div class="jmeta"><span class="ago" title="${esc(fullTime({ ms: r.at }))}">${I.send(12)}${esc(agoMs(r.at))}</span><span class="d">to ${esc(presTo(r))}</span>${canWithdraw(r) ? `<button class="lnkBtn" data-withdraw="${esc(r.pid)}" title="Recorded by mistake? Deletes these ClickUp submissions and the calendar blocks">Withdraw</button>` : ''}</div>
-      <div class="chips">${presDocChips(r)}</div></div>`;
+      <div class="chips">${presDocChips(r)}</div>${presOrdLine(r)}</div>`;
   const exPres = r => `<div class="tr job${r.status === 'withdrawn' ? ' dim' : ''}">
       <div class="c13">${esc(fullTime({ ms: r.at }))}<div class="s2">${esc(r.by || '')}</div></div>
       <div style="min-width:0"><div class="site">${esc(r.site || 'Job')}</div><div class="c13m">${esc(dot(r.role, r.dates, r.evo ? 'EVO ' + r.evo : ''))}</div></div>
       <div class="chips w">${presDocChips(r)}</div>
       <div class="c13m">${esc(presTo(r))}${r.mode !== 'evo' && r.to && r.toName ? `<div class="s2">${esc(r.to)}</div>` : ''}</div>
-      <div>${presStatus(r)}${presNotes(r).length ? `<div class="s2" style="margin-top:4px">${esc(presNotes(r).join(' · '))}</div>` : ''}${canWithdraw(r) ? `<div style="margin-top:4px"><button class="lnkBtn" data-withdraw="${esc(r.pid)}">Withdraw</button></div>` : ''}</div></div>`;
+      <div>${presStatus(r)}${presNotes(r).length ? `<div class="s2" style="margin-top:4px">${esc(presNotes(r).join(' · '))}</div>` : ''}${canWithdraw(r) ? `<div style="margin-top:4px"><button class="lnkBtn" data-withdraw="${esc(r.pid)}">Withdraw</button></div>` : ''}${presOrdLine(r)}</div>
+      <div class="acts">${presActs(r, true)}</div></div>`;
   // job cards: "Presented: Dr A, Dr B · 2d ago"
   const presLine = (x, wide) => { const ps = (V && V.presByJob[x.jk]) || []; if (!ps.length) return '';
     const names = []; ps.forEach(p => p.docs.forEach(d => { if (!names.some(n => n.k === d.k)) names.push({ k: d.k, name: d.name, at: p.at, href: d.task || d.cu }); }));
@@ -1197,7 +1208,7 @@ if (typeof firebase !== 'undefined') (function () {
   // ---------- full-screen view ----------
   const COLS = {
     job: 'minmax(0,2fr) 130px 150px minmax(0,2.4fr) 150px',
-    pres: '150px minmax(0,1.6fr) minmax(0,1.8fr) minmax(0,1.2fr) 170px',
+    pres: '150px minmax(0,1.6fr) minmax(0,1.8fr) minmax(0,1.2fr) 190px 100px',
     ord: '150px minmax(0,1.8fr) minmax(0,1.8fr) 170px 130px',
     free: 'minmax(0,1.6fr) minmax(0,1.6fr) 60px 130px minmax(0,1.4fr) 150px',
     end: 'minmax(0,1.4fr) minmax(0,1.4fr) 120px minmax(0,1.6fr)',
@@ -1242,7 +1253,7 @@ if (typeof firebase !== 'undefined') (function () {
       <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>${open === 'rev' ? selBar(true) : open === 'upd' ? updBar(true) : ''}`;
     const list = V.lists[open].filter(x => !qq || x.q.includes(qq));
     const kind = open === 'match' || open === 'close' ? 'job' : open;
-    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'], upd: ['TIME', 'TYPE', 'JOB / DOCTOR', 'WHAT CHANGED'], srch: ['DOCTOR', 'LEVEL · SPECIALTY', 'WANTS TO WORK', 'AVAILABILITY', 'BOOKING'], pres: ['PRESENTED', 'JOB', 'DOCTORS', 'SENT TO', 'STATUS'], ord: ['ACCEPTED', 'JOB', 'DOCTORS MATCHED', 'STATUS', 'ORDER'] }[kind];
+    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'], upd: ['TIME', 'TYPE', 'JOB / DOCTOR', 'WHAT CHANGED'], srch: ['DOCTOR', 'LEVEL · SPECIALTY', 'WANTS TO WORK', 'AVAILABILITY', 'BOOKING'], pres: ['PRESENTED', 'JOB', 'DOCTORS', 'SENT TO', 'STATUS', ''], ord: ['ACCEPTED', 'JOB', 'DOCTORS MATCHED', 'STATUS', 'ORDER'] }[kind];
     const exSrch = x => `<div class="tr">
       <div style="min-width:0"><div class="site">${nameLink(x.d)}</div>${x.d.pgy ? `<div class="c13m">${esc(x.d.pgy)}</div>` : ''}</div>
       <div class="c13m">${esc(dot(x.d.level, x.d.specAll || x.d.spec))}${x.d.prefs ? `<div class="s2">${esc(x.d.prefs)}</div>` : ''}</div>
@@ -1582,10 +1593,18 @@ if (typeof firebase !== 'undefined') (function () {
   function findJob(jk) { for (const id of ['match', 'close']) { const x = V.lists[id].find(y => y.jk === jk); if (x) return x; } return null; }
   // Accept: Make 6452828 creates the ClickUp Order (same link as the chat alert); Make 6625206 tells us its URL once it exists.
   // One doctor matched -> the job moves to "Orders created"; several -> it stays in Matched marked "Order created".
-  async function acceptJob(jk) {
-    const x = findJob(jk); if (!x) return;
-    const j = x.j, cand = x.cand || [];
-    const rec = { at: Date.now(), by: user.email, jk, status: 'creating', keep: cand.length > 1, site: x.site, state: x.st || '', role: x.role || '', dates: x.dates || '',
+  function jobCard(jk) { for (const node of Object.values(data)) { const r = node && node.jobmatches && node.jobmatches[jk]; if (r && r.job) return r.job; } return null; }
+  async function acceptJob(jk, pid) {
+    let x = findJob(jk);
+    if (pid) {                                  // from the Presented tile
+      const p = V.lists.pres.find(r => r.pid === pid); if (!p) return;
+      const j = jobCard(jk) || {};
+      x = { jk, j, site: p.site || j.site || 'Job', st: p.state || '', role: p.role || '', dates: p.dates || '', rate: rateShort(j.rate) || '',
+        cand: x ? x.cand : [], presDocs: p.docs };
+    }
+    if (!x) return;
+    const j = x.j, cand = x.presDocs || x.cand || [];
+    const rec = { at: Date.now(), by: user.email, jk, status: 'creating', keep: (x.cand || cand).length > 1, from: pid ? 'presented' : 'matched', site: x.site, state: x.st || '', role: x.role || '', dates: x.dates || '',
       rate: x.rate || '', evo: evoOf(j) || '', mail: j.mail || '', docs: cand.map(c => ({ k: c.k, name: c.name, cu: c.cu || '' })) };
     const save = patch => { Object.assign(rec, patch); ordNow[jk] = Object.assign({}, rec); render();
       return db.ref(`users/${user.uid}/focus/orders/${jk}`).set(rec).catch(e => console.warn(e)); };
@@ -1620,6 +1639,13 @@ if (typeof firebase !== 'undefined') (function () {
       ordChecked.add(jk);
       pollOrder(jk, 1).then(f => { if (f.url) db.ref(`users/${user.uid}/focus/orders/${jk}`).update({ status: 'created', url: f.url, id: f.id || '', note: null }).catch(() => {}); });
     }
+  }
+  function hidePres(pid) {
+    const p = V.lists.pres.find(r => r.pid === pid); if (!p) return;
+    presHidden.add(pid); render();
+    const ref = db.ref(`users/${user.uid}/focus/presented/${pid}/hidden`);
+    ref.set(true).catch(e => console.warn(e));
+    toast(`${p.site || 'Presentation'} removed from Presented (the ClickUp submission stays)`, () => { presHidden.delete(pid); ref.remove().catch(() => {}); render(); });
   }
   function answer(jk, act) {
     if (act === 'accepted') return acceptJob(jk);
@@ -1656,9 +1682,11 @@ if (typeof firebase !== 'undefined') (function () {
     if (on) toast(`${name} marked contacted`, () => setContacted(k, false));
   }
   document.addEventListener('click', e => {
-    const t = e.target.closest('[data-present],[data-withdraw],[data-rmjob],[data-export],[data-selnone],[data-rm],[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
+    const t = e.target.closest('[data-presacc],[data-hidepres],[data-present],[data-withdraw],[data-rmjob],[data-export],[data-selnone],[data-rm],[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
     if (t.dataset.present) { e.preventDefault(); presOpen(t.dataset.present); return; }
     if (t.dataset.withdraw) { e.preventDefault(); presWithdraw(t.dataset.withdraw); return; }
+    if (t.dataset.presacc) { e.preventDefault(); acceptJob(t.dataset.jk, t.dataset.presacc); return; }
+    if (t.dataset.hidepres) { e.preventDefault(); hidePres(t.dataset.hidepres); return; }
     if (t.dataset.rmjob) { removeRev(t.dataset.rmjob); return; }
     if (t.dataset.export != null) { openExport(); return; }
     if (t.dataset.selnone != null) { sel.clear(); render(); return; }
