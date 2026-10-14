@@ -373,6 +373,7 @@ const Focus = (() => {
 
   // classify one calendar entry
   function kind(e) {
+    if (e.presentation_id || e.source === 'focus') return 'pres';   // "Presented – site" blocks: a record of where they were put forward, NOT availability
     const st = String(e.status || '').trim().toLowerCase(), ti = String(e.title || '').trim().toLowerCase();
     if (e.type === 'placement' || e.source === 'timesheets' || e.source === 'placements' || e.source === 'clickup' || /^book/.test(st) || /^booked\b/.test(ti)) return 'booked';
     if (/^(unavailable|away|holiday|leave|sick)/.test(st) || /^(away|unavailable|holiday|on leave|leave)\b/.test(ti)) return 'away';
@@ -563,8 +564,11 @@ const Focus = (() => {
         const row = { k: p.k, name: p.doc.name, lv: p.doc.level || '', cu: p.doc.cu || '', c, n: dates.length, tent, viaNote: !profOk, page: true };
         if (!c) {
           const nb = avs.find(a => a.s < hi && a.e > lo && (profOk || evOk(a)));
-          if (nb && !lvNear) { let f = ''; for (let d = nb.s < today ? today : nb.s; d < nb.e && d < hi; d = addDays(d, 1)) if (!isBusy(p.k, d)) { f = d; break; }
-            if (f) out.push(Object.assign(row, { g: 'near', why: `free from ${nice(f)}, near the job dates` })); }
+          if (nb && !lvNear) {   // free just before or just after the job: say which
+            let last = '', first = '';
+            for (let d = nb.s < lo ? lo : nb.s; d < nb.e && d < hi; d = addDays(d, 1)) if (d >= today && !isBusy(p.k, d)) { if (!first) first = d; last = d; }
+            const why = last && last < dates[0] ? `free until ${nice(last)}, just before the job` : first ? `free from ${nice(first)}, near the job dates` : '';
+            if (why) out.push(Object.assign(row, { g: 'near', why })); }
           continue;
         }
         if (lvNear) { out.push(Object.assign(row, { g: 'near', why: `level ${p.doc.level} (job wants ${lv})` })); continue; }
