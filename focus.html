@@ -692,7 +692,8 @@ if (typeof firebase !== 'undefined') (function () {
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} } };
   const ALL_IDS = ['match', 'close', 'free', 'end', 'rev', 'upd', 'pres', 'ord'];
-  const ORDER_HOOK = 'https://hook.us2.make.com/fqqy830msku3tlzepnr5sqxq1u1zabcx';     // Make 6625206 "Doctor Focus – order lookup" (reads the Job Matches record)
+  const ORDER_HOOK = 'https://hook.us2.make.com/fqqy830msku3tlzepnr5sqxq1u1zabcx';
+  const ORDER_FIX_HOOK = 'https://hook.us2.make.com/8ri2wr17nugbdrpt24h5fhyhulhwjsiw';   // Make 6625437 "Doctor Focus – order fix-up" (Focus dates + presented doctors on the Order)     // Make 6625206 "Doctor Focus – order lookup" (reads the Job Matches record)
   const PRESENT_HOOK = 'https://hook.us2.make.com/8ggkmdfw3g0vrn8kbd1gua8999pezfx4';   // Make 6622466 "Doctor Focus – present doctors"
   const LOOKUP_HOOK = 'https://hook.us2.make.com/q59nzaswg8idallwal14bzfdlxcnpnht';    // Make 6622723 "Doctor Focus – job sender lookup"
   let IDS = ['match', 'close', 'free', 'end'];
@@ -1603,7 +1604,8 @@ if (typeof firebase !== 'undefined') (function () {
         cand: x ? x.cand : [], presDocs: p.docs };
     }
     if (!x) return;
-    const j = x.j, cand = x.presDocs || x.cand || [];
+    const presented = []; ((V.presByJob || {})[jk] || []).forEach(p => p.docs.forEach(d => { if (!presented.some(e => N.key(e.k) === N.key(d.k))) presented.push(d); }));
+    const j = x.j, cand = presented.length ? presented : (x.presDocs || x.cand || []);
     const rec = { at: Date.now(), by: user.email, jk, status: 'creating', keep: (x.cand || cand).length > 1, from: pid ? 'presented' : 'matched', site: x.site, state: x.st || '', role: x.role || '', dates: x.dates || '',
       rate: x.rate || '', evo: evoOf(j) || '', mail: j.mail || '', docs: cand.map(c => ({ k: c.k, name: c.name, cu: c.cu || '' })) };
     const save = patch => { Object.assign(rec, patch); ordNow[jk] = Object.assign({}, rec); render();
@@ -1613,7 +1615,17 @@ if (typeof firebase !== 'undefined') (function () {
     toast(rec.keep ? `Creating the order for ${x.site} – the job stays in Matched` : `Creating the order for ${x.site} – it will move to Orders created`);
     try { fetch(j.accept, { mode: 'no-cors', cache: 'no-store' }); } catch (e) { new Image().src = j.accept; }
     const found = await pollOrder(jk);
-    if (found.url) { await save({ status: 'created', url: found.url, id: found.id || '' }); toast(`Order created for ${x.site}`); }
+    if (found.url) {
+      await save({ status: 'created', url: found.url, id: found.id || '' }); toast(`Order created for ${x.site}`);
+      // make the Order match Focus: dates from today on (not the old email dates) + link the doctors presented to this job
+      const ds = (x.ds && x.ds.length ? x.ds : arr((jobCard(jk) || j).dates)).filter(d => d >= N.sydToday()).sort();
+      const fresh = !found.acceptedAt || Date.now() - Date.parse(found.acceptedAt) < 15 * 6e4;   // an Order someone made earlier keeps its dates
+      const tid = d => (String(d.cu || ((V.F.docs[N.key(d.k)] || {}).cu) || '').match(/\/t\/(?:\d+\/)?([a-z0-9]+)/i) || [])[1] || '';
+      const qp = new URLSearchParams({ id: found.id || (found.url.match(/\/t\/(?:\d+\/)?([a-z0-9]+)/i) || [])[1] || '', k: jk, by: user.email,
+        s: fresh && ds.length ? ds[0] : '', e: fresh && ds.length ? ds[ds.length - 1] : '',
+        d: presented.map(tid).join(','), dn: presented.map(d => d.name).join('|') });
+      if (qp.get('id')) try { fetch(`${ORDER_FIX_HOOK}?${qp}`, { mode: 'no-cors', cache: 'no-store' }); } catch (e) {}
+    }
     else if (found.missing) await save({ status: 'failed', note: 'Job Matches has no record of this job (it was never alerted), so no Order was made – create it in ClickUp.' });
     else await save({ status: 'pending', note: 'Make is still creating the Order – the link will appear here once it exists.' });
     setTimeout(() => { delete ordNow[jk]; render(); }, 15000);
@@ -1624,7 +1636,7 @@ if (typeof firebase !== 'undefined') (function () {
       await new Promise(r => setTimeout(r, i === 0 ? 4000 : 4000));
       try {
         const r = await fetch(`${ORDER_HOOK}?k=${encodeURIComponent(jk)}`, { cache: 'no-store' }); const v = await r.json();
-        if (v && v.orderUrl) return { url: v.orderUrl, id: v.orderId };
+        if (v && v.orderUrl) return { url: v.orderUrl, id: v.orderId, acceptedAt: v.acceptedAt };
         if (v && !v.found && ++missing >= 3) return { missing: true };
       } catch (e) { /* try again */ }
     }
