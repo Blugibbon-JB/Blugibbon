@@ -60,6 +60,7 @@ button{font-family:inherit;cursor:pointer;color:inherit}
 .ib:hover{background:#eef1f6;color:#1b2230;text-decoration:none}
 .ib.ok{border:0;background:linear-gradient(180deg,#27a06b,#1c8155);color:#fff;box-shadow:0 2px 6px -2px rgba(31,138,91,.5)}
 .ib.ok:hover{background:#15603f}
+a.ib{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}.ib.ok.on{background:#15603f}.ib[disabled]{opacity:.75;cursor:default}
 .ib.big{width:36px;height:36px;border-radius:10px}
 .ib.ct{width:28px;height:28px;border-radius:8px}
 .ib.ct:hover{background:transparent;border-color:#1f62d6}
@@ -690,7 +691,8 @@ if (typeof firebase !== 'undefined') (function () {
   const arr = v => Array.isArray(v) ? v : Object.values(v || {});
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} } };
-  const ALL_IDS = ['match', 'close', 'free', 'end', 'rev', 'upd', 'pres'];
+  const ALL_IDS = ['match', 'close', 'free', 'end', 'rev', 'upd', 'pres', 'ord'];
+  const ORDER_HOOK = 'https://hook.us2.make.com/fqqy830msku3tlzepnr5sqxq1u1zabcx';     // Make 6625206 "Doctor Focus – order lookup" (reads the Job Matches record)
   const PRESENT_HOOK = 'https://hook.us2.make.com/8ggkmdfw3g0vrn8kbd1gua8999pezfx4';   // Make 6622466 "Doctor Focus – present doctors"
   const LOOKUP_HOOK = 'https://hook.us2.make.com/q59nzaswg8idallwal14bzfdlxcnpnht';    // Make 6622723 "Doctor Focus – job sender lookup"
   let IDS = ['match', 'close', 'free', 'end'];
@@ -722,6 +724,7 @@ if (typeof firebase !== 'undefined') (function () {
     srch: { label: 'SEARCH – DOCTORS', tab: 'Search', c: '#1b2230', t: '#eef1f6', hint: () => (V && V.srchHint) || '', exHint: 'Every doctor on the calendar matching your search (name, level, specialty, preferences, where they want to work, tags, notes) – whether or not they are in another card. The other cards are filtered by the same search.', empty: 'No doctors match.' },
     upd: { label: 'UPDATES', tab: 'Updates', c: '#475467', t: '#eceff3', hint: () => (V && V.updHint) || 'What the last update changed', exHint: 'What changed: new, updated and removed jobs, and doctors whose availability, bookings, away dates or status changed. "Last update" = the most recent update that changed something; "Today" = every update since midnight. Updates run every 30 min, 8:30–5:30 weekdays.', empty: 'Nothing has changed yet.' },
     end: { label: 'FINISHING SOON', tab: 'Finishing', c: '#c27a12', t: '#fcf0dd', hint: () => 'Bookings ending in 2 weeks with nothing lined up', exHint: 'Bookings ending in the next 2 weeks with nothing lined up after.', empty: 'No gaps coming up.' },
+    ord: { label: 'ORDERS CREATED', tab: 'Orders', c: '#15603f', t: '#e4f4ec', hint: () => 'Jobs you accepted – last 30 days', exHint: 'Every job you accepted from this page in the last 30 days, with a link to the ClickUp Order. A job matched to one doctor moves here when you accept it; a job with several doctors stays in Matched (marked "Order created") so you can keep presenting.', empty: 'No orders created yet.' },
     pres: { label: 'PRESENTED', tab: 'Presented', c: '#174aa3', t: '#e5eefd', hint: () => 'Doctors you put forward – last 30 days', exHint: 'Every presentation made from this page in the last 30 days: who went to which job, who it was sent to and the ClickUp submission it created. Withdraw undoes one recorded by mistake (within 2 days) – it deletes those ClickUp submissions and the calendar blocks.', empty: 'Nothing presented yet – use the blue Present button on a job.' }
   };
 
@@ -856,8 +859,10 @@ if (typeof firebase !== 'undefined') (function () {
         dates: compactDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a', chips,
         q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo, ...docs.map(r => r.name + ' ' + lvWords(r.level) + ' ' + (r.why || ''))].join(' ').toLowerCase() };
     };
-    const match = F.jobs.filter(x => !x.state).map(x => jobVM(x, false));
-    const close = F.nearJobs.filter(x => !x.state).map(x => jobVM(x, true));
+    const O = ordersVM();
+    const moved = x => { const o = O.byJob[x.jk]; return o && !o.keep && o.status !== 'failed'; };   // one-doctor job accepted -> lives in Orders created
+    const match = F.jobs.filter(x => !x.state && !moved(x)).map(x => jobVM(x, false));
+    const close = F.nearJobs.filter(x => !x.state && !moved(x)).map(x => jobVM(x, true));
     const free = F.avail.map(a => ({ kind: 'free', a, d: a.doc, ranges: rgText(a.rg, 2), rangesLong: rgText(a.rg, 4), days: a.days.length,
       tent: a.tent, notes: a.notes.join(' / '), last: a.lastBooked ? 'Last booked ' + day(a.lastBooked) : 'Never booked', lastShort: a.lastBooked ? day(a.lastBooked) : 'Never',
       contacted: a.contacted, q: [a.doc.name, lvWords(a.doc.level), a.doc.spec, a.doc.specAll, a.doc.prefs, a.doc.base, (a.doc.tags || []).join(' '), a.notes.join(' ')].join(' ').toLowerCase() }));
@@ -879,7 +884,7 @@ if (typeof firebase !== 'undefined') (function () {
     const U = updatesVM(today);
     const P = presentedVM();
     for (const k of [...sel]) if (!rev.some(r => r.jk === k)) sel.delete(k);   // forget ticks on jobs that have gone
-    const lists = { match, close, free, end, rev, upd: U.rows, pres: P.rows };
+    const lists = { match, close, free, end, rev, upd: U.rows, pres: P.rows, ord: O.rows };
     const T = gTerms(); let srchHint = '';
     if (T.length) {
       for (const id of Object.keys(lists)) lists[id] = lists[id].filter(x => gHit(x.q || '', T));
@@ -887,8 +892,8 @@ if (typeof firebase !== 'undefined') (function () {
       const tot = Object.values(lists).reduce((n, l) => n + l.length, 0) - lists.srch.length;
       srchHint = `${lists.srch.length} doctor${lists.srch.length === 1 ? '' : 's'} match “${gq.trim()}” · ${tot} item${tot === 1 ? '' : 's'} in the other cards`;
     }
-    const counts = { match: lists.match.length, close: lists.close.length, free: lists.free.filter(a => !a.contacted).length, end: lists.end.length, rev: lists.rev.length, upd: lists.upd.length, srch: (lists.srch || []).length, pres: lists.pres.filter(r => r.status !== 'withdrawn').length };
-    return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0, updHint: U.hint, srchHint, searching: T.length > 0, presByJob: P.byJob, presByDoc: P.byDoc };
+    const counts = { match: lists.match.length, close: lists.close.length, free: lists.free.filter(a => !a.contacted).length, end: lists.end.length, rev: lists.rev.length, upd: lists.upd.length, srch: (lists.srch || []).length, pres: lists.pres.filter(r => r.status !== 'withdrawn').length, ord: lists.ord.length };
+    return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0, updHint: U.hint, srchHint, searching: T.length > 0, presByJob: P.byJob, presByDoc: P.byDoc, ordByJob: O.byJob };
   }
 
   // ---------- master search ----------
@@ -972,6 +977,39 @@ if (typeof firebase !== 'undefined') (function () {
   const updBar = wide => `<div class="updBar${wide ? ' wide' : ''}"><div class="seg"><button class="${updWin === 'last' ? 'on' : ''}" data-updwin="last">Last update</button><button class="${updWin === 'today' ? 'on' : ''}" data-updwin="today">Today</button></div></div>`;
 
   // ---------- Presented: users/{uid}/focus/presented/{pid} (written here, completed by Make 6622466) ----------
+  // ---------- Orders created: users/{uid}/focus/orders/{jk} (written here; the Order itself is made by Make 6452828 "Job Matches – Accept") ----------
+  const ordNow = {};
+  function ordersVM() {
+    const me = (data[user.uid] || {}).focus || {}, all = {};
+    for (const [jk, r] of Object.entries(me.orders || {})) if (r && r.at) all[jk] = Object.assign({ jk }, r);
+    for (const [jk, r] of Object.entries(ordNow)) all[jk] = Object.assign({}, all[jk] || {}, r);
+    const rows = [], byJob = {}, cutoff = Date.now() - 30 * 864e5;
+    for (const r of Object.values(all)) {
+      byJob[r.jk] = r;
+      if (r.at >= cutoff) rows.push(Object.assign({}, r, { kind: 'ord', docs: arr(r.docs), q: [r.site, r.role, r.state, r.evo, ...arr(r.docs).map(d => d.name)].join(' ').toLowerCase() }));
+    }
+    rows.sort((a, b) => b.at - a.at);
+    return { rows, byJob };
+  }
+  const ORD_LABEL = { creating: ['st-wait', 'Creating order…'], created: ['st-rec', 'Order in ClickUp'], pending: ['st-wait', 'Still creating…'], failed: ['st-err', 'Not created'] };
+  const ordTag = r => { const s = ORD_LABEL[r.status] || ORD_LABEL.creating; return `<span class="pTag ${s[0]}"${r.note ? ` title="${esc(r.note)}"` : ''}>${s[1]}${r.status === 'failed' ? ' ⚠' : ''}</span>`; };
+  const ordLink = (r, txt) => r.url ? `<a class="lnkBtn" href="${esc(r.url)}" target="_blank" rel="noopener">${txt || 'Open order ↗'}</a>` : '';
+  const ordDocChips = r => r.docs.map(d => d.cu ? `<a class="chip g" href="${esc(d.cu)}" target="_blank" rel="noopener"><span class="cn">${esc(d.name)}</span></a>` : `<span class="chip g"><span class="cn">${esc(d.name)}</span></span>`).join('');
+  const ordRow = r => `<div class="jrow">
+      <div class="jtop"><div><div class="site">${esc(r.site || 'Job')} <span class="st">${esc(r.state || '')}</span></div><div class="role">${esc(dot(r.role, r.dates))}</div></div>
+        <div class="acts" style="align-items:center">${ordTag(r)}</div></div>
+      <div class="jmeta"><span class="ago" title="${esc(fullTime({ ms: r.at }))}">${I.check(12)}${esc(agoMs(r.at))}</span>${r.keep ? '<span class="d">still in Matched</span>' : ''}${ordLink(r)}</div>
+      ${r.note && r.status === 'failed' ? `<div class="sub" style="color:#9b1c1c">${esc(r.note)}</div>` : ''}<div class="chips">${ordDocChips(r)}</div></div>`;
+  const exOrd = r => `<div class="tr job">
+      <div class="c13">${esc(fullTime({ ms: r.at }))}<div class="s2">${esc(r.by || '')}</div></div>
+      <div style="min-width:0"><div class="site">${esc(r.site || 'Job')}</div><div class="c13m">${esc(dot(r.role, r.dates, r.evo ? 'EVO ' + r.evo : ''))}</div></div>
+      <div class="chips w">${ordDocChips(r)}</div>
+      <div>${ordTag(r)}${r.keep ? '<div class="s2" style="margin-top:4px">Still in Matched</div>' : ''}${r.note && r.status === 'failed' ? `<div class="s2" style="margin-top:4px">${esc(r.note)}</div>` : ''}</div>
+      <div>${ordLink(r) || '<span class="s2">–</span>'}</div></div>`;
+  // on a job card that keeps its place after Accept (several doctors): "ORDER Order created ↗"
+  const ordLine = (x, wide) => { const o = V && V.ordByJob && V.ordByJob[x.jk]; if (!o || o.status === 'failed') return '';
+    return `<div class="prLine"${wide ? '' : ' style="padding-left:0"'}><span class="pl" style="color:#15603f">ORDER</span>${o.url ? `<a class="chip g" href="${esc(o.url)}" target="_blank" rel="noopener" title="Open the ClickUp Order"><span class="cn">Order created ${esc(agoMs(o.at))} ↗</span></a>` : `<span class="chip g"><span class="cn">${o.status === 'pending' ? 'Still creating – check back shortly' : 'Creating order…'}</span></span>`}</div>`; };
+
   const presNow = {};                       // shown the instant you click, before Firebase answers
   const PRES_LABEL = { recording: ['st-wait', 'Recording…'], recorded: ['st-rec', 'In ClickUp'], partial: ['st-err', 'Partly recorded'], error: ['st-err', 'Not recorded'], withdrawing: ['st-wait', 'Withdrawing…'], withdrawn: ['st-wd', 'Withdrawn'] };
   function presentedVM() {
@@ -1077,13 +1115,17 @@ if (typeof firebase !== 'undefined') (function () {
     const nm = c.cu ? `<a class="cn" href="${esc(c.cu)}" target="_blank" rel="noopener">${inner}</a>` : `<span class="cn">${inner}</span>`;
     return `<span class="chip ${c.cls}${wide ? ' wide' : ''}" ${c.pid ? `data-pop="${c.pid}"` : `title="${esc(c.tip)}"`}>${nm}<button class="cx" title="Remove ${esc(c.name)} from this job (keeps their availability)" data-rm="${esc(c.k)}" data-jk="${esc(x.jk)}" data-uid="${esc(x.uid)}" data-nm="${esc(c.name)}" data-site="${esc(x.site)}">${I.x(11)}</button></span>`;
   };
-  const actBtns = (x, big) => `${presBtn(x, big)}<button class="ib ok${big ? ' big' : ''}" title="Accept – create order" data-act="accepted" data-jk="${esc(x.jk)}">${I.check(18)}</button>
+  const accBtn = (x, big) => { const o = V && V.ordByJob && V.ordByJob[x.jk];
+    if (o && o.url) return `<a class="ib ok on${big ? ' big' : ''}" href="${esc(o.url)}" target="_blank" rel="noopener" title="Order created – open it in ClickUp">${I.check(18)}</a>`;
+    if (o && o.status !== 'failed') return `<button class="ib ok on${big ? ' big' : ''}" title="Creating the order…" disabled>${I.clock(16)}</button>`;
+    return `<button class="ib ok${big ? ' big' : ''}" title="Accept – create order" data-act="accepted" data-jk="${esc(x.jk)}">${I.check(18)}</button>`; };
+  const actBtns = (x, big) => `${presBtn(x, big)}${accBtn(x, big)}
       <button class="ib${big ? ' big' : ''}" title="Not suitable" data-act="notsuitable" data-jk="${esc(x.jk)}">${I.x(18)}</button>`;
   const jobRow = x => `<div class="jrow">
       <div class="jtop"><div><div class="site">${esc(x.site)} <span class="st">${esc(x.st)}</span></div>${x.role ? `<div class="role">${esc(x.role)}</div>` : ''}</div>
         <div class="acts">${actBtns(x)}</div></div>
       <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span>${flagsHTML(x)}${addedHTML(x)}${mailHTML(x)}</div>
-      <div class="chips">${x.chips.map(c => chipHTML(c, false, x)).join('')}</div>${presLine(x)}</div>`;
+      <div class="chips">${x.chips.map(c => chipHTML(c, false, x)).join('')}</div>${ordLine(x)}${presLine(x)}</div>`;
   const contactBtn = (a, wide) => {
     const on = !!a.contacted, tip = on ? `Contacted ${day(a.contacted)} – click to undo` : 'Mark as contacted (hides for 7 days)';
     return wide ? `<button class="cbtn${on ? ' on' : ''}" title="${esc(tip)}" data-contact="${esc(a.a.k)}" data-on="${on ? '1' : ''}">${I.check(14)}${on ? 'Contacted ' + esc(day(a.contacted)) : 'Mark contacted'}</button>`
@@ -1120,12 +1162,13 @@ if (typeof firebase !== 'undefined') (function () {
       <div style="min-width:0"><div class="nm">${nameLink(x.d)} <span class="x">· ${esc(dot(lvShort(x.d.level), x.d.spec))}</span></div>
         <div class="sub" title="${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.free, x.book, x.notes))}">${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.freeShort, x.book))}</div></div>
       <span class="lb">${x.days ? x.days + 'd free' : ''}</span></div>`;
-  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow, rev: revRow, upd: updRow, srch: srchRow, pres: presRow };
+  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow, rev: revRow, upd: updRow, srch: srchRow, pres: presRow, ord: ordRow };
 
   // ---------- render ----------
   function render() {
     if (!user || !loaded) return;
     V = build();
+    setTimeout(recheckOrders, 0);
     $('meta').textContent = `${N.nice(V.today)} · ${V.F.docsCount} doctors · ${win / 7} weeks ahead`;
     $('gqBox').classList.toggle('on', V.searching); $('gqX').hidden = !V.searching;
     const grid = $('grid'), keep = {};
@@ -1155,6 +1198,7 @@ if (typeof firebase !== 'undefined') (function () {
   const COLS = {
     job: 'minmax(0,2fr) 130px 150px minmax(0,2.4fr) 150px',
     pres: '150px minmax(0,1.6fr) minmax(0,1.8fr) minmax(0,1.2fr) 170px',
+    ord: '150px minmax(0,1.8fr) minmax(0,1.8fr) 170px 130px',
     free: 'minmax(0,1.6fr) minmax(0,1.6fr) 60px 130px minmax(0,1.4fr) 150px',
     end: 'minmax(0,1.4fr) minmax(0,1.4fr) 120px minmax(0,1.6fr)',
     rev: '28px minmax(0,2fr) 150px 140px minmax(0,2fr) 100px',
@@ -1165,7 +1209,7 @@ if (typeof firebase !== 'undefined') (function () {
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
       <div class="c13">${esc(x.dates)}<div class="s2">${x.n} day${x.n === 1 ? '' : 's'}</div></div>
       <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
-      <div class="chips w">${x.chips.map(c => chipHTML(c, true, x)).join('')}${presLine(x, true)}</div>
+      <div class="chips w">${x.chips.map(c => chipHTML(c, true, x)).join('')}${ordLine(x, true)}${presLine(x, true)}</div>
       <div class="acts">${actBtns(x, true)}</div></div>`;
   const exFree = a => `<div class="tr${a.contacted ? ' dim' : ''}">
       <div style="min-width:0"><div class="site">${nameLink(a.d)}</div><div class="c13m">${esc(dot(lvShort(a.d.level), a.d.spec))}</div></div>
@@ -1198,14 +1242,14 @@ if (typeof firebase !== 'undefined') (function () {
       <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>${open === 'rev' ? selBar(true) : open === 'upd' ? updBar(true) : ''}`;
     const list = V.lists[open].filter(x => !qq || x.q.includes(qq));
     const kind = open === 'match' || open === 'close' ? 'job' : open;
-    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'], upd: ['TIME', 'TYPE', 'JOB / DOCTOR', 'WHAT CHANGED'], srch: ['DOCTOR', 'LEVEL · SPECIALTY', 'WANTS TO WORK', 'AVAILABILITY', 'BOOKING'], pres: ['PRESENTED', 'JOB', 'DOCTORS', 'SENT TO', 'STATUS'] }[kind];
+    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'], upd: ['TIME', 'TYPE', 'JOB / DOCTOR', 'WHAT CHANGED'], srch: ['DOCTOR', 'LEVEL · SPECIALTY', 'WANTS TO WORK', 'AVAILABILITY', 'BOOKING'], pres: ['PRESENTED', 'JOB', 'DOCTORS', 'SENT TO', 'STATUS'], ord: ['ACCEPTED', 'JOB', 'DOCTORS MATCHED', 'STATUS', 'ORDER'] }[kind];
     const exSrch = x => `<div class="tr">
       <div style="min-width:0"><div class="site">${nameLink(x.d)}</div>${x.d.pgy ? `<div class="c13m">${esc(x.d.pgy)}</div>` : ''}</div>
       <div class="c13m">${esc(dot(x.d.level, x.d.specAll || x.d.spec))}${x.d.prefs ? `<div class="s2">${esc(x.d.prefs)}</div>` : ''}</div>
       <div class="c13m">${esc(x.d.base || '–')}</div>
       <div class="c13">${esc(x.free)}${x.notes ? `<div class="s2">${esc(x.notes)}</div>` : ''}</div>
       <div class="c13m">${esc(x.book)}</div></div>`;
-    const row = { job: exJob, free: exFree, end: exEnd, rev: exRev, upd: exUpd, srch: exSrch, pres: exPres }[kind];
+    const row = { job: exJob, free: exFree, end: exEnd, rev: exRev, upd: exUpd, srch: exSrch, pres: exPres, ord: exOrd }[kind];
     const tbl = $('exTbl'), st = tbl.parentNode.scrollTop;
     tbl.style.setProperty('--cols', COLS[kind]);
     tbl.innerHTML = `<div class="th">${head.map(h => `<span>${h}</span>`).join('')}</div>` +
@@ -1536,7 +1580,49 @@ if (typeof firebase !== 'undefined') (function () {
     else if (t.dataset.selall != null) { if (t.checked) V.lists.rev.forEach(r => sel.add(r.jk)); else sel.clear(); render(); }
   });
   function findJob(jk) { for (const id of ['match', 'close']) { const x = V.lists[id].find(y => y.jk === jk); if (x) return x; } return null; }
+  // Accept: Make 6452828 creates the ClickUp Order (same link as the chat alert); Make 6625206 tells us its URL once it exists.
+  // One doctor matched -> the job moves to "Orders created"; several -> it stays in Matched marked "Order created".
+  async function acceptJob(jk) {
+    const x = findJob(jk); if (!x) return;
+    const j = x.j, cand = x.cand || [];
+    const rec = { at: Date.now(), by: user.email, jk, status: 'creating', keep: cand.length > 1, site: x.site, state: x.st || '', role: x.role || '', dates: x.dates || '',
+      rate: x.rate || '', evo: evoOf(j) || '', mail: j.mail || '', docs: cand.map(c => ({ k: c.k, name: c.name, cu: c.cu || '' })) };
+    const save = patch => { Object.assign(rec, patch); ordNow[jk] = Object.assign({}, rec); render();
+      return db.ref(`users/${user.uid}/focus/orders/${jk}`).set(rec).catch(e => console.warn(e)); };
+    if (!j.accept) { await save({ status: 'failed', note: 'This job has no Accept link – create the Order in ClickUp.' }); toast(`${x.site}: no Accept link – create the Order in ClickUp`); return; }
+    await save({});
+    toast(rec.keep ? `Creating the order for ${x.site} – the job stays in Matched` : `Creating the order for ${x.site} – it will move to Orders created`);
+    try { fetch(j.accept, { mode: 'no-cors', cache: 'no-store' }); } catch (e) { new Image().src = j.accept; }
+    const found = await pollOrder(jk);
+    if (found.url) { await save({ status: 'created', url: found.url, id: found.id || '' }); toast(`Order created for ${x.site}`); }
+    else if (found.missing) await save({ status: 'failed', note: 'Job Matches has no record of this job (it was never alerted), so no Order was made – create it in ClickUp.' });
+    else await save({ status: 'pending', note: 'Make is still creating the Order – the link will appear here once it exists.' });
+    setTimeout(() => { delete ordNow[jk]; render(); }, 15000);
+  }
+  async function pollOrder(jk, tries) {
+    let missing = 0;
+    for (let i = 0; i < (tries || 9); i++) {
+      await new Promise(r => setTimeout(r, i === 0 ? 4000 : 4000));
+      try {
+        const r = await fetch(`${ORDER_HOOK}?k=${encodeURIComponent(jk)}`, { cache: 'no-store' }); const v = await r.json();
+        if (v && v.orderUrl) return { url: v.orderUrl, id: v.orderId };
+        if (v && !v.found && ++missing >= 3) return { missing: true };
+      } catch (e) { /* try again */ }
+    }
+    return {};
+  }
+  // orders still being created when the page was closed: look once per session
+  const ordChecked = new Set();
+  function recheckOrders() {
+    const me = (data[user.uid] || {}).focus || {};
+    for (const [jk, r] of Object.entries(me.orders || {})) {
+      if (!r || (r.status !== 'pending' && r.status !== 'creating') || ordChecked.has(jk) || ordNow[jk]) continue;
+      ordChecked.add(jk);
+      pollOrder(jk, 1).then(f => { if (f.url) db.ref(`users/${user.uid}/focus/orders/${jk}`).update({ status: 'created', url: f.url, id: f.id || '', note: null }).catch(() => {}); });
+    }
+  }
   function answer(jk, act) {
+    if (act === 'accepted') return acceptJob(jk);
     const x = findJob(jk); if (!x) return;
     const url = act === 'accepted' ? x.j.accept : x.j.reject;
     hiddenNow.add(jk); render();                                   // gone straight away
