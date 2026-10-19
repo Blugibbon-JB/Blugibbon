@@ -248,6 +248,10 @@ mark{background:#fff3b0;color:inherit;border-radius:3px;padding:0 1px}
 .primary:hover{background:linear-gradient(135deg,#2f6fe0,#174aa3)}
 .primary[disabled],.sec[disabled]{opacity:.5;cursor:default}
 [hidden]{display:none!important}
+/* view-only accounts (VIEWERS): no action buttons, VIEW ONLY tag in the header */
+body.viewonly [data-present],body.viewonly [data-presacc],body.viewonly [data-withdraw],body.viewonly [data-hidepres],
+body.viewonly [data-rmjob],body.viewonly [data-rm],body.viewonly [data-act],body.viewonly [data-contact]{display:none!important}
+body.viewonly .hd .brand::after{content:'VIEW ONLY';margin-left:10px;padding:2px 8px;border-radius:999px;background:#fff4e5;color:#9a3412;border:1px solid #f59e0b;font-size:11px;font-weight:700;letter-spacing:.06em}
 @media (max-width:560px){ .hd{padding:10px 16px} .grid{padding:16px;gap:16px} .exHead,.exBody{padding-left:16px;padding-right:16px} .exTop{padding:0 16px} .toast{left:16px;right:16px;bottom:16px} }
 </style>
 </head>
@@ -687,6 +691,26 @@ if (typeof firebase !== 'undefined') (function () {
   });
   const auth = firebase.auth(), db = firebase.database();
   const ADMINS = ['josh@blugibbon.com.au'];
+  const VIEWERS = ['gerard@blugibbon.com.au'];   // read-only: always see Everyone, can't present / accept / remove / mark (needs the /users read rule too)
+  let viewOnly = false;
+  {   // hard stop for viewers: no Firebase writes, no Make webhooks
+    const P = firebase.database.Reference.prototype;
+    ['set', 'update', 'remove', 'push', 'transaction', 'setWithPriority', 'setPriority'].forEach(fn => {
+      const orig = P[fn]; if (typeof orig !== 'function') return;
+      P[fn] = function (...a) { if (viewOnly) return Promise.resolve(); return orig.apply(this, a); };
+    });
+    const _fetch = window.fetch;
+    window.fetch = function (input, init) {
+      const url = String((input && input.url) || input || '');
+      if (viewOnly && /hook\.[a-z0-9]+\.make\.com/i.test(url)) return Promise.reject(new Error('View only'));
+      return _fetch.apply(this, arguments);
+    };
+    document.addEventListener('click', e => {
+      if (!viewOnly) return;
+      const t = e.target.closest('[data-present],[data-presacc],[data-withdraw],[data-hidepres],[data-rmjob],[data-rm],[data-act],[data-contact]');
+      if (t) { e.preventDefault(); e.stopImmediatePropagation(); }
+    }, true);
+  }
   const N = Focus, $ = id => document.getElementById(id);
   const arr = v => Array.isArray(v) ? v : Object.values(v || {});
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -787,10 +811,12 @@ if (typeof firebase !== 'undefined') (function () {
   auth.getRedirectResult().catch(() => {});
   auth.onAuthStateChanged(u => {
     user = u;
-    if (!u) { if (ref) ref.off(); signInView(); return; }
+    if (!u) { viewOnly = false; document.body.classList.remove('viewonly'); if (ref) ref.off(); signInView(); return; }
     $('hdr').hidden = false; $('hdr').title = 'Signed in as ' + (u.email || '');
     const admin = ADMINS.includes(String(u.email).toLowerCase());
-    $('scopeSeg').hidden = !admin; if (!admin) scope = 'mine';
+    viewOnly = !admin && VIEWERS.includes(String(u.email).toLowerCase()) && u.emailVerified !== false;
+    document.body.classList.toggle('viewonly', viewOnly);
+    $('scopeSeg').hidden = !admin; if (!admin) scope = viewOnly ? 'all' : 'mine';
     setSeg($('scopeSeg'), 's', scope); setSeg($('winSeg'), 'w', win);
     listen();
   });
