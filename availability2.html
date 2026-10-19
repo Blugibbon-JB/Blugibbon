@@ -1911,10 +1911,6 @@ button.moreBtn[aria-expanded="true"]{
 .bgms-div{ flex-basis:100%; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:5px; margin-top:2px; }
 .bgms-opt.pin{ font-weight:600; }
 .bg-legacy-notes{ background:#f8fafc !important; color:#475569 !important; cursor:default; border-style:dashed !important; }
-
-.bg-status-badge{ display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:700; vertical-align:middle; letter-spacing:.02em; }
-.bg-status-badge.passive{ background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
-.bg-status-badge.prescreen{ background:#e0f7fa; color:#006064; border:1px solid #80deea; }
 </style>
 
 
@@ -4068,13 +4064,6 @@ function bgPlaceStates(text){
   return bgFindStates(t.replace(/melbounre/ig, "Melbourne"));
 }
 function bgDoctorStates(d){ return d ? bgPlaceStates([bgArr(d.work_states).join(", "), d.where].filter(Boolean).join(", ")) : []; }
-// small badge for doctors who aren't plain Active (e.g. Passive Candidate from ClickUp BG Status)
-function bgStatusBadge(d){
-  const s = String((d && d.bg_status) || "").trim();
-  if(/^passive/i.test(s)) return ` <span class="bg-status-badge passive" title="BG Status: Passive Candidate – not actively looking, open to the right offer">Passive</span>`;
-  if(/^pre-?screen/i.test(s)) return ` <span class="bg-status-badge prescreen" title="BG Status: Pre-screen">Pre-screen</span>`;
-  return "";
-}
 function bgNorm(s){ return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
 function bgFindSites(text){
   const t = bgNorm(text); if(t.length < 4) return [];
@@ -8735,7 +8724,7 @@ function renderDoctorList(){
       <div class="docLeft" style="display: flex; align-items: center; gap: 10px; flex: 1;">
         <input type="checkbox" class="docCheckbox" ${isSelected ? 'checked' : ''} style="cursor: pointer; width: 18px; height: 18px;" />
         <div style="flex: 1;">
-          <div class="docName">${esc(d.name || "(no name)")}${bgStatusBadge(d)}</div>
+          <div class="docName">${esc(d.name || "(no name)")}</div>
           <div class="docMeta">AHPRA ${esc(d.ahpra_id || "")}</div>
           <div class="docMeta">${esc([d.specialty, d.prefs, d.pgy ? `PGY ${d.pgy}`:"", d.level].filter(Boolean).join(" • "))}</div>
           <div class="docActions">
@@ -9628,7 +9617,7 @@ function openEventEditor(payload){
     </div>
     <div class="field full">
       <div class="bgro-row" title="Pulled from the doctor's profile. Edit the doctor to change these.">
-        ${__ro("Speciality", d.specialty)}${__ro("Level", d.level)}${__ro("PGY", __pgyTxt)}${d.bg_status ? __ro("BG Status", d.bg_status) : ""}
+        ${__ro("Speciality", d.specialty)}${__ro("Level", d.level)}${__ro("PGY", __pgyTxt)}
         <div class="bgro-lock">🔒 From doctor profile (read only)</div>
       </div>
     </div>
@@ -15044,12 +15033,15 @@ function createSiteManually() {
 <script>
 /* MASTER VIEW
    Admin accounts (MASTER_ADMINS) can load every recruiter's calendar into one VIEW-ONLY session.
+   Viewer accounts (MASTER_VIEWERS) open straight into it on sign-in and can never leave it, so they
+   can see every calendar but cannot change anything (writes and Make webhooks are blocked).
    Needs the Firebase rule on /users that gives these accounts read access.
    While it is on, every Firebase write and every local save of doctors / events / undo is blocked,
    so the combined data can never be written back into anyone's calendar, yours included.
    Leaving master view puts your own calendar back exactly as it was. */
 (function(){
   const MASTER_ADMINS = ['josh@blugibbon.com.au'];
+  const MASTER_VIEWERS = ['gerard@blugibbon.com.au'];   // read-only: everyone's calendar, no edits (needs the /users read rule too)
   const LOCKED_KEYS = new Set([STORAGE_KEY_DOCTORS, STORAGE_KEY_EVENTS, UNDO_KEY, 'doctors', 'events']);
   const MUTATING_BUTTONS = ['editDoctorBtn','removeDoctorBtn','createBtn','addEventBtn','clearSelectedBtn',
     'deleteSelectedBtn','undoBtn','pasteAvailBtn','makePlacementBtn','uploadClickUpBtn','uploadSitesBtn',
@@ -15060,6 +15052,10 @@ function createSiteManually() {
 
   const isAdmin = () => !!(firebase_user && firebase_user.email &&
     MASTER_ADMINS.includes(String(firebase_user.email).toLowerCase()) && firebase_user.emailVerified !== false);
+  const isViewer = () => !!(firebase_user && firebase_user.email &&
+    MASTER_VIEWERS.includes(String(firebase_user.email).toLowerCase()) && firebase_user.emailVerified !== false);
+  const canMaster = () => isAdmin() || isViewer();
+  window.bgIsViewer = isViewer;
   const esc2 = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const arr = x => Array.isArray(x) ? x : Object.values(x || {});
   const nameFromEmail = e => { const n = String(e || '').split('@')[0].split(/[._]/)[0]; return n ? n[0].toUpperCase() + n.slice(1) : ''; };
@@ -15083,7 +15079,7 @@ function createSiteManually() {
       const orig = P[fn];
       if(typeof orig !== 'function') return;
       P[fn] = function(...args){
-        if(on){ noteBlocked(); return Promise.resolve(); }   // swallow: never write while viewing everyone's data
+        if(on || isViewer()){ noteBlocked(); return Promise.resolve(); }   // swallow: never write while viewing everyone's data / as a viewer
         return orig.apply(this, args);
       };
     });
@@ -15091,10 +15087,21 @@ function createSiteManually() {
   }
   patchFirebaseWrites();
 
+  // Make webhooks (ClickUp orders / CV sent / placements) are blocked in master view and for viewers
+  const _fetch = window.fetch;
+  window.fetch = function(input, init){
+    const url = String((input && input.url) || input || '');
+    if((on || isViewer()) && /hook\.[a-z0-9]+\.make\.com/i.test(url)){ noteBlocked(); return Promise.reject(new Error('View only – nothing was sent')); }
+    return _fetch.apply(this, arguments);
+  };
+
   const _syncTo = syncToFirebase;
-  syncToFirebase = async function(){ if(on){ noteBlocked(); return; } return _syncTo.apply(this, arguments); };
+  syncToFirebase = async function(){ if(on || isViewer()){ noteBlocked(); return; } return _syncTo.apply(this, arguments); };
   const _syncFrom = syncFromFirebase;
-  syncFromFirebase = async function(){ if(on) exitMaster(false); return _syncFrom.apply(this, arguments); };
+  syncFromFirebase = async function(){
+    if(isViewer()){ if(!on && !busy) return enterMaster(); return; }   // viewers have no calendar of their own – always everyone's, read-only
+    if(on) exitMaster(false); return _syncFrom.apply(this, arguments);
+  };
 
   const _updateActionButtons = updateActionButtons;
   updateActionButtons = function(){ const r = _updateActionButtons.apply(this, arguments); if(on) lockButtons(); return r; };
@@ -15103,7 +15110,7 @@ function createSiteManually() {
   const _updateAuthUI = updateAuthUI;
   updateAuthUI = function(){
     const r = _updateAuthUI.apply(this, arguments);
-    if(on && !isAdmin()) exitMaster(true);
+    if(on && !canMaster()) exitMaster(true);
     paintButton();
     return r;
   };
@@ -15135,7 +15142,7 @@ function createSiteManually() {
   banner.querySelector('#bgMasterOwner').addEventListener('change', e => { ownerFilter = e.target.value; applyFilter(); });
 
   function paintButton(){
-    btn.style.display = (isAdmin() || on) ? 'inline-flex' : 'none';
+    btn.style.display = isViewer() ? 'none' : (isAdmin() || on) ? 'inline-flex' : 'none';
     btn.disabled = busy;
     btn.classList.toggle('on', on);
     btn.textContent = busy ? 'Loading all calendars…' : on ? 'Exit master view' : 'All calendars (view only)';
@@ -15214,7 +15221,7 @@ function createSiteManually() {
   // ---------- enter / exit ----------
   async function enterMaster(){
     if(on || busy) return;
-    if(!isAdmin()){ say('Master view is only available to admin accounts.'); return; }
+    if(!canMaster()){ say('Master view is only available to admin accounts.'); return; }
     busy = true; paintButton(); say('Loading every recruiter\'s calendar (read-only)…');
     try{
       patchFirebaseWrites();
@@ -15230,6 +15237,7 @@ function createSiteManually() {
       document.getElementById('bgMasterBlocked').textContent = '';
       on = true;
       undoStack = [];
+      banner.querySelector('#bgMasterExit').hidden = isViewer();   // viewers can't leave master view
       document.body.classList.add('bg-master-on');
       try{ calendar.setOption('selectable', false); }catch(e){}
       lockButtons();
