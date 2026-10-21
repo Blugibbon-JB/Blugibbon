@@ -312,6 +312,7 @@ body.viewonly .hd .brand::after{content:'VIEW ONLY';margin-left:10px;padding:2px
       <label class="ck"><input type="checkbox" id="expSite" checked> Show hospital names</label>
       <label class="ck"><input type="checkbox" id="expRate"> Show rates</label>
       <label class="ck"><input type="checkbox" id="expReq" checked> Show requirements</label>
+      <label class="ck"><input type="checkbox" id="expShifts" checked> Show shift times &amp; notes</label>
       <p class="mHint" style="margin-top:6px!important">Rates come from the job email and may be the client rate – check before sending.</p>
     </div>
     <div class="expPrev"><iframe id="expFrame" title="Mailer preview"></iframe></div>
@@ -1359,7 +1360,10 @@ if (typeof firebase !== 'undefined') (function () {
   // ---------- mailer export ----------
   const E = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   function expJobs() { return V.lists.rev.filter(r => sel.has(r.jk)); }
-  function expOpts() { return { head: $('expHead').value.trim(), intro: $('expIntro').value.trim(), outro: $('expOutro').value.trim(), site: $('expSite').checked, rate: $('expRate').checked, req: $('expReq').checked }; }
+  function expOpts() { return { head: $('expHead').value.trim(), intro: $('expIntro').value.trim(), outro: $('expOutro').value.trim(), site: $('expSite').checked, rate: $('expRate').checked, req: $('expReq').checked, shifts: $('expShifts').checked }; }
+  // shift breakdown for candidates (written by Job Matches): one line per run of identical shifts; rates taken out when rates are hidden
+  const shiftsOf = (x, o) => !o.shifts ? [] : arr(x.j.shifts).map(l => String(l || '')).map(l => o.rate ? l : l.replace(/\s*·\s*\$[\d,.]+(?:–\$?[\d,.]+)?(?:\/\w+)?/g, '')).filter(Boolean);
+  const notesOf = (x, o) => o.shifts ? String(x.j.notes || '').trim() : '';
   const siteOf = x => x.j.site || String(x.j.title || '').split(' – ')[0];
   const where = (x, o) => o.site ? [siteOf(x), x.st].filter(Boolean).join(', ') : (x.st ? `Hospital in ${x.st}` : 'Hospital');
   const roleOf = x => x.roleFull || x.j.specialty || 'Locum doctor';
@@ -1368,7 +1372,7 @@ if (typeof firebase !== 'undefined') (function () {
     const block = x => `<tr><td style="padding:0 0 12px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e8ef;border-radius:10px;border-collapse:separate"><tr><td style="padding:14px 16px;${F}">
       <div style="${F}font-size:16px;font-weight:bold;color:#1b2230;margin:0 0 2px">${E(roleOf(x))}</div>
       <div style="${F}font-size:14px;color:#1f62d6;margin:0 0 8px">${E(where(x, o))}</div>
-      <div style="${F}font-size:14px;color:#3b4252;line-height:1.5"><b>Dates:</b> ${E(x.when)}${o.rate && x.rate !== 'Rate n/a' ? `<br><b>Rate:</b> ${E(x.j.rate || x.rate)}` : ''}${o.req && x.j.req ? `<br><b>Requirements:</b> ${E(x.j.req)}` : ''}${o.req && x.j.travel ? `<br><b>Travel &amp; accommodation:</b> ${E(x.j.travel)}` : ''}</div>
+      <div style="${F}font-size:14px;color:#3b4252;line-height:1.5"><b>Dates:</b> ${E(x.when)}${shiftsOf(x, o).length ? `<br><b>Shifts:</b>${shiftsOf(x, o).map(l => `<br>&nbsp;&nbsp;&#9656; ${E(l)}`).join('')}` : ''}${o.rate && x.rate !== 'Rate n/a' ? `<br><b>Rate:</b> ${E(x.j.rate || x.rate)}` : ''}${o.req && x.j.req ? `<br><b>Requirements:</b> ${E(x.j.req)}` : ''}${o.req && x.j.travel ? `<br><b>Travel &amp; accommodation:</b> ${E(x.j.travel)}` : ''}${notesOf(x, o) ? `<br><b>About the shifts:</b> ${E(notesOf(x, o))}` : ''}</div>
     </td></tr></table></td></tr>`;
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto"><tr><td style="padding:8px 4px;${F}">
       ${o.head ? `<h2 style="${F}font-size:22px;color:#1b2230;margin:0 0 10px">${E(o.head)}</h2>` : ''}
@@ -1379,7 +1383,7 @@ if (typeof firebase !== 'undefined') (function () {
   }
   function mailerText(jobs, o) {
     const lines = [o.head, '', o.intro, ''];
-    for (const x of jobs) { lines.push(`• ${roleOf(x)} – ${where(x, o)}`, `  Dates: ${x.when}`); if (o.rate && x.rate !== 'Rate n/a') lines.push(`  Rate: ${x.j.rate || x.rate}`); if (o.req && x.j.req) lines.push(`  Requirements: ${x.j.req}`); if (o.req && x.j.travel) lines.push(`  Travel & accommodation: ${x.j.travel}`); lines.push(''); }
+    for (const x of jobs) { lines.push(`• ${roleOf(x)} – ${where(x, o)}`, `  Dates: ${x.when}`); { const sh = shiftsOf(x, o); if (sh.length) lines.push('  Shifts:', ...sh.map(l => `    ▸ ${l}`)); } if (o.rate && x.rate !== 'Rate n/a') lines.push(`  Rate: ${x.j.rate || x.rate}`); if (o.req && x.j.req) lines.push(`  Requirements: ${x.j.req}`); if (o.req && x.j.travel) lines.push(`  Travel & accommodation: ${x.j.travel}`); if (notesOf(x, o)) lines.push(`  About the shifts: ${notesOf(x, o)}`); lines.push(''); }
     lines.push(o.outro); return lines.filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n').trim();
   }
   function expPreview() {
@@ -1388,15 +1392,15 @@ if (typeof firebase !== 'undefined') (function () {
     $('expMsg').textContent = `${jobs.length} job${jobs.length === 1 ? '' : 's'}`;
   }
   function openExport() { if (!sel.size) return; $('expSet').hidden = false; expPreview(); }
-  ['expHead', 'expIntro', 'expOutro', 'expSite', 'expRate', 'expReq'].forEach(id => $(id).addEventListener('input', expPreview));
-  ['expSite', 'expRate', 'expReq'].forEach(id => $(id).addEventListener('change', expPreview));
+  ['expHead', 'expIntro', 'expOutro', 'expSite', 'expRate', 'expReq', 'expShifts'].forEach(id => $(id).addEventListener('input', expPreview));
+  ['expSite', 'expRate', 'expReq', 'expShifts'].forEach(id => $(id).addEventListener('change', expPreview));
   $('expClose').onclick = () => { $('expSet').hidden = true; };
   function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
   const stamp = () => N.sydToday();
   $('expHtml').onclick = () => download(`reverse-market-${stamp()}.html`, `<!doctype html><html><head><meta charset="utf-8"><title>${E(expOpts().head)}</title></head><body style="margin:0;padding:16px">${mailerHTML(expJobs(), expOpts())}</body></html>`, 'text/html');
   $('expCsv').onclick = () => {
     const o = expOpts(), q = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
-    const rows = [['Role', 'Hospital', 'State', 'Dates', 'Rate', 'Requirements', 'Travel & accommodation']].concat(expJobs().map(x => [roleOf(x), o.site ? siteOf(x) : '', x.st, x.when, o.rate ? (x.j.rate || '') : '', x.j.req || '', x.j.travel || '']));
+    const rows = [['Role', 'Hospital', 'State', 'Dates', 'Shifts', 'Rate', 'Requirements', 'Travel & accommodation', 'About the shifts']].concat(expJobs().map(x => [roleOf(x), o.site ? siteOf(x) : '', x.st, x.when, shiftsOf(x, o).join('\n'), o.rate ? (x.j.rate || '') : '', x.j.req || '', x.j.travel || '', notesOf(x, o)]));
     download(`reverse-market-${stamp()}.csv`, rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
   };
   $('expCopy').onclick = async () => {
