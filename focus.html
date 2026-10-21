@@ -444,7 +444,7 @@ const Focus = (() => {
   }
   const MED_SUB = new Set(['Cardiology Medicine', 'Respiratory Medicine', 'Gastroenterology Medicine', 'Nephrology Medicine', 'Neurology Medicine', 'Endocrinology Diabetes Medicine', 'Infectious Disease Medicine', 'Rheumatology Medicine', 'Geriatrics', 'Medical Oncology', 'Haematology', 'Acute Medicine', 'Palliative Medicine', 'Rehabilitation Medicine', 'Dermatology Medicine']);
   const SURG_SUB = new Set(['Orthopaedics', 'Urology', 'Plastic Surgery', 'Otolaryngology Surgery ENT', 'Neuro Surgery', 'Vascular Surgery', 'Cardiothoracic Surgery', 'Trauma Surgery']);
-  const LEVEL_OK = { Junior: ['junior', 'senior'], Senior: ['senior', 'registrar', 'training registrar'], Registrar: ['registrar', 'training registrar'],
+  const LEVEL_OK = { Junior: ['junior', 'senior'], Senior: ['junior', 'senior', 'registrar', 'training registrar'], Registrar: ['senior', 'registrar', 'training registrar'],   // Josh 21 Oct: Seniors show for Junior/Senior/Registrar jobs (not Specialist); Juniors show for Senior jobs
     Specialist: ['specialist', 'consultant'], GP: ['specialist', 'senior', 'registrar', 'training registrar', 'consultant'], Unknown: null };
   const RUNG = { junior: 0, senior: 1, registrar: 2, 'training registrar': 2, specialist: 3, consultant: 3 };
   function acceptSpecs(sp, lv, raw) {
@@ -480,6 +480,12 @@ const Focus = (() => {
   }
   // level from the card wording (cards written before the normalised level was stored)
   function lvFromText(t) {
+    t = String(t || '');
+    { const order = ['Junior', 'Senior', 'Registrar', 'Specialist']; const parts = t.split(/\s*[\/,&]\s*|\s+or\s+/i).filter(Boolean);   // "Rmo/Cmo/Srmo/Registrar" -> lowest level listed (Josh 21 Oct)
+      if (parts.length > 1) { const lvls = parts.map(x => lvFromText1(x)).filter(x => order.includes(x)); if (new Set(lvls).size > 1) return order.find(o => lvls.includes(o)); } }
+    return lvFromText1(t);
+  }
+  function lvFromText1(t) {
     t = String(t || '');
     if (/\b(gp|general practi\w*|rural generalist|sole doctor)\b/i.test(t)) return 'GP';
     if (/\b(consultants?|staff specialists?|specialists?|spec|vmos?|facem|fracp|physicians?)\b/i.test(t) && !/\b(registrar|trainee|rmo|hmo|jmo|resident|intern)\b/i.test(t)) return 'Specialist';
@@ -559,7 +565,7 @@ const Focus = (() => {
         if (lv !== 'GP' && lvOk && !lvUnknown && !lvOk.includes(dl)) {
           const okR = lvOk.map(x => RUNG[x]).filter(x => x != null);
           if (RUNG[dl] == null || !okR.length || Math.min(...okR.map(r => Math.abs(r - RUNG[dl]))) !== 1) continue;
-          if (dl === 'junior' && okR.every(r => r >= 2)) continue;
+          if (dl === 'junior' && (lv === 'Registrar' || lv === 'Specialist')) continue;   // juniors never shown for Registrar+ jobs
           lvNear = true;
         }
         const avs = p.avs.filter(a => !a.min || L >= a.min - 2);
@@ -609,9 +615,8 @@ const Focus = (() => {
           const c = dates.filter(d => freeOn(dk, d)).length;
           const row = { k: dk, name: (doc && doc.name) || m.name, level: (doc && doc.level) || m.lv || '', cu: (doc && doc.cu) || m.cu || '', c, n: dates.length,
             tent: !!m.tent, viaNote: !!m.viaNote, why: m.why || '', note: m.note || '', page: !!m.page };
-          const strong = m.g !== 'near' && c > 0 && (c === dates.length || c / dates.length >= 0.5);
-          if (strong) live.push(row);
-          else { if (m.g !== 'near') row.why = c ? `free ${c} of ${dates.length} days` : 'no longer free on the job dates'; near.push(row); }
+          // Josh 21 Oct: one list per job - free every day (green) and free some days (orange); one-level-off / near-the-dates doctors are no longer shown
+          if (m.g !== 'near' && c > 0) live.push(row);
         }
         live.sort((a, b) => b.c - a.c || a.name.localeCompare(b.name));
         const item = { jk, uid, j, state, dates, live, near };
@@ -715,12 +720,12 @@ if (typeof firebase !== 'undefined') (function () {
   const arr = v => Array.isArray(v) ? v : Object.values(v || {});
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} } };
-  const ALL_IDS = ['match', 'close', 'free', 'end', 'rev', 'upd', 'pres', 'ord'];
+  const ALL_IDS = ['match', 'free', 'end', 'rev', 'upd', 'pres', 'ord'];   // Josh 21 Oct: no Close matches card - one list, full (green) then partial (orange)
   const ORDER_HOOK = 'https://hook.us2.make.com/fqqy830msku3tlzepnr5sqxq1u1zabcx';
   const ORDER_FIX_HOOK = 'https://hook.us2.make.com/8ri2wr17nugbdrpt24h5fhyhulhwjsiw';   // Make 6625437 "Doctor Focus – order fix-up" (Focus dates + presented doctors on the Order)     // Make 6625206 "Doctor Focus – order lookup" (reads the Job Matches record)
   const PRESENT_HOOK = 'https://hook.us2.make.com/8ggkmdfw3g0vrn8kbd1gua8999pezfx4';   // Make 6622466 "Doctor Focus – present doctors"
   const LOOKUP_HOOK = 'https://hook.us2.make.com/q59nzaswg8idallwal14bzfdlxcnpnht';    // Make 6622723 "Doctor Focus – job sender lookup"
-  let IDS = ['match', 'close', 'free', 'end'];
+  let IDS = ['match', 'free', 'end'];
   let user = null, scope = store.get('focus.scope', 'mine'), win = Number(store.get('focus.win', '28')) || 28;
   let updWin = store.get('focus.updWin', 'last') === 'today' ? 'today' : 'last';
   let gq = '';   // master search (header)
@@ -742,7 +747,7 @@ if (typeof firebase !== 'undefined') (function () {
 
   // ---------- card meta ----------
   const META = {
-    match: { label: 'MATCHED', tab: 'Matched', c: '#1f8a5b', t: '#e4f4ec', hint: () => 'Inbox jobs your doctors can cover', exHint: 'Inbox jobs your doctors can cover. ✓ free every day, ◐ free most days.', empty: 'Nothing waiting right now.' },
+    match: { label: 'MATCHED', tab: 'Matched', c: '#1f8a5b', t: '#e4f4ec', hint: () => 'Inbox jobs your doctors can cover', exHint: 'Inbox jobs your doctors can cover. Green ✓ = free every day, orange ◐ = free some of the days.', empty: 'Nothing waiting right now.' },
     close: { label: 'CLOSE MATCHES', tab: 'Close', c: '#6b45c9', t: '#eee8fc', hint: () => 'Worth a call – one level off or near the dates', exHint: 'Worth a call – level one step off, or free just around the dates.', empty: 'Nothing waiting right now.' },
     free: { label: 'FREE, NO JOB', tab: 'Free, no job', c: '#1f62d6', t: '#e5eefd', hint: () => `Free in the next ${win / 7} weeks with nothing booked – market them`, exHint: 'Free with nothing booked or matched. Mark as contacted to hide for 7 days.', empty: 'Everyone free is booked or matched.' },
     rev: { label: 'REVERSE MARKET', tab: 'Reverse market', c: '#0f766e', t: '#dcf3ee', hint: () => 'Desk jobs with no doctor free (any date) – market them to candidates', exHint: 'Jobs that fit your desk but none of your doctors are free – shown whatever the start date. "Could suit" lists doctors who fit the job but have no availability logged for those dates. Tick jobs to export them to a mailer.', empty: 'No unmatched desk jobs right now.' },
@@ -1153,6 +1158,9 @@ if (typeof firebase !== 'undefined') (function () {
     const nm = c.cu ? `<a class="cn" href="${esc(c.cu)}" target="_blank" rel="noopener">${inner}</a>` : `<span class="cn">${inner}</span>`;
     return `<span class="chip ${c.cls}${wide ? ' wide' : ''}" ${c.pid ? `data-pop="${c.pid}"` : `title="${esc(c.tip)}"`}>${nm}<button class="cx" title="Remove ${esc(c.name)} from this job (keeps their availability)" data-rm="${esc(c.k)}" data-jk="${esc(x.jk)}" data-uid="${esc(x.uid)}" data-nm="${esc(c.name)}" data-site="${esc(x.site)}">${I.x(11)}</button></span>`;
   };
+  // fully matched doctors (green) on one line, partly matched (orange) underneath
+  const chipRows = (x, wide) => { const g = x.chips.filter(c => c.cls === 'g'), o = x.chips.filter(c => c.cls !== 'g'), w = wide ? ' w' : '';
+    return (g.length ? `<div class="chips${w}">${g.map(c => chipHTML(c, wide, x)).join('')}</div>` : '') + (o.length ? `<div class="chips${w}"${g.length ? ' style="margin-top:4px"' : ''}>${o.map(c => chipHTML(c, wide, x)).join('')}</div>` : ''); };
   const accBtn = (x, big) => { const o = V && V.ordByJob && V.ordByJob[x.jk];
     if (o && o.url) return `<a class="ib ok on${big ? ' big' : ''}" href="${esc(o.url)}" target="_blank" rel="noopener" title="Order created – open it in ClickUp">${I.check(18)}</a>`;
     if (o && o.status !== 'failed') return `<button class="ib ok on${big ? ' big' : ''}" title="Creating the order…" disabled>${I.clock(16)}</button>`;
@@ -1163,7 +1171,7 @@ if (typeof firebase !== 'undefined') (function () {
       <div class="jtop"><div><div class="site">${esc(x.site)} <span class="st">${esc(x.st)}</span></div>${x.role ? `<div class="role">${esc(x.role)}</div>` : ''}</div>
         <div class="acts">${actBtns(x)}</div></div>
       <div class="jmeta"><span class="d">${I.cal(13)}${esc(x.dates)}</span><span class="rate">${esc(x.rate)}</span>${flagsHTML(x)}${addedHTML(x)}${mailHTML(x)}</div>
-      <div class="chips">${x.chips.map(c => chipHTML(c, false, x)).join('')}</div>${ordLine(x)}${presLine(x)}</div>`;
+      ${chipRows(x, false)}${ordLine(x)}${presLine(x)}</div>`;
   const contactBtn = (a, wide) => {
     const on = !!a.contacted, tip = on ? `Contacted ${day(a.contacted)} – click to undo` : 'Mark as contacted (hides for 7 days)';
     return wide ? `<button class="cbtn${on ? ' on' : ''}" title="${esc(tip)}" data-contact="${esc(a.a.k)}" data-on="${on ? '1' : ''}">${I.check(14)}${on ? 'Contacted ' + esc(day(a.contacted)) : 'Mark contacted'}</button>`
@@ -1247,7 +1255,7 @@ if (typeof firebase !== 'undefined') (function () {
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
       <div class="c13">${esc(x.dates)}<div class="s2">${x.n} day${x.n === 1 ? '' : 's'}</div></div>
       <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
-      <div class="chips w">${x.chips.map(c => chipHTML(c, true, x)).join('')}${ordLine(x, true)}${presLine(x, true)}</div>
+      <div>${chipRows(x, true)}${ordLine(x, true)}${presLine(x, true)}</div>
       <div class="acts">${actBtns(x, true)}</div></div>`;
   const exFree = a => `<div class="tr${a.contacted ? ' dim' : ''}">
       <div style="min-width:0"><div class="site">${nameLink(a.d)}</div><div class="c13m">${esc(dot(lvShort(a.d.level), a.d.spec))}</div></div>
