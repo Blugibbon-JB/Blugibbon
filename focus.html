@@ -252,6 +252,23 @@ mark{background:#fff3b0;color:inherit;border-radius:3px;padding:0 1px}
 body.viewonly [data-present],body.viewonly [data-presacc],body.viewonly [data-withdraw],body.viewonly [data-hidepres],
 body.viewonly [data-rmjob],body.viewonly [data-rm],body.viewonly [data-act],body.viewonly [data-contact]{display:none!important}
 body.viewonly .hd .brand::after{content:'VIEW ONLY';margin-left:10px;padding:2px 8px;border-radius:999px;background:#fff4e5;color:#9a3412;border:1px solid #f59e0b;font-size:11px;font-weight:700;letter-spacing:.06em}
+.modal.why{width:560px;max-height:calc(100vh - 32px);overflow:auto}
+.wsub{color:#5b6475;margin:0 0 12px!important}
+.wopt{border:1px solid #e3e7ee;border-radius:12px;padding:10px 12px;margin:8px 0;cursor:pointer}
+.wopt.wsel{border-color:#1f62d6;background:#f5f8ff}
+.wopt .wl{font-weight:700;color:#1b2230;font-size:13.5px}.wopt .wl span{font-weight:400;color:#6b7280;font-size:12.5px}
+.wopt input,.wrate input,.wrate select{margin-top:8px}
+.wcs,.wrow,.wscope{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.wrow{margin:8px 0}
+.wc{border:1px solid #d5dbe5;background:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-size:12.5px;color:#1b2230;cursor:pointer}
+.wc:hover{background:#f3f5f9}.wc.on{background:#1f62d6;border-color:#1f62d6;color:#fff}.wc[disabled]{opacity:.45;cursor:default}
+.wh{color:#5b6475;font-size:12px;margin-top:6px}.wh b{color:#1b2230}
+.wrate{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}.wrate input{width:110px!important;margin:0!important}.wrate input[type=date]{width:160px!important}.wrate select{height:40px;border:1px solid #dde2ea;border-radius:10px;padding:0 8px;font:inherit;margin:0}
+.wft{display:flex;align-items:center;gap:8px;margin-top:16px;flex-wrap:wrap}.wft .sp{flex:1}
+.wskip{background:none;border:0;color:#5b6475;text-decoration:underline;font:inherit;font-size:12.5px;cursor:pointer;padding:0}
+.wcancel{background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer}
+.wsave{background:#1f62d6;border:0;color:#fff;border-radius:10px;padding:9px 18px;font:inherit;font-weight:700;cursor:pointer}.wsave[disabled]{opacity:.45;cursor:default}
+.rr{display:flex;align-items:center;gap:8px;border-top:1px solid #eef1f6;padding:10px 0}.rr .sp{flex:1}
+.rulesBtn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:#fff;border:1px solid #dde2ea;border-radius:9px;color:#1b2230;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 @media (max-width:560px){ .hd{padding:10px 16px} .grid{padding:16px;gap:16px} .exHead,.exBody{padding-left:16px;padding-right:16px} .exTop{padding:0 16px} .toast{left:16px;right:16px;bottom:16px} }
 </style>
 </head>
@@ -293,6 +310,7 @@ body.viewonly .hd .brand::after{content:'VIEW ONLY';margin-left:10px;padding:2px
   <div class="exBody"><div class="tbl" id="exTbl"></div></div>
 </div>
 <div class="pop" id="pop" hidden></div>
+<div class="modalBg" id="whySet" hidden><div class="modal why" id="whyBox" role="dialog"></div></div>
 <div class="modalBg" id="mailSet" hidden><div class="modal">
   <div class="mT">Your jobs inbox link</div>
   <p>You open the jobs inbox as a delegate, so Gmail gives you your own address for it. Save it once and every Email link will open in the jobs inbox.</p>
@@ -397,6 +415,105 @@ const Focus = (() => {
     const out = []; for (const d of days) { const r = out[out.length - 1]; if (r && addDays(r[1], 1) === d) r[1] = d; else out.push([d, d]); } return out;
   }
 
+
+  // ===== Job rules (22 Oct 2026): lines recruiters write on a doctor's profile or an availability block =====
+  //   Won't go: Dubbo, Broken Hill, NT      -> jobs at those towns / sites / states are skipped
+  //   Min rate: $180/hr                     -> jobs paying less (same unit; day and shift count as the same) are skipped
+  //   Not: Registrar, Emergency, Junior ICU -> each comma part is a level, a specialty, or both (both must fit)
+  // RULES.parse(text) -> [{k:'go'|'rate'|'not', ...}]   RULES.hit(rule, job, canon) -> reason text or ''
+  // job = { site, state, specialty, level (Junior/Senior/Registrar/Specialist/GP/Unknown), rate: text like "$180/hr", rateAmt, rateUnit }
+  const RULES = (() => {
+    const STATES = { nsw: 'NSW', vic: 'VIC', qld: 'QLD', wa: 'WA', sa: 'SA', tas: 'TAS', nt: 'NT', act: 'ACT', nz: 'NZ',
+      'new south wales': 'NSW', victoria: 'VIC', queensland: 'QLD', 'western australia': 'WA', 'south australia': 'SA', tasmania: 'TAS', 'northern territory': 'NT' };
+    const LV = [[/\b(gp|general practitioner)\b/i, 'GP'], [/\b(specialists?|consultants?|staff specialists?|vmos?|fellows?)\b/i, 'Specialist'],
+      [/\b(registrars?|regs?)\b/i, 'Registrar'], [/\b(seniors?|smos?|cmos?|srmos?|senior residents?)\b/i, 'Senior'], [/\b(juniors?|rmos?|hmos?|jmos?|interns?|residents?)\b/i, 'Junior']];
+    const UNIT = u => /^(h|hr|hrs|hour|hours|ph)$/i.test(u) ? 'hour' : /^(d|day|days|shift|shifts|pd)$/i.test(u) ? 'day' : /^(w|wk|wks|week|weeks)$/i.test(u) ? 'week' : '';
+    const words = s => String(s || '').toLowerCase().replace(/[’'`]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const RE = /^\s*[-•*]?\s*(won'?t\s+go(?:\s+to)?|wont\s+go(?:\s+to)?|min(?:imum)?\s+rate|not)\s*[:\-–]\s*(.+?)\s*$/i;
+    function parse(text) {
+      const out = [];
+      for (const line of String(text || '').split(/\n|;|·/)) {
+        const m = RE.exec(line); if (!m) continue;
+        const kw = m[1].toLowerCase(), val = m[2].trim(); if (!val) continue;
+        if (/^min/.test(kw)) {
+          const r = /\$?\s*(\d+(?:[.,]\d+)?)\s*(?:\/|per\s*|an?\s*)?\s*([a-z]+)?/i.exec(val.replace(/,(?=\d{3})/g, ''));
+          if (r && Number(r[1]) > 0) out.push({ k: 'rate', amt: Number(r[1]), unit: UNIT(r[2] || '') || 'hour', raw: line.trim() });
+        } else if (/^not$/.test(kw)) {
+          for (const part of val.split(/,|\band\b|&/i).map(s => s.trim()).filter(Boolean)) {
+            let lv = '', rest = part; for (const [re, v] of LV) if (re.test(part)) { lv = v; rest = part.replace(re, ' '); break; }
+            const sp = rest.replace(/\b(roles?|jobs?|positions?|work|shifts?|posts?|level)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+            out.push({ k: 'not', lv, sp, raw: line.trim() });
+          }
+        } else {
+          for (const part of val.split(/,|\bor\b|\//i).map(s => s.trim()).filter(Boolean)) {
+            const w = words(part), st = STATES[w] || '';
+            out.push({ k: 'go', st, place: st ? '' : w, label: part, raw: line.trim() });
+          }
+        }
+      }
+      return out;
+    }
+    function jobRate(j) {
+      if (j.rateAmt != null && Number(j.rateAmt) > 0) return { amt: Number(j.rateMax || j.rateAmt), unit: UNIT(j.rateUnit || '') };
+      const t = String(j.rate || '').replace(/,(?=\d{3})/g, '');
+      let best = null;
+      for (const m of t.matchAll(/\$\s*(\d+(?:\.\d+)?)(?:\s*[–-]\s*\$?\s*(\d+(?:\.\d+)?))?\s*(?:\/|per\s*)\s*(hr|hour|h|day|shift|wk|week)/gi)) {
+        const a = Number(m[2] || m[1]), u = UNIT(m[3]); if (!best || (u === best.unit && a > best.amt)) best = { amt: a, unit: u };
+      }
+      return best;
+    }
+    // does this rule rule the job out? returns a short reason ('' = no)
+    function hit(r, j, canon) {
+      if (!r || !j) return '';
+      if (r.k === 'go') {
+        if (r.st) return String(j.state || '').toUpperCase() === r.st ? `won't go to ${r.st}` : '';
+        if (!r.place) return '';
+        const site = ' ' + words([j.site, j.town].filter(Boolean).join(' ')) + ' ';
+        return site.includes(' ' + r.place + ' ') ? `won't go to ${r.label}` : '';
+      }
+      if (r.k === 'rate') {
+        const jr = jobRate(j); if (!jr || !jr.unit || jr.unit !== r.unit) return '';
+        return jr.amt < r.amt ? `wants $${r.amt}/${r.unit === 'hour' ? 'hr' : r.unit}+` : '';
+      }
+      if (r.k === 'not') {
+        const lvHit = r.lv ? r.lv === j.level : null;
+        let spHit = null;
+        if (r.sp && canon) {
+          const want = canon(r.sp), got = canon([j.specialty, j.specialtyRaw].filter(Boolean).join(', '));
+          if (want.size) spHit = [...want].some(s => got.has(s));
+        }
+        if (lvHit === null && spHit === null) return '';
+        return (lvHit !== false && spHit !== false) ? `not ${r.sp || r.lv}`.replace(/\s+/g, ' ') : '';
+      }
+      return '';
+    }
+    const firstHit = (rules, j, canon) => { for (const r of rules || []) { const h = hit(r, j, canon); if (h) return h; } return ''; };
+    // desk rule ("Not work we do", per recruiter): {sp, st, lv} - every aspect that is set must fit the job
+    function deskHit(d, j, canon) {
+      if (!d || !(d.sp || d.st || d.lv)) return false;
+      if (d.st && String(j.state || '').toUpperCase() !== d.st) return false;
+      if (d.lv && d.lv !== j.level) return false;
+      if (d.sp) { const got = canon ? canon([j.specialty, j.specialtyRaw].filter(Boolean).join(', ')) : new Set([j.specialty]); if (!got.has(d.sp) && j.specialty !== d.sp) return false; }
+      return true;
+    }
+    // "Not work we do" answers -> active desk rules: the same kind of job twice (or promoted), not switched off
+    function deskRules(nsr, off, biz) {
+      const cnt = {}, out = [];
+      for (const r of Object.values(nsr || {})) {
+        if (!r || r.r !== 'notwork' || !(r.sp || r.st || r.lv)) continue;
+        const key = [r.sp || '', r.st || '', r.lv || ''].join('|');
+        (cnt[key] = cnt[key] || { sp: r.sp || '', st: r.st || '', lv: r.lv || '', n: 0, key }).n++;
+      }
+      for (const c of Object.values(cnt)) if (c.n >= 2 && !(off || {})[fkey(c.key)]) out.push(c);
+      for (const b of Object.values(biz || {})) if (b && (b.sp || b.st || b.lv)) out.push({ sp: b.sp || '', st: b.st || '', lv: b.lv || '', n: 0, biz: 1, key: [b.sp || '', b.st || '', b.lv || ''].join('|') });
+      return out;
+    }
+    const fkey = k => String(k).replace(/[.#$\[\]\/]/g, '_') || '_';
+    return { parse, hit, firstHit, deskHit, deskRules, jobRate, fkey };
+  })();
+
+  // the job as the rules see it (cards from 22 Oct carry rA / rU / spRaw; older ones: rate read from the text)
+  const ruleJob = (j, lv) => ({ site: j.site, state: j.state, specialty: j.specialty, specialtyRaw: j.spRaw || String(j.title || '').split(' – ').slice(1).join(' – '), level: lv || j.lvN || 'Unknown', rate: j.rate, rateAmt: j.rA, rateUnit: j.rU });
 
   // ---------- live matching on the page (same rules as the Job Matches scenario, module 9) ----------
   // Make matches a job once, when the email arrives, and only against Izzy's calendar. The page re-matches every job
@@ -507,9 +624,11 @@ const Focus = (() => {
     const docs = {};            // key -> doctor info (merged across calendars)
     const evBy = {};            // key -> [normalised entries]
     for (const { uid, node } of nodes) {
-      for (const d of arr(node && node.doctors)) {
+      for (const [di, d] of Object.entries((node && node.doctors) || {})) {
         if (!d) continue; const k = key(d.ahpra_id || d.name); if (!k) continue;
-        const o = docs[k] || (docs[k] = { k, name: String(d.name || '').trim() || k, level: '', spec: '', cu: '', base: '', specAll: '', prefs: '', pgy: '', tags: [], hidden: true, uids: [] });
+        const o = docs[k] || (docs[k] = { k, name: String(d.name || '').trim() || k, level: '', spec: '', cu: '', base: '', specAll: '', prefs: '', pgy: '', tags: [], hidden: true, uids: [], refs: [], rl: [], rules: [] });
+        o.refs.push({ uid, di });                                   // where this doctor's profile lives (for writing rules)
+        for (const r of arr(d.job_rules)) if (r && r.t && !o.rl.some(x => x.t === r.t)) { o.rl.push({ t: String(r.t), by: r.by || '', at: r.at || '' }); o.rules.push(...RULES.parse(r.t)); }
         o.base = o.base || String(d.where || '').trim();   // calendar 'Where' = where they want to work
         const pf = [d.prefs, d.specialty, arr(d.desired_specialties).join(', '), arr(d.tags).join(', ')].filter(Boolean).join(', ');
         o.pf = o.pf || ''; if (pf && !o.pf.includes(pf)) o.pf = (o.pf ? o.pf + ', ' : '') + pf;
@@ -520,13 +639,17 @@ const Focus = (() => {
         if (!o.spec) { const parts = [...new Set(String([d.specialty, d.prefs].filter(Boolean).join(',')).split(/[,;]+/).map(x => x.trim()).filter(Boolean))]; o.spec = parts.slice(0, 2).join(', ') + (parts.length > 2 ? ' +' + (parts.length - 2) : ''); } o.cu = o.cu || d.clickup_url || '';
         if (!o.uids.includes(uid)) o.uids.push(uid);
       }
-      for (const e of arr(node && node.events)) {
+      for (const [ei, e] of Object.entries((node && node.events) || {})) {
         if (!e) continue; const k = key(e.ahpra_id || (e.placement_data && e.placement_data.doctor_id)); if (!k) continue;
-        const n = norm(e); if (n) (evBy[k] = evBy[k] || []).push(n);
+        const n = norm(e); if (n) { n.uid = uid; n.ei = ei; n.rules = RULES.parse([e.requirements, e.notes].filter(Boolean).join('\n')); (evBy[k] = evBy[k] || []).push(n); }
       }
     }
     const isBusy = (k, d) => (evBy[k] || []).some(x => (x.k === 'booked' || x.k === 'away') && d >= x.s && d < x.e);
     const freeOn = (k, d) => !isBusy(k, d) && (evBy[k] || []).some(x => (x.k === 'avail' || x.k === 'tent') && d >= x.s && d < x.e);
+    // job rules: the doctor's own (profile) and 'just this block' ones on the availability entry
+    const docRuled = (k, rj) => { const d = docs[k]; return d && d.rules.length ? RULES.firstHit(d.rules, rj, canonSet) : ''; };
+    const blkRuled = (x, rj) => x.rules && x.rules.length ? RULES.firstHit(x.rules, rj, canonSet) : '';
+    const freeOnJ = (k, d, rj) => !isBusy(k, d) && (evBy[k] || []).some(x => (x.k === 'avail' || x.k === 'tent') && d >= x.s && d < x.e && !blkRuled(x, rj));
 
     // doctors with availability still to come, prepared once for the live matcher
     const pool = [];
@@ -535,7 +658,7 @@ const Focus = (() => {
       const avs = (evBy[k] || []).filter(x => (x.k === 'avail' || x.k === 'tent') && x.e > today).map(x => {
         const ds = x.ev.desired_specialties, want = (Array.isArray(ds) ? ds : Object.values(ds || {})).join(', ');   // block-form "Wants:" specialties
         const txt = [x.ev.title, x.ev.notes, want].filter(Boolean).join(' / ');
-        return { s: x.s, e: x.e, t: x.k === 'tent', specs: eventSpecs(txt), min: Number(x.ev.min_block_days || x.ev.minBlockDays) || minBlockDays([x.ev.title, x.ev.notes].filter(Boolean).join(' \n ')) };
+        return { x, s: x.s, e: x.e, t: x.k === 'tent', specs: eventSpecs(txt), min: Number(x.ev.min_block_days || x.ev.minBlockDays) || minBlockDays([x.ev.title, x.ev.notes].filter(Boolean).join(' \n ')) };
       });
       if (!avs.length) continue;
       pool.push({ k, doc, dspecs: canonSet(doc.pf), dl: String(doc.level || '').toLowerCase().trim(), avs });
@@ -552,7 +675,9 @@ const Focus = (() => {
       if (!lvOk && rm && Number(rm[1]) >= 1500) lvOk = ['senior', 'registrar', 'training registrar', 'specialist', 'consultant'];
       if (lvOk && /\bnot\b[^,;]{0,25}\bregistrar/i.test(lvText)) lvOk = lvOk.filter(l => !/registrar/.test(l));
       const L = workLen(dates), lo = addDays(dates[0], -7), hi = addDays(dates[dates.length - 1], 8);
+      const rj = ruleJob(j, lv);
       for (const p of pool) {
+        if (docRuled(p.k, rj)) continue;                  // the doctor's own rule rules this job out
         const evOk = a => [...a.specs].some(s => specs.has(s));
         const profOk = [...specs].some(s => p.dspecs.has(s));
         if (!profOk && !p.avs.some(evOk)) continue;
@@ -569,7 +694,7 @@ const Focus = (() => {
           if (dl === 'junior' && (lv === 'Registrar' || lv === 'Specialist')) continue;   // juniors never shown for Registrar+ jobs
           lvNear = true;
         }
-        const avs = p.avs.filter(a => !a.min || L >= a.min - 2);
+        const avs = p.avs.filter(a => (!a.min || L >= a.min - 2) && !blkRuled(a.x, rj));
         if (!avs.length) continue;                       // every entry wants longer blocks than this job
         let c = 0, tent = false;
         for (const d of dates) { const a = avs.find(a => d >= a.s && d < a.e && (profOk || evOk(a))); if (a && !isBusy(p.k, d)) { c++; if (a.t) tent = true; } }
@@ -598,6 +723,8 @@ const Focus = (() => {
         const j = rec && rec.job; if (!j || !j.end || tooLate(j, today)) continue;
         if (seenJob.has(jk)) continue; seenJob.add(jk);
         const state = rec.state && (!opts.me || String(rec.state.by || '').toLowerCase() === opts.me) ? rec.state : null;   // someone else's answer doesn't count for you
+        const rj = ruleJob(j, j.lvN || lvFromText([j.level, String(j.title || '').split(' – ').slice(1).join(' – ')].join(' ')));
+        if ((opts.desk || []).some(d => RULES.deskHit(d, rj, canonSet))) continue;   // 'not work we do' for your desk
         if ((opts.dismissed || {})[jk]) continue;   // answered by you (accepted / not suitable / removed) -> gone for you only
         const dates = arr(j.dates).filter(d => d >= today).sort();
         // Make's matches (made when the email came in) + anyone on these calendars who fits now
@@ -613,7 +740,8 @@ const Focus = (() => {
           if (!doc) continue;                     // doctor isn't on the calendars you're looking at
           if (opts.removed && opts.removed.has(jk + '|' + safeKey(dk))) continue;   // taken off this job by a recruiter (availability untouched)
           if (doc && doc.hidden) continue;
-          const c = dates.filter(d => freeOn(dk, d)).length;
+          if (docRuled(dk, rj)) continue;           // doctor's own rule (profile) rules this job out
+          const c = dates.filter(d => freeOnJ(dk, d, rj)).length;
           const row = { k: dk, name: (doc && doc.name) || m.name, level: (doc && doc.level) || m.lv || '', cu: (doc && doc.cu) || m.cu || '', c, n: dates.length,
             tent: !!m.tent, viaNote: !!m.viaNote, why: m.why || '', note: m.note || '', page: !!m.page };
           // Josh 21 Oct: one list per job - free every day (green) and free some days (orange); one-level-off / near-the-dates doctors are no longer shown
@@ -680,9 +808,12 @@ const Focus = (() => {
     const lastBookedFor = k => (evBy[k] || []).filter(x => x.k === 'booked' && x.e <= today).map(x => addDays(x.e, -1)).sort().pop() || '';
     const currentBookingFor = k => (evBy[k] || []).filter(x => x.k === 'booked' && x.s <= today && x.e > today).map(x => addDays(x.e, -1)).sort().pop() || '';
     const coverFor = (k, ds) => (ds || []).filter(d => freeOn(k, d)).length;     // how many of these days the doctor is free (presenting)
-    return { today, win, jobs, nearJobs, unmatched, anyUm, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, coverFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
+    // the availability entry a job was matched on (first one covering a job date), for 'just this block' rules
+    const blockFor = (k, ds) => (evBy[k] || []).find(x => (x.k === 'avail' || x.k === 'tent') && (ds || []).some(d => d >= x.s && d < x.e)) || (evBy[k] || []).find(x => (x.k === 'avail' || x.k === 'tent') && x.e > today) || null;
+    const blockRules = k => { const out = []; for (const x of evBy[k] || []) if ((x.k === 'avail' || x.k === 'tent') && x.e > today) for (const r of x.rules || []) if (!out.includes(r.raw)) out.push(r.raw); return out; };
+    return { blockFor, blockRules, ruleJob, today, win, jobs, nearJobs, unmatched, anyUm, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, coverFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
   }
-  return { build, safeKey, addDays, nice, short, span, ranges, sydToday, key };
+  return { build, safeKey, addDays, nice, short, span, ranges, sydToday, key, RULES, ruleJob, canonSet, lvFromText };
 })();
 if (typeof module !== 'undefined') module.exports = Focus;
 </script><script>
@@ -878,7 +1009,7 @@ if (typeof firebase !== 'undefined') (function () {
   // ---------- view models ----------
   function build() {
     const today = N.sydToday();
-    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, me: String(user.email || '').toLowerCase(), contacted: contactedMap(), dismissed: dismissedMap(), removed: removedSet() });
+    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, me: String(user.email || '').toLowerCase(), contacted: contactedMap(), dismissed: dismissedMap(), removed: removedSet(), desk: deskRulesNow() });
     const pops = {}; let pi = 0;
     const jobVM = (x, near) => {
       const j = x.j, { site, role } = shortTitle(j.title), docs = near ? x.near : x.live, n = x.dates.length;
@@ -1310,7 +1441,7 @@ if (typeof firebase !== 'undefined') (function () {
   $('gq').addEventListener('keydown', e => { if (e.key === 'Escape' && gq) { e.stopPropagation(); gq = ''; e.target.value = ''; render(); } });
   document.addEventListener('keydown', e => { if (e.key === '/' && !/^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '') && $('ex').hidden) { e.preventDefault(); $('gq').focus(); } });
   document.addEventListener('click', e => { const t = e.target.closest('[data-updwin]'); if (!t) return; e.preventDefault(); e.stopPropagation(); updWin = t.dataset.updwin; store.set('focus.updWin', updWin); render(); }, true);
-  document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('mailSet').hidden) { $('mailSet').hidden = true; return; } if (!$('expSet').hidden) { $('expSet').hidden = true; return; } if (!$('presSet').hidden) { presClose(); return; } if (open) closeEx(); });
+  document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('whySet').hidden) { closeWhy(); return; } if (!$('mailSet').hidden) { $('mailSet').hidden = true; return; } if (!$('expSet').hidden) { $('expSet').hidden = true; return; } if (!$('presSet').hidden) { presClose(); return; } if (open) closeEx(); });
 
   // ---------- doctor hover card ----------
   function showPop(el) {
@@ -1329,6 +1460,8 @@ if (typeof firebase !== 'undefined') (function () {
       ['PGY', esc(doc.pgy || '')],
       ['TAGS', (doc.tags || []).length ? doc.tags.map(t => `<span class="ptag">${esc(t)}</span>`).join(' ') : ''],
       ['NOTES', notes.length ? notes.slice(0, 3).map(esc).join('<br>') : ''],
+      ['RULES', [...(doc.rl || []).map(r => `⛔ ${esc(r.t)} <span style="color:#8a93a3">profile${r.by ? ' · ' + esc(String(r.by).split('@')[0]) : ''}</span>`),
+        ...V.F.blockRules(p.k).map(t => `⛔ ${esc(t)} <span style="color:#8a93a3">availability</span>`)].join('<br>')],
       ['LAST BOOKED', cur ? 'Current – ends ' + esc(day(cur)) : last ? esc(day(last)) : ''],
       ['PRESENTED', ((V.presByDoc || {})[p.k] || []).slice().sort((a, b) => b.at - a.at).slice(0, 4).map(r => `${esc(r.site || 'Job')} <span style="color:#8a93a3">${esc(agoMs(r.at))}</span>`).join('<br>')]
     ].filter(r => r[1]);
@@ -1346,6 +1479,268 @@ if (typeof firebase !== 'undefined') (function () {
   document.addEventListener('mouseover', e => { const c = e.target.closest('[data-pop]'); if (c) showPop(c); });
   document.addEventListener('mouseout', e => { const c = e.target.closest('[data-pop]'); if (c && !c.contains(e.relatedTarget)) hidePop(); });
   document.addEventListener('scroll', hidePop, true);
+
+  // ===================== Not suitable – why? (22 Oct 2026) =====================
+  // Job ×: why the whole job is wrong for us (personal, plus 'not work we do' -> desk rule after 2).
+  // Doctor ×: why this doctor is wrong for it -> a rule line written into the CALENDAR (block requirements, or the doctor's profile job_rules),
+  // or an Unavailable / Away block. The calendar is the one place rules live; the matcher reads them from there.
+  const NS_HOOK = 'https://hook.us2.make.com/jtmmmhzjskao4iao9r5k0ub228k827zl';    // Make 6728396 "Job Matches – Not suitable reasons"
+  const JOSH_UID = '3BaaDKWqrkTD1DMA3jRBtLPC6yv2';
+  const R = N.RULES;
+  const nsUrl = (u, p) => !u ? '' : u.replace(/^https:\/\/hook\.us2\.make\.com\/[a-z0-9]+/i, NS_HOOK) + '&' + new URLSearchParams(p).toString();
+  const isoNow = () => new Date().toISOString();
+  const meEmail = () => String((user && user.email) || '').toLowerCase();
+  function deskRulesNow() {
+    const me = (data[user.uid] || {}).focus || {}, jo = ((data[JOSH_UID] || {}).focus) || {};
+    return R.deskRules(me.nsr, me.jroff, jo.jrbiz);
+  }
+  const LV_LABEL = { Junior: 'Junior', Senior: 'Senior', Registrar: 'Registrar', Specialist: 'Specialist', GP: 'GP' };
+  function jobFacts(j) {
+    const raw = String(j.title || '').split(' – ').slice(1).join(' – ');
+    const lv = j.lvN || N.lvFromText([j.level, raw].join(' '));
+    return { sp: j.specialty && !/^(other|unknown)$/i.test(j.specialty) ? j.specialty : '', st: j.state && !/^unknown$/i.test(j.state) ? String(j.state).toUpperCase() : '', lv: LV_LABEL[lv] || '', raw };
+  }
+  // "Dubbo Base Hospital" -> "Dubbo"; "St Vincent's Hospital Sydney" -> "St Vincent's Sydney"
+  function townOf(site) {
+    const w = String(site || '').replace(/\(.*?\)/g, ' ').split(/[\s,\/–-]+/).filter(Boolean)
+      .filter(x => !/^(hospital|hosp|health|healthcare|service|services|base|campus|district|the|and|of|public|memorial|regional|private|medical|centre|center|mps|multi|purpose|community|general|emergency|department|ed|lhd|soldiers|war|hns)$/i.test(x));
+    return w.slice(0, 2).join(' ');
+  }
+  function rateGuess(j) {
+    const jr = R.jobRate(N.ruleJob(j)); if (!jr || !jr.amt) return { amt: '', unit: 'hour' };
+    const up = jr.amt * 1.1, step = jr.unit === 'hour' ? 5 : 50;
+    return { amt: Math.ceil(up / step) * step, unit: jr.unit === 'day' ? 'day' : jr.unit === 'week' ? 'week' : 'hour' };
+  }
+  const unitTxt = u => u === 'day' ? 'day' : u === 'week' ? 'wk' : 'hr';
+
+  // ---------- calendar writes (whole-array transactions, matched by id / AHPRA - safe alongside the calendar's own merge-on-save) ----------
+  const listOf = v => Array.isArray(v) ? v.slice() : Object.values(v || {});
+  // fn(list) returns the new list, 'noop' (already as wanted) or nothing (record not found). Resolves 'changed' | 'noop'; throws when not found / not saved.
+  async function txList(uid, kind, fn) {
+    let out = '';
+    const res = await db.ref(`users/${uid}/${kind}`).transaction(cur => {
+      if (cur == null) { out = 'empty'; return cur; }    // not loaded yet: the server re-runs this with the real value
+      const r = fn(listOf(cur));
+      if (r === 'noop') { out = 'noop'; return; }
+      if (!r) { out = 'notfound'; return; }
+      out = 'changed'; return r;
+    });
+    if (out === 'noop') return 'noop';
+    if (out === 'changed' && res.committed) return 'changed';
+    throw new Error(out === 'notfound' ? 'record not found' : 'not saved');
+  }
+  const reqLoc = (loc, req) => { const base = String(loc || '').replace(/\s*·?\s*Requirements:.*$/, '').trim();
+    const r = String(req || '').split('\n').map(s => s.trim()).filter(Boolean).join('; ');
+    return [base, r ? 'Requirements: ' + r : ''].filter(Boolean).join(' · '); };
+  // add / remove one rule line on an availability entry (v2 blocks: requirements; older blocks: notes)
+  function blockLine(uid, evId, k, line, add) {
+    return txList(uid, 'events', list => {
+      const e = list.find(x => x && String(x.id) === String(evId) && N.key(x.ahpra_id) === k); if (!e) return;
+      const fld = e.form_v === 2 || e.requirements != null ? 'requirements' : 'notes';
+      const lines = String(e[fld] || '').split('\n').map(s => s.trim()).filter(Boolean);
+      const has = lines.includes(line);
+      if (add === has) return 'noop';
+      const next = add ? lines.concat(line) : lines.filter(l => l !== line);
+      e[fld] = next.join('\n');
+      if (fld === 'requirements' && e.form_v === 2) e.location = reqLoc(e.location, e.requirements);
+      e.lastModified = isoNow(); e.lastModifiedBy = 'focus'; e.updated_by = meEmail();
+      return list;
+    });
+  }
+  // add / remove a rule line on the doctor's profile (every calendar you can see them on)
+  async function profileLine(k, line, add) {
+    const refs = ((V && V.F.docs[k]) || {}).refs || []; let ok = 0, fail = 0;
+    for (const uid of [...new Set(refs.map(r => r.uid))]) {
+      try {
+        await txList(uid, 'doctors', list => {
+          const d = list.find(x => x && N.key(x.ahpra_id || x.name) === k); if (!d) return;
+          const jr = listOf(d.job_rules).filter(Boolean), has = jr.some(r => r.t === line);
+          if (add === has) return 'noop';
+          d.job_rules = add ? jr.concat({ t: line, by: meEmail(), at: isoNow() }) : jr.filter(r => r.t !== line);
+          d.lastModified = isoNow(); d.lastModifiedBy = 'focus';
+          return list;
+        }); ok++;
+      } catch (e) { console.warn('profile rule', uid, e); fail++; }
+    }
+    return { ok, fail };
+  }
+  // Unavailable / Away block from Focus (end is exclusive, like the calendar)
+  async function addBlock(uid, k, status, s, eEx, note) {
+    const ref = ((V && V.F.docs[k]) || {}).refs || [];
+    const raw = (() => { const node = data[uid] || {}; const d = listOf(node.doctors).find(x => x && N.key(x.ahpra_id || x.name) === k); return d ? String(d.ahpra_id) : k; })();
+    const id = 'fx' + Math.random().toString(16).slice(2, 10) + '-' + Date.now().toString(16);
+    await txList(uid, 'events', list => list.concat({ id, ahpra_id: raw, status, title: status, location: '', notes: note, start: s, end: eEx,
+      created_by: meEmail(), lastModified: isoNow(), lastModifiedBy: 'focus' }));
+    return id;
+  }
+  const removeBlock = (uid, id) => txList(uid, 'events', list => { const i = list.findIndex(x => x && x.id === id); if (i < 0) return 'noop'; list.splice(i, 1); return list; });
+
+  // ---------- the pop-up ----------
+  let WHY = null;
+  const whyBox = () => $('whyBox');
+  function closeWhy() { $('whySet').hidden = true; WHY = null; }
+  function chip(on, attrs, txt) { return `<button type="button" class="wc${on ? ' on' : ''}" ${attrs}>${esc(txt)}</button>`; }
+  function openJobWhy(jk) {
+    const x = findJob(jk); if (!x) return answer(jk, 'notsuitable');
+    const f = jobFacts(x.j);
+    WHY = { kind: 'job', jk, x, f, pick: '', w: '', nw: {}, note: '' };
+    renderWhy(); $('whySet').hidden = false;
+  }
+  function openDocWhy(jk, dk, uid, name, site) {
+    const j = jobCard(jk) || {}, f = jobFacts(j), k = N.key(dk);
+    const blk = V.F.blockFor(k, arr(j.dates).filter(d => d >= N.sydToday()));
+    const g = rateGuess(j);
+    const ds = arr(j.dates).filter(d => d >= N.sydToday()).sort();
+    WHY = { kind: 'doc', jk, dk, k, uid, name, site, j, f, blk, pick: '', scope: blk ? 'block' : 'ongoing', town: townOf(j.site || site), amt: g.amt, unit: g.unit,
+      nl: { lv: !!f.lv, sp: false }, until: N.addDays(N.sydToday(), 90), s: ds[0] || '', e: ds[ds.length - 1] || '', note: '' };
+    renderWhy(); $('whySet').hidden = false;
+  }
+  function docLine(w) {
+    w = w || WHY; if (!w) return '';
+    if (w.pick === 'site') return w.town.trim() ? `Won't go: ${w.town.trim()}` : '';
+    if (w.pick === 'rate') return Number(w.amt) > 0 ? `Min rate: $${Number(w.amt)}/${unitTxt(w.unit)}` : '';
+    if (w.pick === 'level') { const parts = [w.nl.lv && w.f.lv ? w.f.lv : '', w.nl.sp && w.f.sp ? w.f.sp : ''].filter(Boolean); return parts.length ? `Not: ${parts.join(' ')}${w.nl.lv && !w.nl.sp ? ' roles' : ''}` : ''; }
+    return '';
+  }
+  function renderWhy() {
+    const w = WHY; if (!w) return;
+    let h = '';
+    if (w.kind === 'job') {
+      const x = w.x, f = w.f;
+      const nw = [f.sp && ['sp', f.sp, f.sp], f.st && ['st', f.st, f.st + ' jobs'], f.lv && ['lv', f.lv, f.lv + ' roles']].filter(Boolean);
+      const desk = deskRulesNow();
+      h = `<div class="mT">Why isn’t this job suitable?</div><p class="wsub">${esc(x.site)}${x.role ? ' · ' + esc(x.role) : ''} · ${esc(x.dates)}</p>
+        <div class="wopt${w.pick === 'wrong' ? ' wsel' : ''}"><div class="wl">Job details wrong <span>– flags a reading error to fix</span></div>
+          <div class="wcs">${['level', 'specialty', 'dates', 'rate', 'site'].map(v => chip(w.pick === 'wrong' && w.w === v, `data-wj="wrong" data-ww="${v}"`, 'Wrong ' + v)).join('')}</div></div>
+        <div class="wopt${w.pick === 'notwork' ? ' wsel' : ''}"><div class="wl">Not work we do <span>– twice for the same kind of job and it stops for your desk</span></div>
+          <div class="wcs">${nw.map(([a, v, t]) => chip(w.pick === 'notwork' && w.nw[a], `data-wj="notwork" data-wa="${a}" data-wv="${esc(v)}"`, t)).join('') || '<span class="wh">Type not known for this job – use Other</span>'}</div>
+          <div class="wh">${desk.length ? `Your desk rules now: ${desk.map(d => esc([d.sp, d.st, d.lv].filter(Boolean).join(' / ')) + (d.biz ? ' (all desks)' : '')).join(' · ')} – ` : ''}<a href="#" data-rules>see / turn off desk rules</a></div></div>
+        <div class="wrow">${[['rate', 'Rate too low'], ['filled', 'Already filled / out of date'], ['dup', 'Duplicate']].map(([v, t]) => chip(w.pick === v, `data-wj="${v}"`, t)).join('')}</div>
+        <div class="wopt${w.pick === 'other' ? ' wsel' : ''}"><div class="wl">Other</div><input id="wNote" placeholder="What was wrong with it?" maxlength="300" value="${esc(w.note)}"></div>`;
+    } else {
+      const f = w.f, blkEnd = w.blk ? N.addDays(w.blk.e, -1) : '';
+      const lineNow = docLine();
+      const scope = ['site', 'rate', 'level'].includes(w.pick) ? `<div class="wscope">${chip(w.scope === 'block', `data-wscope="block"${w.blk ? '' : ' disabled'}`, w.blk ? `Just this availability (to ${day(blkEnd)})` : 'Just this availability (none found)')}${chip(w.scope === 'ongoing', 'data-wscope="ongoing"', 'Ongoing – on their profile')}</div>
+        ${lineNow ? `<div class="wh">Adds <b>${esc(lineNow)}</b> to ${w.scope === 'block' ? 'this availability block' : 'their profile'} in the calendar. Similar jobs stop showing for them.</div>` : ''}` : '';
+      h = `<div class="mT">Why isn’t ${esc(w.name)} right for this?</div><p class="wsub">${esc(w.site)} · ${esc(w.f.raw || '')}</p>
+        <div class="wopt${w.pick === 'site' ? ' wsel' : ''}" data-wd="site"><div class="wl">Won’t go to this site / area</div>
+          ${w.pick === 'site' ? `<input id="wTown" value="${esc(w.town)}" placeholder="Town, site or state (e.g. Dubbo, NT)">` : ''}</div>
+        <div class="wopt${w.pick === 'rate' ? ' wsel' : ''}" data-wd="rate"><div class="wl">Rate too low for them</div>
+          ${w.pick === 'rate' ? `<div class="wrate">Min $<input id="wAmt" type="number" min="0" step="5" value="${esc(w.amt)}"><select id="wUnit">${['hour', 'day', 'week'].map(u => `<option value="${u}"${w.unit === u ? ' selected' : ''}>per ${u}</option>`).join('')}</select></div>` : ''}</div>
+        <div class="wopt${w.pick === 'level' ? ' wsel' : ''}" data-wd="level"><div class="wl">Wrong level or specialty for this</div>
+          ${w.pick === 'level' ? `<div class="wcs">${f.lv ? chip(w.nl.lv, 'data-wnl="lv"', 'Not ' + f.lv + ' roles') : ''}${f.sp ? chip(w.nl.sp, 'data-wnl="sp"', 'Not ' + f.sp) : ''}${!f.lv && !f.sp ? '<span class="wh">Level and specialty not known for this job – use Other</span>' : ''}</div><div class="wh">Pick both for “not ${esc(f.lv || 'level')} ${esc(f.sp || 'specialty')}” only.</div>` : ''}</div>
+        ${scope}
+        <div class="wopt${w.pick === 'notavail' ? ' wsel' : ''}" data-wd="notavail"><div class="wl">Not actually available <span>– updates the calendar, no rule</span></div>
+          ${w.pick === 'notavail' ? `<div class="wh">Adds an <b>Unavailable</b> block ${esc(day(w.s))}${w.e !== w.s ? ' – ' + esc(day(w.e)) : ''} to their calendar.</div>` : ''}</div>
+        <div class="wopt${w.pick === 'nolocums' ? ' wsel' : ''}" data-wd="nolocums"><div class="wl">Not taking locums right now <span>– updates the calendar, no rule</span></div>
+          ${w.pick === 'nolocums' ? `<div class="wrate">Adds an <b>Away</b> block from today until <input id="wUntil" type="date" value="${esc(w.until)}" min="${esc(N.sydToday())}"></div>` : ''}</div>
+        <div class="wopt${w.pick === 'other' ? ' wsel' : ''}" data-wd="other"><div class="wl">Other</div>${w.pick === 'other' ? `<input id="wNote" placeholder="Why? (saved with the removal)" maxlength="300" value="${esc(w.note)}">` : ''}</div>`;
+    }
+    const can = w.kind === 'job' ? (w.pick === 'wrong' ? !!w.w : w.pick === 'notwork' ? Object.values(w.nw).some(Boolean) : w.pick === 'other' ? !!w.note.trim() : !!w.pick)
+      : (['site', 'rate', 'level'].includes(w.pick) ? !!docLine() : w.pick === 'nolocums' ? !!w.until : w.pick === 'other' ? !!w.note.trim() : !!w.pick);
+    h += `<div class="wft"><button type="button" class="wskip" data-wskip>${w.kind === 'job' ? 'Skip – just mark not suitable' : 'Skip – just take them off this job'}</button><span class="sp"></span>
+      <button type="button" class="wcancel" data-wcancel>Cancel</button><button type="button" class="wsave" data-wsave${can ? '' : ' disabled'}>Save</button></div>`;
+    whyBox().innerHTML = h;
+    const fcs = whyBox().querySelector('#wTown,#wAmt,#wNote'); if (fcs && document.activeElement === document.body) fcs.focus();
+  }
+  // inputs keep their values without re-rendering on every key
+  document.addEventListener('input', e => {
+    if (!WHY || !e.target.closest('#whyBox')) return;
+    const id = e.target.id;
+    if (id === 'wTown') WHY.town = e.target.value; else if (id === 'wAmt') WHY.amt = e.target.value; else if (id === 'wNote') { WHY.note = e.target.value; if (WHY.kind === 'job' && WHY.note.trim()) WHY.pick = 'other'; }
+    else if (id === 'wUnit') WHY.unit = e.target.value; else if (id === 'wUntil') WHY.until = e.target.value;
+    const sv = whyBox().querySelector('[data-wsave]'); const lineB = whyBox().querySelector('.wh b');
+    if (WHY.kind === 'doc' && lineB && ['site', 'rate', 'level'].includes(WHY.pick)) lineB.textContent = docLine();
+    if (sv) sv.disabled = WHY.kind === 'doc' ? (['site', 'rate', 'level'].includes(WHY.pick) ? !docLine() : WHY.pick === 'other' ? !WHY.note.trim() : !WHY.pick) : (WHY.pick === 'other' ? !WHY.note.trim() : !WHY.pick);
+  });
+  document.addEventListener('change', e => { if (WHY && (e.target.id === 'wUnit' || e.target.id === 'wUntil')) e.target.dispatchEvent(new Event('input', { bubbles: true })); });
+  document.addEventListener('click', e => {
+    if (e.target.id === 'whySet') { closeWhy(); return; }
+    const t = e.target.closest('#whyBox [data-wj],#whyBox [data-wd],#whyBox [data-wscope],#whyBox [data-wnl],#whyBox [data-wskip],#whyBox [data-wcancel],#whyBox [data-wsave]'); if (!t || !WHY) return;
+    if (e.target.closest('input,select') && !t.matches('button')) return;
+    const w = WHY, d = t.dataset;
+    if (d.wcancel != null) return closeWhy();
+    if (d.wskip != null) { closeWhy(); if (w.kind === 'job') answer(w.jk, 'notsuitable'); else removeDoc(w.jk, w.dk, w.uid, w.name, w.site); return; }
+    if (d.wsave != null) return saveWhy();
+    if (d.wj) { if (d.wj !== w.pick) { w.nw = {}; w.w = ''; } w.pick = d.wj; if (d.ww) w.w = d.ww; if (d.wa) w.nw[d.wa] = w.nw[d.wa] ? '' : d.wv; }
+    else if (d.wd && w.pick !== d.wd) w.pick = d.wd;
+    else if (d.wscope && !t.disabled) w.scope = d.wscope;
+    else if (d.wnl) w.nl[d.wnl] = !w.nl[d.wnl];
+    renderWhy();
+  });
+  async function saveWhy() {
+    const w = WHY; if (!w) return; closeWhy();
+    if (w.kind === 'job') {
+      const why = { r: w.pick, at: isoNow(), by: meEmail(), site: w.x.site || '', title: w.x.j.title || '' };
+      if (w.pick === 'wrong') why.w = w.w;
+      if (w.pick === 'notwork') Object.assign(why, w.nw);
+      if (w.note.trim()) why.note = w.note.trim().slice(0, 300);
+      Object.keys(why).forEach(x => { if (!why[x]) delete why[x]; });
+      return answer(w.jk, 'notsuitable', why);
+    }
+    const why = { r: w.pick, at: isoNow(), by: meEmail() };
+    if (w.note.trim()) why.note = w.note.trim().slice(0, 300);
+    let undoCal = null, msg = '';
+    try {
+      if (['site', 'rate', 'level'].includes(w.pick)) {
+        const line = docLine(w); why.rule = line; why.scope = w.scope;
+        if (w.scope === 'block' && w.blk) {
+          await blockLine(w.blk.uid, w.blk.ev.id, w.k, line, true);
+          undoCal = () => blockLine(w.blk.uid, w.blk.ev.id, w.k, line, false);
+          msg = `“${line}” added to this availability`;
+        } else {
+          const r = await profileLine(w.k, line, true);
+          if (!r.ok) throw new Error('no access');
+          undoCal = () => profileLine(w.k, line, false);
+          msg = `“${line}” added to ${w.name}’s profile${r.fail ? ' (one calendar couldn’t be updated)' : ''}`;
+        }
+      } else if (w.pick === 'notavail' && w.s) {
+        const uid = w.blk ? w.blk.uid : (((V.F.docs[w.k] || {}).refs || [])[0] || {}).uid;
+        const id = await addBlock(uid, w.k, 'Unavailable', w.s, N.addDays(w.e || w.s, 1), `Not available for ${w.site} (Doctor Focus)`);
+        undoCal = () => removeBlock(uid, id); msg = `Unavailable ${day(w.s)}${w.e !== w.s ? ' – ' + day(w.e) : ''} added to the calendar`;
+      } else if (w.pick === 'nolocums') {
+        const uid = w.blk ? w.blk.uid : (((V.F.docs[w.k] || {}).refs || [])[0] || {}).uid;
+        const id = await addBlock(uid, w.k, 'Away', N.sydToday(), N.addDays(w.until, 1), 'Not taking locums right now (Doctor Focus)');
+        undoCal = () => removeBlock(uid, id); msg = `Away until ${day(w.until)} added to the calendar`;
+      }
+    } catch (err) {
+      console.warn('why save', err);
+      toast('Couldn’t update the calendar (no access to that calendar?) – they’re still taken off this job');
+    }
+    removeDoc(w.jk, w.dk, w.uid, w.name, w.site, why, msg, undoCal);
+  }
+
+  // ---------- desk rules list ----------
+  function openRules() {
+    const me = (data[user.uid] || {}).focus || {}, admin = ADMINS.includes(meEmail());
+    const cnt = {};
+    for (const [jk, r] of Object.entries(me.nsr || {})) if (r && r.r === 'notwork') { const key = [r.sp || '', r.st || '', r.lv || ''].join('|'); (cnt[key] = cnt[key] || { key, sp: r.sp, st: r.st, lv: r.lv, n: 0, last: '' }).n++; if ((r.at || '') > cnt[key].last) cnt[key].last = r.at || ''; }
+    const off = me.jroff || {}, biz = (((data[JOSH_UID] || {}).focus) || {}).jrbiz || {};
+    const lbl = c => esc([c.sp, c.st, c.lv && c.lv + ' roles'].filter(Boolean).join(' / ') || '—');
+    const rows = Object.values(cnt).sort((a, b) => b.n - a.n).map(c => {
+      const fk = R.fkey(c.key), isOff = !!off[fk], active = c.n >= 2 && !isOff;
+      return `<div class="rr"><div><b>${lbl(c)}</b><div class="wh">Marked ${c.n}× · ${active ? 'stops alerts for your desk' : isOff ? 'turned off' : '1 more to become a rule'}</div></div><span class="sp"></span>
+        ${c.n >= 2 ? `<button type="button" class="wc" data-rtog="${esc(fk)}">${isOff ? 'Turn on' : 'Turn off'}</button>` : ''}
+        ${admin ? `<button type="button" class="wc${biz[fk] ? ' on' : ''}" data-rbiz="${esc(c.key)}">${biz[fk] ? 'All desks ✓' : 'Make business-wide'}</button>` : ''}</div>`;
+    }).join('');
+    const bizRows = Object.entries(biz).filter(([fk]) => !Object.values(cnt).some(c => R.fkey(c.key) === fk)).map(([fk, b]) => `<div class="rr"><div><b>${lbl(b)}</b><div class="wh">Business-wide${b.by ? ' · set by ' + esc(String(b.by).split('@')[0]) : ''}</div></div><span class="sp"></span>${admin ? `<button type="button" class="wc on" data-rbiz="${esc([b.sp || '', b.st || '', b.lv || ''].join('|'))}">All desks ✓</button>` : ''}</div>`).join('');
+    whyBox().innerHTML = `<div class="mT">Desk rules – “Not work we do”</div>
+      <p class="wsub">Mark a job “Not work we do” twice for the same kind of job and those jobs stop being alerted to your desk. Doctor rules (won’t go, min rate, not this level) live on each doctor in the calendar.</p>
+      ${rows || bizRows ? rows + bizRows : '<p class="wh">Nothing yet.</p>'}
+      <div class="wft"><span class="sp"></span><button type="button" class="wsave" data-wcancel>Done</button></div>`;
+    WHY = { kind: 'rules' }; $('whySet').hidden = false;
+  }
+  document.addEventListener('click', async e => {
+    const t = e.target.closest('[data-rules],#whyBox [data-rtog],#whyBox [data-rbiz]'); if (!t) return;
+    e.preventDefault();
+    if (t.dataset.rules != null) return openRules();
+    try {
+      if (t.dataset.rtog) { const r = db.ref(`users/${user.uid}/focus/jroff/${t.dataset.rtog}`); const on = !!(((data[user.uid] || {}).focus || {}).jroff || {})[t.dataset.rtog]; await (on ? r.remove() : r.set(true)); }
+      if (t.dataset.rbiz) { const [sp, st, lv] = t.dataset.rbiz.split('|'), fk = R.fkey(t.dataset.rbiz), r = db.ref(`users/${user.uid}/focus/jrbiz/${fk}`);
+        const on = !!((((data[JOSH_UID] || {}).focus) || {}).jrbiz || {})[fk]; await (on ? r.remove() : r.set({ sp, st, lv, by: meEmail(), at: isoNow() })); }
+    } catch (err) { toast('Couldn’t save that'); }
+    setTimeout(() => { if (WHY && WHY.kind === 'rules') openRules(); }, 300);
+  });
 
   // ---------- toast ----------
   let toastT = null, toastUndo = null;
@@ -1697,30 +2092,36 @@ if (typeof firebase !== 'undefined') (function () {
     ref.set(true).catch(e => console.warn(e));
     toast(`${p.site || 'Presentation'} removed from Presented (the ClickUp submission stays)`, () => { presHidden.delete(pid); ref.remove().catch(() => {}); render(); });
   }
-  function answer(jk, act) {
+  function answer(jk, act, why) {
     if (act === 'accepted') return acceptJob(jk);
     const x = findJob(jk); if (!x) return;
-    const url = act === 'accepted' ? x.j.accept : x.j.reject;
+    // with a reason: Make 6728396 records it on the job (q=1: your own answer is saved here, not by Make); without: the old link just marks it
+    const url = act === 'accepted' ? x.j.accept : why ? nsUrl(x.j.reject, Object.assign({ q: 1, by: meEmail() }, { r: why.r, sp: why.sp || '', st: why.st || '', lv: why.lv || '', w: why.w || '', n: why.note || '' })) : x.j.reject;
     hiddenNow.add(jk); render();                                   // gone straight away
     if (act === 'accepted') { if (url) window.open(url, '_blank', 'noopener'); }   // Accept still opens the Order confirmation
     else if (url) { try { fetch(url, { mode: 'no-cors', cache: 'no-store' }); } catch (e) { new Image().src = url; } }   // Not suitable: recorded quietly, no tab
     const rec = { s: act, by: user.email, at: new Date().toISOString() };
+    if (why) rec.r = why.r;
     const p = (async () => {
       try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).set(rec); } catch (e) { console.warn(e); }   // yours only
+      if (why) try { await db.ref(`users/${user.uid}/focus/nsr/${N.safeKey(jk)}`).set(why); } catch (e) { console.warn(e); }   // your desk's answer (desk rules count these)
     })();
-    toast(`${x.site} marked ${act === 'accepted' ? 'accepted – order opened' : 'not suitable'}`, async () => {
+    const RSN = { wrong: 'job details wrong', notwork: 'not work we do', rate: 'rate too low', filled: 'already filled', dup: 'duplicate', other: 'noted' };
+    toast(`${x.site} marked ${act === 'accepted' ? 'accepted – order opened' : 'not suitable'}${why ? ' – ' + RSN[why.r] : ''}`, async () => {
       await p;
       try { await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).remove(); } catch (e) { console.warn(e); }
+      if (why) try { await db.ref(`users/${user.uid}/focus/nsr/${N.safeKey(jk)}`).remove(); } catch (e) {}
       try { const st = await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).once('value'); if (mine(st.val())) await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).remove(); } catch (e) {}
       hiddenNow.delete(jk); render();
     });
   }
-  async function removeDoc(jk, dk, uid, name, site) {
-    const s = N.safeKey(dk), k = jk + '|' + s, rec = { by: user.email, at: new Date().toISOString() };
+  async function removeDoc(jk, dk, uid, name, site, why, msg, undoCal) {
+    const s = N.safeKey(dk), k = jk + '|' + s, rec = Object.assign({ by: user.email, at: new Date().toISOString() }, why || {});
     unremovedNow.delete(k); removedNow.add(k); render();
     try { await db.ref(`users/${user.uid}/focus/removed/${jk}/${s}`).set(rec); } catch (e) { console.warn(e); }   // yours only
-    toast(`${name} removed from ${site}`, async () => {
+    toast(`${name} removed from ${site}${msg ? ' · ' + msg : ''}`, async () => {
       removedNow.delete(k); unremovedNow.add(k); render();
+      if (undoCal) try { await undoCal(); } catch (e) { console.warn('undo calendar', e); }
       try { await db.ref(`users/${user.uid}/focus/removed/${jk}/${s}`).remove(); } catch (e) {}
       try { const r = await db.ref(`users/${uid}/jobmatches/${jk}/removed/${s}`).once('value'); if (mine(r.val())) await db.ref(`users/${uid}/jobmatches/${jk}/removed/${s}`).remove(); } catch (e) {}
       unremovedNow.delete(k);
@@ -1740,7 +2141,8 @@ if (typeof firebase !== 'undefined') (function () {
     if (t.dataset.rmjob) { removeRev(t.dataset.rmjob); return; }
     if (t.dataset.export != null) { openExport(); return; }
     if (t.dataset.selnone != null) { sel.clear(); render(); return; }
-    if (t.dataset.rm) { e.preventDefault(); hidePop(); removeDoc(t.dataset.jk, t.dataset.rm, t.dataset.uid, t.dataset.nm, t.dataset.site); }
+    if (t.dataset.rm) { e.preventDefault(); hidePop(); openDocWhy(t.dataset.jk, t.dataset.rm, t.dataset.uid, t.dataset.nm, t.dataset.site); }   // asks why first
+    else if (t.dataset.act === 'notsuitable') openJobWhy(t.dataset.jk);
     else if (t.dataset.act) answer(t.dataset.jk, t.dataset.act);
     else if (t.dataset.contact != null) { const a = V && V.lists.free.find(y => y.a.k === t.dataset.contact); setContacted(t.dataset.contact, !t.dataset.on, a ? a.d.name : 'Doctor'); }
     else if (t.dataset.open) openEx(t.dataset.open);
