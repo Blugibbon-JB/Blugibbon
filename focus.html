@@ -512,6 +512,97 @@ const Focus = (() => {
     return { parse, hit, firstHit, deskHit, deskRules, jobRate, fkey };
   })();
 
+  // ===== Hospital names (23 Oct 2026): job email wording -> one tidy hospital name, linked to the calendar's site when we're sure =====
+  // SITES.make(list) -> resolver; list = calendar sites [{id (Site ID), name, taskId}] (Firebase /sites)
+  // resolver(text, state) -> { name, key, multi: [{name, key}] }   key = Site ID ('' when no site is linked)
+  // SITES.blocked(notSites, job) -> name of the hospital the doctor isn't interested in ('' = fine)
+  const SITES = (() => {
+    const GEN = new Set('hospital hospitals hosp health healthcare service services campus base district regional public community memorial the and of centre center care general mps multi purpose multipurpose'.split(' '));
+    const toks = s => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/\bmt\b/g, 'mount').replace(/[’'`]/g, '').replace(/northeast/g, 'north east')
+      .split(/[^a-z0-9]+/).filter(Boolean);
+    const core = s => toks(s).filter(t => !GEN.has(t));
+    const nk = s => toks(s).join(' ');
+    // Josh 22 Oct: wording -> site name in the calendar (or a display name when there is no site). Keys are nk(wording).
+    const ALIAS = {
+      'albury': 'Albury Wodonga Health - Albury Campus', 'albury hospital': 'Albury Wodonga Health - Albury Campus', 'albury wodonga health': 'Albury Wodonga Health - Albury Campus',
+      'mercy health albury': '=Albury Private Hospital', 'wodonga hospital': '=Wodonga Hospital',
+      'bega south east regional hospital': 'Bega Hospital', 'south east regional hospital': 'Bega Hospital',
+      'bloomfield hospital': '=Bloomfield Hospital (Orange)', 'childers': '=Childers Hospital', 'cobram hospital': '=Cobram Hospital',
+      'horsham hospital': 'Grampians Health Horsham', 'leongatha hospital': 'Gippsland Southern Health Service', 'leongatha memorial hospital': 'Gippsland Southern Health Service',
+      'sale hospital': 'Central Gippsland Health Services', 'riverland general hospital': 'Riverland Regional Health Service (Berri Hospital)',
+      'hobart private hospital': 'Hobart Private Hospital Emergency',
+      'sunshine coast university hospital': 'Sunshine Coast Hospital and Health Service|Sunshine Coast University Hospital (public)',
+      'rockhampton private hospital': '=Rockhampton Private Hospital', 'townsville private hospital': '=Townsville Private Hospital',
+      'western health': '=Western Health (Melbourne)', 'st vincents hospital melbourne': "=St Vincent's Hospital Melbourne",
+      'tasmanian health service north west': 'North West Regional Hospital (Burnie Hospital)+Mersey Community Hospital',
+      'palmerston hospital': '=Palmerston Regional Hospital', 'palmerston regional hospital': '=Palmerston Regional Hospital', 'palmerston': '=Palmerston Regional Hospital',
+      'burnie': 'North West Regional Hospital (Burnie Hospital)', 'burnie hospital': 'North West Regional Hospital (Burnie Hospital)',
+      'mersey': 'Mersey Community Hospital', 'calvary mater': 'Calvary Mater Newcastle Hospital', 'hornsby ku ring gai hospital': 'Hornsby Hospital',
+      'north west regional hospital': 'North West Regional Hospital (Burnie Hospital)', 'north west regional hospital and community': 'North West Regional Hospital (Burnie Hospital)',
+      'st john of god midland public hospital': 'St John of God Midland Public and Private Hosp', 'latrobe': 'Mersey Community Hospital', 'maryborough hospital': 'Maryborough Hospitals', 'maryborough': 'Maryborough Hospitals'
+    };
+    // shorter names on Focus for a few long site names
+    const SHORT = { 'North West Regional Hospital (Burnie Hospital)': 'North West Regional Hospital (Burnie)', 'Kalgoorlie Health Campus (Kalgoorlie Hospital)': 'Kalgoorlie Health Campus',
+      'Narrogin Health Service (Narrogin Hospital)': 'Narrogin Hospital', 'Carnarvon Health Campus (Carnarvon Hospital)': 'Carnarvon Hospital', 'Esperance Health Campus (Esperance Hospital)': 'Esperance Hospital',
+      'Northam Health Service (Northam Hospital)': 'Northam Hospital', 'Townsville University Hospital (TUH)': 'Townsville University Hospital', 'Echuca Regional Health (ERH)': 'Echuca Regional Health' };
+    const TIDY_DROP = /\s+(and|&)\s+(health\s+service|community|district\s+health\s+service)s?\s*$/i;
+    const title = s => String(s || '').replace(/\s+/g, ' ').trim().replace(/\b(And|Of|The)\b/g, (m, w, i) => i ? w.toLowerCase() : w).replace(/\bAnd\b/g, 'and');
+    function tidy(t) { let s = title(String(t || '').replace(TIDY_DROP, '')); s = s.replace(/^the\s+/i, 'The '); return s; }
+    function make(list) {
+      const idx = [];
+      for (const s of Object.values(list || {})) {
+        if (!s || !s.name || /duplicate|\btest\b/i.test(s.name)) continue;
+        const nm = String(s.name).trim();
+        idx.push({ key: String(s.id || ''), name: nm, c: new Set(core(nm.replace(/\([^)]*\)/g, ' '))), opt: new Set(core(nm)) });
+      }
+      const byName = {}; idx.forEach(e => { byName[e.name.toLowerCase()] = e; });
+      const show = e => SHORT[e.name] || e.name;
+      function aliasTo(a) {
+        return a.split('+').map(part => {
+          if (part[0] === '=') return { name: part.slice(1), key: '' };
+          const [target, disp] = part.split('|'); const e = byName[target.toLowerCase()];
+          return e ? { name: disp || show(e), key: e.key } : { name: disp || target, key: '' };
+        });
+      }
+      // best site for one piece of wording: every distinctive word must be in the site's name and nothing extra in it (or one generic word off)
+      function one(text) {
+        const a = ALIAS[nk(text)]; if (a) return aliasTo(a);
+        const cs = core(text); if (!cs.length) return null;
+        const set = new Set(cs), hits = [];
+        for (const e of idx) {
+          if (!e.c.size || ![...e.c].every(w => set.has(w)) || ![...set].every(w => e.opt.has(w))) continue;
+          hits.push(e);
+        }
+        if (!hits.length) { const seg = String(text).split(/\s+[-–]\s+/); return seg.length > 1 ? one(seg[0]) : null; }   // "Forbes - Lachlan Health Service" -> Forbes
+        const exact = hits.filter(e => nk(e.name) === nk(text)); if (exact.length === 1) return [{ name: show(exact[0]), key: exact[0].key }];
+        // several with the same distinctive words (e.g. Wollongong Hospital / Wollongong Private Hospital): 'private' must agree
+        const priv = /\bprivate\b/i.test(text);
+        const pick = hits.filter(e => /\bprivate\b/i.test(e.name) === priv);
+        return (pick.length === 1 || hits.length === 1) ? [{ name: show(pick[0] || hits[0]), key: (pick[0] || hits[0]).key }] : null;
+      }
+      return function resolve(text, state) {
+        const raw = String(text || '').trim(); if (!raw) return { name: '', key: '', multi: [] };
+        let r = one(raw);
+        if (!r) {   // two hospitals in one: "Hervey Bay & Maryborough Hospitals", "North West Regional Hospital, Burnie and Mersey Community Hospital, Latrobe"
+          const parts = raw.replace(/\bhospitals\b/i, 'Hospital').split(/\s*(?:\/|&|\+|,|\band\b)\s*/i).map(s => s.trim()).filter(s => s.length > 2);
+          const got = []; for (const p of parts) { const x = one(p) || one(p + ' Hospital'); if (x) x.forEach(y => { if (!got.some(g => g.name === y.name)) got.push(y); }); }
+          if (got.length >= 2) r = got;
+        }
+        if (!r) r = [{ name: tidy(raw), key: '' }];
+        return { name: r.map(x => x.name).join(' + '), key: r.length === 1 ? r[0].key : '', multi: r.length > 1 ? r : [], raw };
+      };
+    }
+    const same = (a, b) => nk(a) && nk(a) === nk(b);
+    // notSites = [{k, n}] (k = Site ID, n = name); job = {sk, site, sites:[{name,key}]} -> blocked hospital name or ''
+    function blocked(notSites, job) {
+      const ns = (Array.isArray(notSites) ? notSites : Object.values(notSites || {})).filter(Boolean); if (!ns.length || !job) return '';
+      const hs = job.sites && job.sites.length ? job.sites : [{ name: job.site, key: job.sk || '' }];
+      const hit = h => ns.some(x => (x.k && h.key && String(x.k) === String(h.key)) || same(x.n, h.name));
+      return hs.length && hs.every(hit) ? hs.map(h => h.name).join(' + ') : '';
+    }
+    return { make, blocked, tidy, nk };
+  })();
+
   // the job as the rules see it (cards from 22 Oct carry rA / rU / spRaw; older ones: rate read from the text)
   const ruleJob = (j, lv) => ({ site: j.site, state: j.state, specialty: j.specialty, specialtyRaw: j.spRaw || String(j.title || '').split(' – ').slice(1).join(' – '), level: lv || j.lvN || 'Unknown', rate: j.rate, rateAmt: j.rA, rateUnit: j.rU });
 
@@ -621,13 +712,17 @@ const Focus = (() => {
   /* nodes: [{uid, node}] where node = users/{uid}; opts: {today, win, contacted:{AHPRA: date}} */
   function build(nodes, opts) {
     const today = opts.today, win = opts.win || 28, until = addDays(today, win);   // window = [today, until)
+    // tidy hospital name for every card: new cards carry it (site / sk / sites), older ones are worked out here from the calendar's site list
+    const RES = SITES.make(opts.sites || []);
+    const siteOfCard = j => (j.sk !== undefined || j.siteRaw) ? { site: j.site || '', sk: j.sk || '', sites: arr(j.sites), raw: j.siteRaw || j.site || '' } : (r => ({ site: r.name, sk: r.key, sites: r.multi, raw: j.site || '' }))(RES(j.site, j.state));
     const docs = {};            // key -> doctor info (merged across calendars)
     const evBy = {};            // key -> [normalised entries]
     for (const { uid, node } of nodes) {
       for (const [di, d] of Object.entries((node && node.doctors) || {})) {
         if (!d) continue; const k = key(d.ahpra_id || d.name); if (!k) continue;
         const o = docs[k] || (docs[k] = { k, name: String(d.name || '').trim() || k, level: '', spec: '', cu: '', base: '', specAll: '', prefs: '', pgy: '', tags: [], hidden: true, uids: [], refs: [], rl: [], rules: [] });
-        o.refs.push({ uid, di });                                   // where this doctor's profile lives (for writing rules)
+        o.refs.push({ uid, di });
+        o.ns = o.ns || []; for (const x of arr(d.not_sites)) if (x && (x.k || x.n) && !o.ns.some(y => y.k === x.k && y.n === x.n)) o.ns.push({ k: String(x.k || ''), n: String(x.n || ''), by: x.by || '', at: x.at || '' });                                   // where this doctor's profile lives (for writing rules)
         for (const r of arr(d.job_rules)) if (r && r.t && !o.rl.some(x => x.t === r.t)) { o.rl.push({ t: String(r.t), by: r.by || '', at: r.at || '' }); o.rules.push(...RULES.parse(r.t)); }
         o.base = o.base || String(d.where || '').trim();   // calendar 'Where' = where they want to work
         const pf = [d.prefs, d.specialty, arr(d.desired_specialties).join(', '), arr(d.tags).join(', ')].filter(Boolean).join(', ');
@@ -641,14 +736,14 @@ const Focus = (() => {
       }
       for (const [ei, e] of Object.entries((node && node.events) || {})) {
         if (!e) continue; const k = key(e.ahpra_id || (e.placement_data && e.placement_data.doctor_id)); if (!k) continue;
-        const n = norm(e); if (n) { n.uid = uid; n.ei = ei; n.rules = RULES.parse([e.requirements, e.notes].filter(Boolean).join('\n')); (evBy[k] = evBy[k] || []).push(n); }
+        const n = norm(e); if (n) { n.uid = uid; n.ei = ei; n.rules = RULES.parse([e.requirements, e.notes].filter(Boolean).join('\n')); n.ns = arr(e.not_sites).filter(x => x && (x.k || x.n)); (evBy[k] = evBy[k] || []).push(n); }
       }
     }
     const isBusy = (k, d) => (evBy[k] || []).some(x => (x.k === 'booked' || x.k === 'away') && d >= x.s && d < x.e);
     const freeOn = (k, d) => !isBusy(k, d) && (evBy[k] || []).some(x => (x.k === 'avail' || x.k === 'tent') && d >= x.s && d < x.e);
     // job rules: the doctor's own (profile) and 'just this block' ones on the availability entry
-    const docRuled = (k, rj) => { const d = docs[k]; return d && d.rules.length ? RULES.firstHit(d.rules, rj, canonSet) : ''; };
-    const blkRuled = (x, rj) => x.rules && x.rules.length ? RULES.firstHit(x.rules, rj, canonSet) : '';
+    const docRuled = (k, rj) => { const d = docs[k]; if (!d) return ''; return (d.rules.length ? RULES.firstHit(d.rules, rj, canonSet) : '') || (rj.si && d.ns && d.ns.length ? SITES.blocked(d.ns, rj.si) : ''); };
+    const blkRuled = (x, rj) => (x.rules && x.rules.length ? RULES.firstHit(x.rules, rj, canonSet) : '') || (rj.si && x.ns && x.ns.length ? SITES.blocked(x.ns, rj.si) : '');
     const freeOnJ = (k, d, rj) => !isBusy(k, d) && (evBy[k] || []).some(x => (x.k === 'avail' || x.k === 'tent') && d >= x.s && d < x.e && !blkRuled(x, rj));
 
     // doctors with availability still to come, prepared once for the live matcher
@@ -675,7 +770,7 @@ const Focus = (() => {
       if (!lvOk && rm && Number(rm[1]) >= 1500) lvOk = ['senior', 'registrar', 'training registrar', 'specialist', 'consultant'];
       if (lvOk && /\bnot\b[^,;]{0,25}\bregistrar/i.test(lvText)) lvOk = lvOk.filter(l => !/registrar/.test(l));
       const L = workLen(dates), lo = addDays(dates[0], -7), hi = addDays(dates[dates.length - 1], 8);
-      const rj = ruleJob(j, lv);
+      const rj = ruleJob(j, lv); rj.si = siteOfCard(j); rj.site = [rj.site, rj.si.site].join(' / ');
       for (const p of pool) {
         if (docRuled(p.k, rj)) continue;                  // the doctor's own rule rules this job out
         const evOk = a => [...a.specs].some(s => specs.has(s));
@@ -724,6 +819,7 @@ const Focus = (() => {
         if (seenJob.has(jk)) continue; seenJob.add(jk);
         const state = rec.state && (!opts.me || String(rec.state.by || '').toLowerCase() === opts.me) ? rec.state : null;   // someone else's answer doesn't count for you
         const rj = ruleJob(j, j.lvN || lvFromText([j.level, String(j.title || '').split(' – ').slice(1).join(' – ')].join(' ')));
+        const si = siteOfCard(j); rj.si = si; rj.site = [rj.site, si.site].join(' / ');
         if ((opts.desk || []).some(d => RULES.deskHit(d, rj, canonSet))) continue;   // 'not work we do' for your desk
         if ((opts.dismissed || {})[jk]) continue;   // answered by you (accepted / not suitable / removed) -> gone for you only
         const dates = arr(j.dates).filter(d => d >= today).sort();
@@ -731,7 +827,7 @@ const Focus = (() => {
         const pageRows = liveMatch(j, dates), mk = new Set(arr(j.docs).map(m => key(m && m.k)));
         const cands = arr(j.docs).concat(pageRows.filter(r => !mk.has(r.k)));
         const pageHit = pageRows.some(r => r.g !== 'near' && r.c && (r.c === r.n || r.c / r.n >= 0.5));
-        if (dates.length && j.um && !(pageHit && dates[0] < until)) { unmatched.push({ jk, uid, j, state, dates }); continue; }   // desk job with no doctor free -> reverse market (any start date)
+        if (dates.length && j.um && !(pageHit && dates[0] < until)) { unmatched.push({ jk, uid, j, state, dates, si }); continue; }   // desk job with no doctor free -> reverse market (any start date)
         if (!dates.length || dates[0] >= until) continue;          // only jobs starting inside the look-ahead window
         const live = [], near = [];
         for (const m of cands) {
@@ -748,7 +844,7 @@ const Focus = (() => {
           if (m.g !== 'near' && c > 0) live.push(row);
         }
         live.sort((a, b) => b.c - a.c || a.name.localeCompare(b.name));
-        const item = { jk, uid, j, state, dates, live, near };
+        const item = { jk, uid, j, state, dates, live, near, si };
         if (live.length) { jobs.push(item); if (!state) live.forEach(r => inJob.add(r.k)); }
         else if (near.length) { nearJobs.push(item); if (!state) near.forEach(r => inNear.add(r.k)); }
       }
@@ -810,10 +906,10 @@ const Focus = (() => {
     const coverFor = (k, ds) => (ds || []).filter(d => freeOn(k, d)).length;     // how many of these days the doctor is free (presenting)
     // the availability entry a job was matched on (first one covering a job date), for 'just this block' rules
     const blockFor = (k, ds) => (evBy[k] || []).find(x => (x.k === 'avail' || x.k === 'tent') && (ds || []).some(d => d >= x.s && d < x.e)) || (evBy[k] || []).find(x => (x.k === 'avail' || x.k === 'tent') && x.e > today) || null;
-    const blockRules = k => { const out = []; for (const x of evBy[k] || []) if ((x.k === 'avail' || x.k === 'tent') && x.e > today) for (const r of x.rules || []) if (!out.includes(r.raw)) out.push(r.raw); return out; };
-    return { blockFor, blockRules, ruleJob, today, win, jobs, nearJobs, unmatched, anyUm, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, coverFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
+    const blockRules = k => { const out = []; for (const x of evBy[k] || []) if ((x.k === 'avail' || x.k === 'tent') && x.e > today) { for (const r of x.rules || []) if (!out.includes(r.raw)) out.push(r.raw); for (const s of x.ns || []) { const t = 'Not interested in: ' + (s.n || s.k); if (!out.includes(t)) out.push(t); } } return out; };
+    return { blockFor, blockRules, ruleJob, siteOfCard, today, win, jobs, nearJobs, unmatched, anyUm, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, coverFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
   }
-  return { build, safeKey, addDays, nice, short, span, ranges, sydToday, key, RULES, ruleJob, canonSet, lvFromText };
+  return { build, safeKey, addDays, nice, short, span, ranges, sydToday, key, RULES, SITES, ruleJob, canonSet, lvFromText };
 })();
 if (typeof module !== 'undefined') module.exports = Focus;
 </script><script>
@@ -863,6 +959,7 @@ if (typeof firebase !== 'undefined') (function () {
   let gq = '';   // master search (header)
   let open = store.get('focus.open', ''); if (!ALL_IDS.includes(open)) open = null;
   let data = {}, ref = null, loaded = false, V = null, q = '';
+  let siteList = [];   // the calendar's site list (Firebase /sites) - tidy hospital names on older job cards
 
   // ---------- icons (Lucide) ----------
   const svg = (w, inner, sw) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw || 2}" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
@@ -956,6 +1053,7 @@ if (typeof firebase !== 'undefined') (function () {
     $('scopeSeg').hidden = !admin; if (!admin) scope = viewOnly ? 'all' : 'mine';
     setSeg($('scopeSeg'), 's', scope); setSeg($('winSeg'), 'w', win);
     listen();
+    if (!siteList.length) db.ref('sites').once('value').then(s => { siteList = Object.values(s.val() || {}).filter(x => x && x.name); if (loaded) render(); }).catch(e => console.warn('sites', e));
   });
   // Job Matches (Make 6526556) writes the jobs-inbox cards onto these calendars. In "Mine" the page reads them too and
   // matches them against your own doctors, so jobs aren't limited to whichever calendar Make happened to write them on.
@@ -1009,10 +1107,10 @@ if (typeof firebase !== 'undefined') (function () {
   // ---------- view models ----------
   function build() {
     const today = N.sydToday();
-    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, me: String(user.email || '').toLowerCase(), contacted: contactedMap(), dismissed: dismissedMap(), removed: removedSet(), desk: deskRulesNow() });
+    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, me: String(user.email || '').toLowerCase(), contacted: contactedMap(), dismissed: dismissedMap(), removed: removedSet(), desk: deskRulesNow(), sites: siteList });
     const pops = {}; let pi = 0;
     const jobVM = (x, near) => {
-      const j = x.j, { site, role } = shortTitle(j.title), docs = near ? x.near : x.live, n = x.dates.length;
+      const j = x.j, { site: tSite, role } = shortTitle(j.title), site = (x.si && x.si.site) || tSite, docs = near ? x.near : x.live, n = x.dates.length;
       const chips = docs.map(r => {
         const all = r.c === r.n, tip = (near ? (r.why || 'Close match') : all ? `Free all ${r.n} days` : `Free ${r.c} of ${r.n} days`) + (r.page ? ' · matched from current availability' : '');
         let pid = '';
@@ -1039,7 +1137,7 @@ if (typeof firebase !== 'undefined') (function () {
         q: [d.name, lvWords(d.level), d.spec, d.specAll, d.base, where, t, b.location].join(' ').toLowerCase() };
     });
     const rev = F.unmatched.map(x => {
-      const j = x.j, { site, role } = shortTitle(j.title), n = x.dates.length, fit = arr(j.fit).filter(f => f && F.docs[N.key(f.k)] && !F.docs[N.key(f.k)].hidden);   // only doctors on the calendars you're viewing
+      const j = x.j, { site: tSite, role } = shortTitle(j.title), site = (x.si && x.si.site) || tSite, n = x.dates.length, fit = arr(j.fit).filter(f => f && F.docs[N.key(f.k)] && !F.docs[N.key(f.k)].hidden);   // only doctors on the calendars you're viewing
       return { kind: 'rev', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, ds: x.dates, roleFull: String(j.title || '').split(' – ').slice(1).join(' – ') || j.specialty || '',
         st: j.state || '', n, dates: compactDates(x.dates), when: longDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a',
         req: [j.req, j.travel].filter(Boolean).join(' · '), fit,
@@ -1460,7 +1558,8 @@ if (typeof firebase !== 'undefined') (function () {
       ['PGY', esc(doc.pgy || '')],
       ['TAGS', (doc.tags || []).length ? doc.tags.map(t => `<span class="ptag">${esc(t)}</span>`).join(' ') : ''],
       ['NOTES', notes.length ? notes.slice(0, 3).map(esc).join('<br>') : ''],
-      ['RULES', [...(doc.rl || []).map(r => `⛔ ${esc(r.t)} <span style="color:#8a93a3">profile${r.by ? ' · ' + esc(String(r.by).split('@')[0]) : ''}</span>`),
+      ['RULES', [...(doc.ns || []).map(r => `⛔ Not interested in: ${esc(r.n || r.k)} <span style="color:#8a93a3">profile${r.by ? ' · ' + esc(String(r.by).split('@')[0]) : ''}</span>`),
+        ...(doc.rl || []).map(r => `⛔ ${esc(r.t)} <span style="color:#8a93a3">profile${r.by ? ' · ' + esc(String(r.by).split('@')[0]) : ''}</span>`),
         ...V.F.blockRules(p.k).map(t => `⛔ ${esc(t)} <span style="color:#8a93a3">availability</span>`)].join('<br>')],
       ['LAST BOOKED', cur ? 'Current – ends ' + esc(day(cur)) : last ? esc(day(last)) : ''],
       ['PRESENTED', ((V.presByDoc || {})[p.k] || []).slice().sort((a, b) => b.at - a.at).slice(0, 4).map(r => `${esc(r.site || 'Job')} <span style="color:#8a93a3">${esc(agoMs(r.at))}</span>`).join('<br>')]
@@ -1573,6 +1672,26 @@ if (typeof firebase !== 'undefined') (function () {
       created_by: meEmail(), lastModified: isoNow(), lastModifiedBy: 'focus' }));
     return id;
   }
+  // 'Not interested in' hospitals: [{k: Site ID, n: name, by, at}] on a block or on the doctor's profile
+  const nsKey = x => x.k ? 'k:' + x.k : 'n:' + N.SITES.nk(x.n);
+  function nsApply(cur, ents, add) {
+    const list = listOf(cur).filter(Boolean), have = new Set(list.map(nsKey));
+    if (add) { const nu = ents.filter(x => !have.has(nsKey(x))); if (!nu.length) return null; return list.concat(nu.map(x => ({ k: x.k || '', n: x.n || '', by: meEmail(), at: isoNow() }))); }
+    const drop = new Set(ents.map(nsKey)), out = list.filter(x => !drop.has(nsKey(x))); return out.length === list.length ? null : out;
+  }
+  const nsBlock = (uid, evId, k, ents, add) => txList(uid, 'events', list => {
+    const e = list.find(x => x && String(x.id) === String(evId) && N.key(x.ahpra_id) === k); if (!e) return;
+    const nx = nsApply(e.not_sites, ents, add); if (!nx) return 'noop';
+    e.not_sites = nx; e.lastModified = isoNow(); e.lastModifiedBy = 'focus'; e.updated_by = meEmail(); return list; });
+  async function nsProfile(k, ents, add) {
+    const refs = ((V && V.F.docs[k]) || {}).refs || []; let ok = 0, fail = 0;
+    for (const uid of [...new Set(refs.map(r => r.uid))]) {
+      try { await txList(uid, 'doctors', list => { const d = list.find(x => x && N.key(x.ahpra_id || x.name) === k); if (!d) return;
+        const nx = nsApply(d.not_sites, ents, add); if (!nx) return 'noop'; d.not_sites = nx; d.lastModified = isoNow(); d.lastModifiedBy = 'focus'; return list; }); ok++; }
+      catch (e) { console.warn('not interested', uid, e); fail++; }
+    }
+    return { ok, fail };
+  }
   const removeBlock = (uid, id) => txList(uid, 'events', list => { const i = list.findIndex(x => x && x.id === id); if (i < 0) return 'noop'; list.splice(i, 1); return list; });
 
   // ---------- the pop-up ----------
@@ -1591,17 +1710,21 @@ if (typeof firebase !== 'undefined') (function () {
     const blk = V.F.blockFor(k, arr(j.dates).filter(d => d >= N.sydToday()));
     const g = rateGuess(j);
     const ds = arr(j.dates).filter(d => d >= N.sydToday()).sort();
-    WHY = { kind: 'doc', jk, dk, k, uid, name, site, j, f, blk, pick: '', scope: blk ? 'block' : 'ongoing', town: townOf(j.site || site), amt: g.amt, unit: g.unit,
+    const si = ((findAnyJob(jk) || {}).si) || V.F.siteOfCard(j), hosp = si.sites && si.sites.length ? si.sites : si.site ? [{ name: si.site, key: si.sk || '' }] : [];
+    WHY = { kind: 'doc', jk, dk, k, uid, name, site, j, f, blk, pick: '', scope: blk ? 'block' : 'ongoing', town: townOf(si.raw || j.site || site), amt: g.amt, unit: g.unit,
+      hosp, hsel: hosp.map(() => hosp.length === 1), smode: hosp.length ? 'hosp' : 'area',
       nl: { lv: !!f.lv, sp: false }, until: N.addDays(N.sydToday(), 90), s: ds[0] || '', e: ds[ds.length - 1] || '', note: '' };
     renderWhy(); $('whySet').hidden = false;
   }
   function docLine(w) {
     w = w || WHY; if (!w) return '';
-    if (w.pick === 'site') return w.town.trim() ? `Won't go: ${w.town.trim()}` : '';
+    if (w.pick === 'site') return w.smode === 'area' && w.town.trim() ? `Won't go: ${w.town.trim()}` : '';
     if (w.pick === 'rate') return Number(w.amt) > 0 ? `Min rate: $${Number(w.amt)}/${unitTxt(w.unit)}` : '';
     if (w.pick === 'level') { const parts = [w.nl.lv && w.f.lv ? w.f.lv : '', w.nl.sp && w.f.sp ? w.f.sp : ''].filter(Boolean); return parts.length ? `Not: ${parts.join(' ')}${w.nl.lv && !w.nl.sp ? ' roles' : ''}` : ''; }
     return '';
   }
+  const nsPicked = w => w.pick === 'site' && w.smode === 'hosp' ? w.hosp.filter((h, i) => w.hsel[i]) : [];
+  const docOk = w => w.pick === 'site' ? (w.smode === 'hosp' ? nsPicked(w).length > 0 : !!docLine(w)) : ['rate', 'level'].includes(w.pick) ? !!docLine(w) : w.pick === 'nolocums' ? !!w.until : w.pick === 'other' ? !!w.note.trim() : !!w.pick;
   function renderWhy() {
     const w = WHY; if (!w) return;
     let h = '';
@@ -1619,12 +1742,13 @@ if (typeof firebase !== 'undefined') (function () {
         <div class="wopt${w.pick === 'other' ? ' wsel' : ''}"><div class="wl">Other</div><input id="wNote" placeholder="What was wrong with it?" maxlength="300" value="${esc(w.note)}"></div>`;
     } else {
       const f = w.f, blkEnd = w.blk ? N.addDays(w.blk.e, -1) : '';
-      const lineNow = docLine();
+      const lineNow = w.pick === 'site' && w.smode === 'hosp' ? (nsPicked(w).length ? 'Not interested in: ' + nsPicked(w).map(x => x.name).join(', ') : '') : docLine();
       const scope = ['site', 'rate', 'level'].includes(w.pick) ? `<div class="wscope">${chip(w.scope === 'block', `data-wscope="block"${w.blk ? '' : ' disabled'}`, w.blk ? `Just this availability (to ${day(blkEnd)})` : 'Just this availability (none found)')}${chip(w.scope === 'ongoing', 'data-wscope="ongoing"', 'Ongoing – on their profile')}</div>
         ${lineNow ? `<div class="wh">Adds <b>${esc(lineNow)}</b> to ${w.scope === 'block' ? 'this availability block' : 'their profile'} in the calendar. Similar jobs stop showing for them.</div>` : ''}` : '';
       h = `<div class="mT">Why isn’t ${esc(w.name)} right for this?</div><p class="wsub">${esc(w.site)} · ${esc(w.f.raw || '')}</p>
-        <div class="wopt${w.pick === 'site' ? ' wsel' : ''}" data-wd="site"><div class="wl">Won’t go to this site / area</div>
-          ${w.pick === 'site' ? `<input id="wTown" value="${esc(w.town)}" placeholder="Town, site or state (e.g. Dubbo, NT)">` : ''}</div>
+        <div class="wopt${w.pick === 'site' ? ' wsel' : ''}" data-wd="site"><div class="wl">Not interested in this hospital / area</div>
+          ${w.pick === 'site' ? `<div class="wcs">${w.hosp.map((x, i) => chip(w.smode === 'hosp' && w.hsel[i], `data-whs="${i}"`, 'Not interested in ' + x.name)).join('')}${chip(w.smode === 'area', 'data-wsm="area"', 'A town, area or state instead')}</div>
+          ${w.smode === 'area' ? `<input id="wTown" value="${esc(w.town)}" placeholder="Town, site or state (e.g. Dubbo, NT)">` : ''}` : ''}</div>
         <div class="wopt${w.pick === 'rate' ? ' wsel' : ''}" data-wd="rate"><div class="wl">Rate too low for them</div>
           ${w.pick === 'rate' ? `<div class="wrate">Min $<input id="wAmt" type="number" min="0" step="5" value="${esc(w.amt)}"><select id="wUnit">${['hour', 'day', 'week'].map(u => `<option value="${u}"${w.unit === u ? ' selected' : ''}>per ${u}</option>`).join('')}</select></div>` : ''}</div>
         <div class="wopt${w.pick === 'level' ? ' wsel' : ''}" data-wd="level"><div class="wl">Wrong level or specialty for this</div>
@@ -1637,7 +1761,7 @@ if (typeof firebase !== 'undefined') (function () {
         <div class="wopt${w.pick === 'other' ? ' wsel' : ''}" data-wd="other"><div class="wl">Other</div>${w.pick === 'other' ? `<input id="wNote" placeholder="Why? (saved with the removal)" maxlength="300" value="${esc(w.note)}">` : ''}</div>`;
     }
     const can = w.kind === 'job' ? (w.pick === 'wrong' ? !!w.w : w.pick === 'notwork' ? Object.values(w.nw).some(Boolean) : w.pick === 'other' ? !!w.note.trim() : !!w.pick)
-      : (['site', 'rate', 'level'].includes(w.pick) ? !!docLine() : w.pick === 'nolocums' ? !!w.until : w.pick === 'other' ? !!w.note.trim() : !!w.pick);
+      : docOk(w);
     h += `<div class="wft"><button type="button" class="wskip" data-wskip>${w.kind === 'job' ? 'Skip – just mark not suitable' : 'Skip – just take them off this job'}</button><span class="sp"></span>
       <button type="button" class="wcancel" data-wcancel>Cancel</button><button type="button" class="wsave" data-wsave${can ? '' : ' disabled'}>Save</button></div>`;
     whyBox().innerHTML = h;
@@ -1651,12 +1775,12 @@ if (typeof firebase !== 'undefined') (function () {
     else if (id === 'wUnit') WHY.unit = e.target.value; else if (id === 'wUntil') WHY.until = e.target.value;
     const sv = whyBox().querySelector('[data-wsave]'); const lineB = whyBox().querySelector('.wh b');
     if (WHY.kind === 'doc' && lineB && ['site', 'rate', 'level'].includes(WHY.pick)) lineB.textContent = docLine();
-    if (sv) sv.disabled = WHY.kind === 'doc' ? (['site', 'rate', 'level'].includes(WHY.pick) ? !docLine() : WHY.pick === 'other' ? !WHY.note.trim() : !WHY.pick) : (WHY.pick === 'other' ? !WHY.note.trim() : !WHY.pick);
+    if (sv) sv.disabled = WHY.kind === 'doc' ? !docOk(WHY) : (WHY.pick === 'other' ? !WHY.note.trim() : !WHY.pick);
   });
   document.addEventListener('change', e => { if (WHY && (e.target.id === 'wUnit' || e.target.id === 'wUntil')) e.target.dispatchEvent(new Event('input', { bubbles: true })); });
   document.addEventListener('click', e => {
     if (e.target.id === 'whySet') { closeWhy(); return; }
-    const t = e.target.closest('#whyBox [data-wj],#whyBox [data-wd],#whyBox [data-wscope],#whyBox [data-wnl],#whyBox [data-wskip],#whyBox [data-wcancel],#whyBox [data-wsave]'); if (!t || !WHY) return;
+    const t = e.target.closest('#whyBox [data-wj],#whyBox [data-wd],#whyBox [data-wscope],#whyBox [data-wnl],#whyBox [data-whs],#whyBox [data-wsm],#whyBox [data-wskip],#whyBox [data-wcancel],#whyBox [data-wsave]'); if (!t || !WHY) return;
     if (e.target.closest('input,select') && !t.matches('button')) return;
     const w = WHY, d = t.dataset;
     if (d.wcancel != null) return closeWhy();
@@ -1666,6 +1790,8 @@ if (typeof firebase !== 'undefined') (function () {
     else if (d.wd && w.pick !== d.wd) w.pick = d.wd;
     else if (d.wscope && !t.disabled) w.scope = d.wscope;
     else if (d.wnl) w.nl[d.wnl] = !w.nl[d.wnl];
+    else if (d.whs != null) { if (w.smode !== 'hosp') { w.smode = 'hosp'; } w.hsel[+d.whs] = !w.hsel[+d.whs]; }
+    else if (d.wsm) w.smode = d.wsm;
     renderWhy();
   });
   async function saveWhy() {
@@ -1682,7 +1808,19 @@ if (typeof firebase !== 'undefined') (function () {
     if (w.note.trim()) why.note = w.note.trim().slice(0, 300);
     let undoCal = null, msg = '';
     try {
-      if (['site', 'rate', 'level'].includes(w.pick)) {
+      if (w.pick === 'site' && w.smode === 'hosp') {
+        const ents = nsPicked(w).map(x => ({ k: x.key || '', n: x.name })), names = ents.map(x => x.n).join(', ');
+        why.notSites = names; why.scope = w.scope;
+        if (w.scope === 'block' && w.blk) {
+          await nsBlock(w.blk.uid, w.blk.ev.id, w.k, ents, true);
+          undoCal = () => nsBlock(w.blk.uid, w.blk.ev.id, w.k, ents, false);
+          msg = `not interested in ${names} for this availability`;
+        } else {
+          const r = await nsProfile(w.k, ents, true); if (!r.ok) throw new Error('no access');
+          undoCal = () => nsProfile(w.k, ents, false);
+          msg = `${names} added to ${w.name}’s “Not interested in”${r.fail ? ' (one calendar couldn’t be updated)' : ''}`;
+        }
+      } else if (['site', 'rate', 'level'].includes(w.pick)) {
         const line = docLine(w); why.rule = line; why.scope = w.scope;
         if (w.scope === 'block' && w.blk) {
           await blockLine(w.blk.uid, w.blk.ev.id, w.k, line, true);
