@@ -3869,6 +3869,8 @@ function buildClickUpUrl(taskId){
 }
 
 function uid(){ return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16); }
+// Job rules on a doctor's profile (22 Oct 2026): [{t, by, at}] - written here or from Doctor Focus; the job matching reads them for every availability block
+function bgJobRules(d){ const v = d && d.job_rules; return (Array.isArray(v) ? v : Object.values(v || {})).filter(r => r && String(r.t || "").trim()); }
 
 function applyRangeOverride(doctorId, startISO, endExISO, newEvent, replaceEventId){
   // Enforce ONE status per day by removing/splitting any overlapping blocks for this doctor,
@@ -8260,6 +8262,7 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
         if(__b2.req) lines.push(`Details: ${__b2.req}`);
       }
     } else if(e.location) lines.push(`Where: ${e.location}`);
+    if(e.job_rules) lines.push(`Rules (profile): ${e.job_rules}`);
     if(e.placement_id) lines.push(`Placement ID: ${e.placement_id}`);
     const cu = e.cu_info;
     if(cu){
@@ -8727,6 +8730,7 @@ function renderDoctorList(){
           <div class="docName">${esc(d.name || "(no name)")}</div>
           <div class="docMeta">AHPRA ${esc(d.ahpra_id || "")}</div>
           <div class="docMeta">${esc([d.specialty, d.prefs, d.pgy ? `PGY ${d.pgy}`:"", d.level].filter(Boolean).join(" • "))}</div>
+          ${bgJobRules(d).length ? `<div class="docMeta" title="Job rules – edit in View & Edit">⛔ ${esc(bgJobRules(d).map(r => r.t).join(" · "))}</div>` : ``}
           <div class="docActions">
             <button class="miniBtn viewEditBtn" type="button" title="View and edit this doctor's details">View &amp; Edit</button>
             <button class="miniBtn moreBtn" type="button" aria-haspopup="menu" aria-expanded="false" title="More actions">More ▾</button>
@@ -9443,7 +9447,8 @@ function renderCalendar(){
         placement_id: e.placement_id || e.placement_data?.placement_id || e.clickup_placement_id,
         event_id: e.id, // Store the full event ID for loading full data if needed
         cu_info: e.source === 'clickup' ? (e.cu_info || {}) : null,
-        bg_v2: bgIsV2(e) ? { spec: bgArr(e.desired_specialties), states: bgArr(e.states), sites: bgArr(e.site_ids).map(bgSiteName), req: String(e.requirements || ""), avail: BG_AVAIL_STATUSES.has(e.status) } : null
+        bg_v2: bgIsV2(e) ? { spec: bgArr(e.desired_specialties), states: bgArr(e.states), sites: bgArr(e.site_ids).map(bgSiteName), req: String(e.requirements || ""), avail: BG_AVAIL_STATUSES.has(e.status) } : null,
+        job_rules: /^(available|tentative)$/i.test(String(e.status || "")) ? bgJobRules(docById.get(String(e.ahpra_id))).map(r => r.t).join(" · ") : ""
       };
 
       // Show doctor name in title if showing multiple doctors (all-doctors view or tag-filtered view)
@@ -10514,6 +10519,11 @@ function openDoctorEditor(existing){
       <label>Tags (comma separated)</label>
       <input id="docTags" value="${esc((existing?.tags || []).join(", "))}" placeholder="e.g., ED, GP, Rural Gen, NSW, WA"/>
     </div>
+    <div class="field full">
+      <label>Job rules <span class="bg-optional">one per line – apply to every availability block</span></label>
+      <textarea id="docRules" rows="3" placeholder="Won't go: Dubbo, NT&#10;Min rate: $180/hr&#10;Not: Registrar roles">${esc(bgJobRules(existing).map(r => r.t).join("\n"))}</textarea>
+      <div class="hint">Job matching and Doctor Focus skip jobs these rule out. Use <b>Won't go:</b> (towns, sites or states), <b>Min rate:</b> ($ per hr / day) or <b>Not:</b> (a level and/or specialty). Rules for one block only go in that block's Requirements.</div>
+    </div>
   `;
 
   modalFooter.innerHTML = `
@@ -10552,7 +10562,10 @@ function openDoctorEditor(existing){
     onChange: sel => { __docWhereEl.value = sel.join(", "); }
   });
   __docWhereEl.value = __docStatePick.get().join(", ");
-  const __docExtra = () => ({ desired_specialties: __docPick.get(), prefs_legacy: __prefsLegacy || "", work_states: __docStatePick.get(), where_legacy: __whereLegacy || "" });
+  const __docRules = () => { const old = bgJobRules(existing), who = (typeof firebase_user !== "undefined" && firebase_user && firebase_user.email) || "", now = new Date().toISOString();
+    const lines = String(document.getElementById("docRules")?.value || "").split("\n").map(s => s.trim()).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
+    return lines.map(t => old.find(r => r.t === t) || { t, by: who, at: now }); };
+  const __docExtra = () => ({ desired_specialties: __docPick.get(), prefs_legacy: __prefsLegacy || "", work_states: __docStatePick.get(), where_legacy: __whereLegacy || "", job_rules: __docRules() });
 
   // ClickUp-synced doctor: lock only the Med Reg # (it's what links this doctor to ClickUp)
   if(isEdit && existing?.source === 'clickup'){
