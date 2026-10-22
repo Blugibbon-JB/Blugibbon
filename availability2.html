@@ -3870,6 +3870,13 @@ function buildClickUpUrl(taskId){
 
 function uid(){ return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16); }
 // Job rules on a doctor's profile (22 Oct 2026): [{t, by, at}] - written here or from Doctor Focus; the job matching reads them for every availability block
+// 'Not interested in' hospitals (23 Oct 2026): [{k: Site ID, n: name, by, at}] on the doctor's profile (ongoing) or on one availability block
+function bgNotSites(x){ const v = x && x.not_sites; return (Array.isArray(v) ? v : Object.values(v || {})).filter(s => s && (s.k || s.n)); }
+const bgNsVal = s => s.k ? String(s.k) : "n:" + s.n;
+const bgNsLabel = v => String(v).startsWith("n:") ? String(v).slice(2) : bgSiteName(v);
+function bgNsFromValues(vals, old){ const who = (typeof firebase_user !== "undefined" && firebase_user && firebase_user.email) || "", now = new Date().toISOString();
+  return bgUniq(vals).map(v => old.find(o => bgNsVal(o) === v) || { k: String(v).startsWith("n:") ? "" : String(v), n: bgNsLabel(v), by: who, at: now }); }
+function bgNsOptions(old){ return bgUniq([...Object.values((typeof sitesCache !== "undefined" && sitesCache) || {}).filter(s => s && s.id).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))).map(s => String(s.id)), ...old.map(bgNsVal)]); }
 function bgJobRules(d){ const v = d && d.job_rules; return (Array.isArray(v) ? v : Object.values(v || {})).filter(r => r && String(r.t || "").trim()); }
 
 function applyRangeOverride(doctorId, startISO, endExISO, newEvent, replaceEventId){
@@ -8262,6 +8269,7 @@ const calendar = window.__bgCalendar = new FullCalendar.Calendar(calendarEl, {
         if(__b2.req) lines.push(`Details: ${__b2.req}`);
       }
     } else if(e.location) lines.push(`Where: ${e.location}`);
+    if(e.not_sites) lines.push(`Not interested in: ${e.not_sites}`);
     if(e.job_rules) lines.push(`Rules (profile): ${e.job_rules}`);
     if(e.placement_id) lines.push(`Placement ID: ${e.placement_id}`);
     const cu = e.cu_info;
@@ -8730,6 +8738,7 @@ function renderDoctorList(){
           <div class="docName">${esc(d.name || "(no name)")}</div>
           <div class="docMeta">AHPRA ${esc(d.ahpra_id || "")}</div>
           <div class="docMeta">${esc([d.specialty, d.prefs, d.pgy ? `PGY ${d.pgy}`:"", d.level].filter(Boolean).join(" • "))}</div>
+          ${bgNotSites(d).length ? `<div class="docMeta" title="Not interested in – edit in View & Edit">⛔ Not: ${esc(bgNotSites(d).map(s => s.n || bgSiteName(s.k)).join(", "))}</div>` : ``}
           ${bgJobRules(d).length ? `<div class="docMeta" title="Job rules – edit in View & Edit">⛔ ${esc(bgJobRules(d).map(r => r.t).join(" · "))}</div>` : ``}
           <div class="docActions">
             <button class="miniBtn viewEditBtn" type="button" title="View and edit this doctor's details">View &amp; Edit</button>
@@ -9448,7 +9457,8 @@ function renderCalendar(){
         event_id: e.id, // Store the full event ID for loading full data if needed
         cu_info: e.source === 'clickup' ? (e.cu_info || {}) : null,
         bg_v2: bgIsV2(e) ? { spec: bgArr(e.desired_specialties), states: bgArr(e.states), sites: bgArr(e.site_ids).map(bgSiteName), req: String(e.requirements || ""), avail: BG_AVAIL_STATUSES.has(e.status) } : null,
-        job_rules: /^(available|tentative)$/i.test(String(e.status || "")) ? bgJobRules(docById.get(String(e.ahpra_id))).map(r => r.t).join(" · ") : ""
+        job_rules: /^(available|tentative)$/i.test(String(e.status || "")) ? bgJobRules(docById.get(String(e.ahpra_id))).map(r => r.t).join(" · ") : "",
+        not_sites: /^(available|tentative)$/i.test(String(e.status || "")) ? [...bgNotSites(docById.get(String(e.ahpra_id))).map(s => s.n || bgSiteName(s.k)), ...bgNotSites(e).map(s => (s.n || bgSiteName(s.k)) + " (this block)")].join(", ") : ""
       };
 
       // Show doctor name in title if showing multiple doctors (all-doctors view or tag-filtered view)
@@ -9663,6 +9673,10 @@ function openEventEditor(payload){
       <label><span class="bg-avail-only-inline">Specific site(s) <span class="bg-optional">optional – only if they want particular sites</span></span><span class="bg-other-only-inline">Site(s) <span class="bg-optional">first site is used for the ClickUp order</span></span></label>
       <div id="evSitePick"></div>
     </div>
+    <div class="field full bg-avail-only">
+      <label>Not interested in <span class="bg-optional">hospitals they won't do for this block only – the doctor's profile has their ongoing list</span></label>
+      <div id="evNotSitePick"></div>
+    </div>
     <div class="field full" style="display:none; padding:8px; background:#fef3cd; border:1px solid #ffc107; border-radius:6px;" id="siteWarning">
       ⚠️ You must select a site to create an order on ClickUp
     </div>
@@ -9722,7 +9736,8 @@ function openEventEditor(payload){
   const __reqEl = document.getElementById("evReq");
   const __labelEl = document.getElementById("evLabel");
   const __statusEl = document.getElementById("evStatus");
-  let specPick = null, statePick = null, sitePick = null;
+  let specPick = null, statePick = null, sitePick = null, notSitePick = null;
+  const __nsOldBlk = bgNotSites(payload);
 
   function bgCollect(){
     const status = __statusEl.value;
@@ -9741,6 +9756,7 @@ function openEventEditor(payload){
       form_v: 2, status, title: label || status,
       desired_specialties: spec, states, site_ids: sites, site_id: sites[0] || "",
       requirements: req, min_block_days: avail ? bgMinBlockDays(req) : 0,
+      not_sites: avail && notSitePick ? bgNsFromValues(notSitePick.get(), __nsOldBlk) : __nsOldBlk,
       notes: __fv.legacyNotes || "", location
     };
   }
@@ -9767,6 +9783,8 @@ function openEventEditor(payload){
     placeholder: "Type to find a speciality (e.g. emerg, gen med, psych)… Enter adds the first match", pinned: BG_SPEC_PRIORITY_DESIRED, onChange: __sync });
   statePick = bgMultiPick(document.getElementById("evStatePick"), {
     options: BG_STATES, selected: __fv.states, allButton: "All states", emptyText: "none selected", onChange: __sync });
+  notSitePick = bgMultiPick(document.getElementById("evNotSitePick"), { options: bgNsOptions(__nsOldBlk), selected: __nsOldBlk.map(bgNsVal), labelOf: bgNsLabel, searchable: true,
+    placeholder: "Type a hospital… Enter adds the first match", emptyText: "none", onChange: () => { try { __sync(); } catch(e){} } });
   sitePick = bgMultiPick(document.getElementById("evSitePick"), {
     options: __siteOpts, selected: __fv.sites, labelOf: bgSiteName, searchable: true,
     placeholder: __siteOpts.length ? "Type a site name… Enter adds the first match" : "No sites loaded – import the ClickUp Sites CSV",
@@ -10520,6 +10538,10 @@ function openDoctorEditor(existing){
       <input id="docTags" value="${esc((existing?.tags || []).join(", "))}" placeholder="e.g., ED, GP, Rural Gen, NSW, WA"/>
     </div>
     <div class="field full">
+      <label>Not interested in <span class="bg-optional">hospitals they won't do – applies to every availability block</span></label>
+      <div id="docNotSitePick"></div>
+    </div>
+    <div class="field full">
       <label>Job rules <span class="bg-optional">one per line – apply to every availability block</span></label>
       <textarea id="docRules" rows="3" placeholder="Won't go: Dubbo, NT&#10;Min rate: $180/hr&#10;Not: Registrar roles">${esc(bgJobRules(existing).map(r => r.t).join("\n"))}</textarea>
       <div class="hint">Job matching and Doctor Focus skip jobs these rule out. Use <b>Won't go:</b> (towns, sites or states), <b>Min rate:</b> ($ per hr / day) or <b>Not:</b> (a level and/or specialty). Rules for one block only go in that block's Requirements.</div>
@@ -10565,7 +10587,10 @@ function openDoctorEditor(existing){
   const __docRules = () => { const old = bgJobRules(existing), who = (typeof firebase_user !== "undefined" && firebase_user && firebase_user.email) || "", now = new Date().toISOString();
     const lines = String(document.getElementById("docRules")?.value || "").split("\n").map(s => s.trim()).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
     return lines.map(t => old.find(r => r.t === t) || { t, by: who, at: now }); };
-  const __docExtra = () => ({ desired_specialties: __docPick.get(), prefs_legacy: __prefsLegacy || "", work_states: __docStatePick.get(), where_legacy: __whereLegacy || "", job_rules: __docRules() });
+  const __nsOldDoc = bgNotSites(existing);
+  const __docNsPick = bgMultiPick(document.getElementById("docNotSitePick"), { options: bgNsOptions(__nsOldDoc), selected: __nsOldDoc.map(bgNsVal), labelOf: bgNsLabel, searchable: true,
+    placeholder: "Type a hospital… Enter adds the first match", emptyText: "none" });
+  const __docExtra = () => ({ desired_specialties: __docPick.get(), prefs_legacy: __prefsLegacy || "", work_states: __docStatePick.get(), where_legacy: __whereLegacy || "", job_rules: __docRules(), not_sites: bgNsFromValues(__docNsPick.get(), __nsOldDoc) });
 
   // ClickUp-synced doctor: lock only the Med Reg # (it's what links this doctor to ClickUp)
   if(isEdit && existing?.source === 'clickup'){
