@@ -131,7 +131,7 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
 .gqX{border:0;background:#eef1f6;color:#5b6475;border-radius:999px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;padding:0;font-size:13px;line-height:1}
 .srchCard{grid-column:1/-1}
 .grid.searching{grid-auto-rows:auto}.grid.searching .card{min-height:0}.grid.searching .cBody{max-height:none}
-.sres{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.3fr) minmax(0,2fr);gap:6px 18px;align-items:start;padding:12px 20px;border-top:1px solid rgba(16,24,40,.06)}
+.sres{display:grid;grid-template-columns:22px minmax(0,1.5fr) minmax(0,1.3fr) minmax(0,2fr);gap:6px 18px;align-items:start;padding:12px 20px;border-top:1px solid rgba(16,24,40,.06)}
 .sres:first-child{border-top:0}.tr .sres{padding:0}.sres .nm{font-weight:600;font-size:14px;color:#1b2230}.sres .nm .x{font-weight:400;color:#5b6475}.sres .sub{font-size:12.5px;color:#5b6475;margin-top:2px}
 .stags{display:flex;flex-wrap:wrap;gap:6px}.stag{border:0;border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
 .stag.g{background:#e4f4ec;color:#15603f}.stag.m{background:#eef7f1;color:#3d7a5a;border:1px dashed #9ccbb0}.stag.t{background:#dcf3ee;color:#0f766e}.stag.c{background:#eceff3;color:#475467}
@@ -139,7 +139,7 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
 .stag:not(.x):hover{filter:brightness(.95)}
 .sdocs{display:flex;flex-wrap:wrap;gap:5px;font-size:12.5px;color:#5b6475}.sdocs .sd{background:#fff;border:1px solid #e3e7ee;border-radius:8px;padding:2px 8px;cursor:pointer}
 .sdocs .sd.g{border-color:#9ccbb0;color:#15603f}.sdocs .sd.a{border-color:#f0c98a;color:#9a5b05}.sdocs .sd.p{border-color:#c9b6f2;color:#6b45c9}.sdocs .sd.b{border-color:#a9c3f5;color:#174aa3}
-@media (max-width:900px){.sres{grid-template-columns:1fr}}
+@media (max-width:900px){.sres{grid-template-columns:22px 1fr}.sres>:nth-child(n+3){grid-column:2}}
 .grid.cols .srchCard{grid-column:auto}
 mark{background:#fff3b0;color:inherit;border-radius:3px;padding:0 1px}
 .flt input{flex:1;border:0;outline:0;background:transparent;font:inherit;font-size:13px;color:#1b2230;min-width:0}
@@ -347,17 +347,27 @@ body.viewonly .hd .brand::after{content:'VIEW ONLY';margin-left:10px;padding:2px
   <p class="mHint">To change it later, hold Alt (Option on a Mac) and click any Email link.</p>
 </div></div>
 <div class="modalBg" id="expSet" hidden><div class="modal exp">
-  <div class="mT">Export to mailer</div>
+  <div class="mT" id="expTitle">Export to mailer</div>
   <div class="expGrid">
     <div class="expOpts">
       <label class="fl">Heading<input id="expHead" value="Current locum opportunities"></label>
       <label class="fl">Intro<textarea id="expIntro" rows="3">Hi there, here are some locum shifts we're currently looking to fill. If any suit you, just reply to this email or give us a call and we'll lock it in.</textarea></label>
       <label class="fl">Sign-off<textarea id="expOutro" rows="2">Not quite right? Let us know your availability and preferences and we'll keep you in mind for what comes up next.</textarea></label>
+      <div id="expJobOpts" style="display:flex;flex-direction:column;gap:10px">
       <label class="ck"><input type="checkbox" id="expSite" checked> Show hospital names</label>
       <label class="ck"><input type="checkbox" id="expRate"> Show rates</label>
       <label class="ck"><input type="checkbox" id="expReq" checked> Show requirements</label>
       <label class="ck"><input type="checkbox" id="expShifts" checked> Show shift times &amp; notes</label>
       <p class="mHint" style="margin-top:6px!important">Rates come from the job email and may be the client rate – check before sending.</p>
+      </div>
+      <div id="expDocOpts" style="display:flex;flex-direction:column;gap:10px" hidden>
+      <label class="ck"><input type="checkbox" id="expDName"> Show doctors' names</label>
+      <label class="ck"><input type="checkbox" id="expDAv" checked> Show availability</label>
+      <label class="ck"><input type="checkbox" id="expDWants" checked> Show where they want to work</label>
+      <label class="ck"><input type="checkbox" id="expDPrefs" checked> Show specialties they'll cover</label>
+      <label class="ck"><input type="checkbox" id="expDNotes"> Show calendar notes</label>
+      <p class="mHint" style="margin-top:6px!important">Names are off by default so the email can go to any client. Availability is from today on.</p>
+      </div>
     </div>
     <div class="expPrev"><iframe id="expFrame" title="Mailer preview"></iframe></div>
   </div>
@@ -903,7 +913,11 @@ const Focus = (() => {
       if (!c || seenJob.has(jk)) continue; seenJob.add(jk);
       if (c.at && Date.now() - Number(c.at) > 30 * 864e5) continue;    // show for 30 days after closing
       const j = { title: c.t || c.site || '', site: c.site || '', specialty: c.sp || '', lvN: c.lv || '', level: c.lv || '', evo: c.evo || '', ref: c.ref || '', rate: c.rate || '', state: c.au || '', start: c.s || '', end: c.e || '', jStart: c.js || '', dates: arr(c.d), um: c.um ? 1 : 0, req: c.req || '', sk: c.sk, sites: c.sites };
-      closed.push({ jk, uid, j, si: siteOfCard(j), src: 'make', s: 'filled', why: c.why || 'filled / cancelled email', at: c.at || '' });
+      if (!j.end || tooLate(j, today)) continue;                                         // dates passed - nothing to do
+      const rjc = ruleJob(j, j.lvN || lvFromText([j.level, String(j.title || '').split(' – ').slice(1).join(' – ')].join(' '))), sic = siteOfCard(j); rjc.si = sic; rjc.site = [rjc.site, sic.site].join(' / ');
+      if ((opts.desk || []).some(d => RULES.deskHit(d, rjc, canonSet))) continue;        // 'not work we do' for your desk
+      const dc = (opts.dismissed || {})[jk]; if (dc && typeof dc === 'object' && (dc.r === 'notwork' || dc.r === 'wrong')) continue;   // you marked it not work we do / details wrong
+      closed.push({ jk, uid, j, si: sic, src: 'make', s: 'filled', why: c.why || 'filled / cancelled email', at: c.at || '' });
     }
     closed.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')) || String(a.j.start || '').localeCompare(String(b.j.start || '')));
     const byStart = (a, b) => (a.state ? 1 : 0) - (b.state ? 1 : 0) || a.dates[0].localeCompare(b.dates[0]);
@@ -964,7 +978,7 @@ const Focus = (() => {
     // the availability entry a job was matched on (first one covering a job date), for 'just this block' rules
     const blockFor = (k, ds) => (evBy[k] || []).find(x => (x.k === 'avail' || x.k === 'tent') && (ds || []).some(d => d >= x.s && d < x.e)) || (evBy[k] || []).find(x => (x.k === 'avail' || x.k === 'tent') && x.e > today) || null;
     const blockRules = k => { const out = []; for (const x of evBy[k] || []) if ((x.k === 'avail' || x.k === 'tent') && x.e > today) { for (const r of x.rules || []) if (!out.includes(r.raw)) out.push(r.raw); for (const s of x.ns || []) { const t = 'Not interested in: ' + (s.n || s.k); if (!out.includes(t)) out.push(t); } } return out; };
-    return { blockFor, blockRules, ruleJob, siteOfCard, today, win, jobs, nearJobs, unmatched, closed, baselines, freeOn, anyUm, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, coverFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
+    return { blockFor, blockRules, ruleJob, siteOfCard, today, win, jobs, nearJobs, unmatched, closed, baselines, freeOn, deskFit, anyUm, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, coverFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
   }
   return { build, tooLate, safeKey, addDays, nice, short, span, ranges, sydToday, key, RULES, SITES, ruleJob, canonSet, lvFromText };
 })();
@@ -1215,9 +1229,9 @@ if (typeof firebase !== 'undefined') (function () {
     const jobOn = T.length > 0 || (!!R && !DT.length), docOn = DT.length > 0 || (!!R && !T.length);
     const FA = (jobOn || docOn) && win ? N.build(nodesAll, Object.assign({}, bopts, { win: 400 })) : null;   // matches that start after the window
     const later = FA ? FA.jobs.filter(x => !x.state && !lists.match.some(m => m.jk === x.jk)).map(x => jobVM(x, false)) : [];
-    if (jobOn) { lists.sj = jobSearch(F, bopts, lists, T, R, later); sjHint = `${lists.sj.length} job${lists.sj.length === 1 ? '' : 's'} match ${searchLabel(T)}`; }
+    if (jobOn) { lists.sj = jobSearch(F, bopts, lists, T, R, later); const nJ = lists.sj.filter(o => o.kind !== 'sjmore' && (showOther || !o.x.other)).length; sjHint = `${nJ} job${nJ === 1 ? '' : 's'} match ${searchLabel(T)}`; }
     if (docOn) { lists.sd = docSearch(F, lists, DT, R, later); sdHint = `${lists.sd.length} doctor${lists.sd.length === 1 ? '' : 's'} match ${searchLabel(DT)}`; }
-    const counts = { sj: (lists.sj || []).length, sd: (lists.sd || []).length, closed: lists.closed.length, match: lists.match.length, close: lists.close.length, free: lists.free.filter(a => !a.contacted).length, end: lists.end.length, rev: lists.rev.length, upd: lists.upd.length, srch: (lists.srch || []).length, pres: lists.pres.filter(r => r.status !== 'withdrawn').length, ord: lists.ord.length };
+    const counts = { sj: (lists.sj || []).filter(o => o.kind !== 'sjmore').length, sd: (lists.sd || []).length, closed: lists.closed.length, match: lists.match.length, close: lists.close.length, free: lists.free.filter(a => !a.contacted).length, end: lists.end.length, rev: lists.rev.length, upd: lists.upd.length, srch: (lists.srch || []).length, pres: lists.pres.filter(r => r.status !== 'withdrawn').length, ord: lists.ord.length };
     return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0, updHint: U.hint, srchHint, sjHint, sdHint, jobOn, docOn, searching: jobOn || docOn, jobVM, presByJob: P.byJob, presByDoc: P.byDoc, ordByJob: O.byJob };
   }
 
@@ -1246,6 +1260,7 @@ if (typeof firebase !== 'undefined') (function () {
     return false;   // Presented / Orders have no job dates to test
   }
   // ---------- job search: one row per job, tagged with every card it sits in (Josh 23 Oct) ----------
+  let showOther = false;   // job search: also list inbox jobs that aren't on any of your cards
   const DISW = { notwork: 'You marked it: not work we do', wrong: 'You marked it: job details wrong', accepted: 'Accepted by you' };
   function jobSearch(F, bopts, lists, T, R, later) {
     const J = new Map();
@@ -1263,13 +1278,16 @@ if (typeof firebase !== 'undefined') (function () {
     for (const { node } of bopts.nodes) for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) {   // anything else still on the calendars
       const j = rec && rec.job; if (jk === '_closed' || !j || !j.end || J.has(jk) || N.tooLate(j, F.today)) continue;
       const { site: tSite, role } = shortTitle(j.title), ds = arr(j.dates).filter(d => d >= F.today).sort(), d = dis[jk];
-      const why = (d && (DISW[d.r] || DISW[d.s])) || 'Not on your cards – none of your doctors free, or not your desk';
-      add({ jk, j, site: tSite || j.title || 'Job', role, ds, dates: compactDates(ds), rate: rateShort(j.rate) || 'Rate n/a', st: j.state || '',
+      const why = (d && (DISW[d.r] || DISW[d.s])) || (bopts.revAll && !F.deskFit(j) ? `Not your desk (${j.specialty || 'specialty'})` : 'No doctor of yours free');
+      add({ other: 1, jk, j, site: tSite || j.title || 'Job', role, ds, dates: compactDates(ds), rate: rateShort(j.rate) || 'Rate n/a', st: j.state || '',
         q: [j.title, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo].join(' ').toLowerCase() }, ['x', why, '']);
     }
     const first = o => (o.x.ds && o.x.ds[0]) || '9999';
-    return [...J.values()].filter(o => gHit(o.q, T) && (!R || (o.x.ds && o.x.ds.length ? dsIn(o.x.ds, R) : false)))
+    const hits = [...J.values()].filter(o => gHit(o.q, T) && (!R || (o.x.ds && o.x.ds.length ? dsIn(o.x.ds, R) : false)))
       .sort((a, b) => first(a).localeCompare(first(b)));
+    // Josh 23 Oct: inbox jobs that aren't on any of your cards are hidden unless you ask for them
+    const main = hits.filter(o => !o.x.other), others = hits.filter(o => o.x.other);
+    return showOther ? main.concat(others, others.length ? [{ kind: 'sjmore', n: others.length, q: '' }] : []) : main.concat(others.length ? [{ kind: 'sjmore', n: others.length, q: '' }] : []);
   }
   // ---------- doctor search: one row per doctor with where they sit + their jobs ----------
   function docSearch(F, lists, DT, R, later) {
@@ -1583,15 +1601,24 @@ if (typeof firebase !== 'undefined') (function () {
         <div class="sub" title="${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.free, x.book, x.notes))}">${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.freeShort, x.book))}</div></div>
       <span class="lb">${x.days ? x.days + 'd free' : ''}</span></div>`;
   const stagBtn = (t, jk, k) => `<button class="stag ${t[0]}"${t[2] ? ` data-goto="${t[2]}"${jk ? ` data-jk="${esc(jk)}"` : ''}${k ? ` data-dk="${esc(k)}"` : ''}` : ' disabled'} title="${esc(t[2] ? t[1] + ' – open' : t[1])}">${esc(t[1].length > 46 ? t[1].slice(0, 44) + '…' : t[1])}</button>`;
-  const sjRow = o => { const x = o.x, j = x.j || {}, ev = j.evo || j.ref ? evoOf(j) : (x.evo || '');
+  const sjRow = o => o.kind === 'sjmore'
+    ? `<div class="sres" style="display:block"><button class="lnk2" data-sjmore>${showOther ? 'Hide' : 'Show'} ${o.n} other inbox job${o.n === 1 ? '' : 's'} not on your cards</button> <span class="sub">– not your desk, or none of your doctors free</span></div>`
+    : sjRowJ(o);
+  const sChk = (kind, k, ok) => ok ? `<label class="sel" title="Select for the email"><input type="checkbox" data-ssel="${kind}" data-sk="${esc(k)}"${sSel[kind].has(k) ? ' checked' : ''}></label>` : '<span></span>';
+  const sBar = (kind, wide) => { const all = (V.lists[kind] || []).filter(o => kind === 'sd' || (o.kind !== 'sjmore' && o.x.j)), keys = all.map(o => kind === 'sd' ? o.d.k : o.jk);
+    const k = keys.filter(x => sSel[kind].has(x)).length, n = keys.length;
+    return `<div class="selBar${wide ? ' wide' : ''}"><label><input type="checkbox" data-sselall="${kind}"${n && k === n ? ' checked' : ''}${n ? '' : ' disabled'}> Select all</label>
+      <span class="selN">${k ? `${k} selected` : 'None selected'}</span>${k ? `<button class="lnk2" data-sselnone="${kind}">Clear</button>` : ''}<span class="sp"></span>
+      <button class="expBtn" data-export="${kind}"${k ? '' : ' disabled'}>${I.mail(14)}${kind === 'sd' ? 'Email these doctors' : 'Email these jobs'}${k ? ` (${k})` : ''}</button></div>`; };
+  const sjRowJ = o => { const x = o.x, j = x.j || {}, ev = j.evo || j.ref ? evoOf(j) : (x.evo || '');
     const docs = x.kind === 'match' ? x.chips.map(c => `<span class="sd ${c.cls}" data-dsrch="${esc(c.name)}" title="${esc(c.tip)} – search this doctor">${c.mark}${esc(c.name)}</span>`)
       : x.kind === 'rev' ? x.fit.map(f => `<span class="sd p" data-dsrch="${esc(f.name)}" title="Could suit${f.why ? ': ' + esc(f.why) : ''} – search this doctor">${esc(f.name)}</span>`) : [];
     const pres = (o.pres || []).filter(d => !docs.join('').includes(esc(d.name))).map(d => `<span class="sd b" data-dsrch="${esc(d.name)}" title="Presented – search this doctor">${esc(d.name)}</span>`);
-    return `<div class="sres"><div style="min-width:0"><div class="nm">${esc(x.site || 'Job')}${x.role ? ` <span class="x">· ${esc(x.role)}</span>` : ''}</div>
+    return `<div class="sres">${sChk('sj', o.jk, !!x.j)}<div style="min-width:0"><div class="nm">${esc(x.site || 'Job')}${x.role ? ` <span class="x">· ${esc(x.role)}</span>` : ''}</div>
       <div class="sub">${esc(dot(x.dates, x.rate, x.st, ev ? 'EVO ' + ev : ''))}</div></div>
       <div class="stags">${o.tags.map(t => stagBtn(t, o.jk)).join('')}</div>
       <div class="sdocs">${docs.concat(pres).join('') || '<span>No doctors on it</span>'}</div></div>`; };
-  const sdRow = x => `<div class="sres"><div style="min-width:0"><div class="nm">${nameLink(x.d)} <span class="x">· ${esc(dot(lvShort(x.d.level), x.d.spec))}</span></div>
+  const sdRow = x => `<div class="sres">${sChk('sd', x.d.k, true)}<div style="min-width:0"><div class="nm">${nameLink(x.d)} <span class="x">· ${esc(dot(lvShort(x.d.level), x.d.spec))}</span></div>
       <div class="sub" title="${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.free, x.book, x.notes))}">${esc(dot(x.freeShort, x.book, x.d.base ? 'Wants ' + x.d.base : ''))}</div></div>
       <div class="stags">${x.tags.map(t => stagBtn(t, '', x.d.k)).join('')}</div>
       <div class="sdocs">${x.jobs.slice(0, 8).map(j => `<span class="sd ${j.cls}" data-goto="${j.card}" data-jk="${esc(j.jk)}" title="${esc(j.tip)} – open">${esc(j.t)}</span>`).join('')}${x.jobs.length > 8 ? `<span>+${x.jobs.length - 8} more</span>` : ''}${x.jobs.length ? '' : '<span>No jobs matched</span>'}</div></div>`;
@@ -1632,9 +1659,9 @@ if (typeof firebase !== 'undefined') (function () {
         <button class="cHead" data-open="${id}" title="Open full screen">
           <div class="lrow"><span class="dot"></span><span class="lab">${m.label}</span><span class="sp"></span><span style="color:#8a93a3;display:flex">${I.max(16)}</span></div>
           <div class="crow"><span class="cnt">${V.counts[id]}</span><span class="hint">${esc(m.hint())}</span></div>
-        </button>${id === 'rev' ? selBar(false) : id === 'upd' ? updBar(false) : ''}
+        </button>${id === 'rev' ? selBar(false) : id === 'upd' ? updBar(false) : id === 'sj' || id === 'sd' ? sBar(id, false) : ''}
         <div class="cBody" data-id="${id}">${list.length ? list.map(ROW[id]).join('') : `<div class="empty">${m.empty}</div>`}</div>
-        <button class="cFoot" data-open="${id}">View all ${list.length} full screen ${I.right(14)}</button>
+        <button class="cFoot" data-open="${id}">View all ${id === 'sj' ? list.filter(o => o.kind !== 'sjmore').length : list.length} full screen ${I.right(14)}</button>
       </section>`;
     }).join('');
     grid.querySelectorAll('.cBody').forEach(b => { if (keep[b.dataset.id]) b.scrollTop = keep[b.dataset.id]; });
@@ -1721,9 +1748,16 @@ if (typeof firebase !== 'undefined') (function () {
         await db.ref(`users/${user.uid}/focus/nsr/${N.safeKey(jk)}`).remove().catch(() => {});
         const st = await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).once('value'); if (mine(st.val())) await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).remove();
       }
-      toast(`${x.site} reopened`);
-    } catch (e) { console.warn(e); toast('Couldn’t reopen – try again'); }
-    render();
+      render();
+      // say where it went (Josh 23 Oct)
+      const inL = id => V.lists[id].some(y => y.jk === jk), wk = win ? win / 7 + ' weeks' : '';
+      let where = inL('match') ? 'now in Matched' : inL('rev') ? 'now in Reverse market' : '';
+      if (!where) {
+        const FA = win ? N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), Object.assign({}, { today: N.sydToday(), win: 400, revAll: ADMINS.includes(meEmail()) || JOB_CALS.includes(user.uid), me: meEmail(), contacted: contactedMap(), dismissed: dismissedMap(), removed: removedSet(), desk: deskRulesNow(), sites: siteList })) : null;
+        where = FA && FA.jobs.some(y => y.jk === jk) ? `not on a card yet – matched, but starts after ${wk} (switch to All to see it)` : 'not on a card – none of your doctors are free for it (job search still finds it)';
+      }
+      toast(`${x.site} reopened – ${where}`);
+    } catch (e) { console.warn(e); toast('Couldn’t reopen – try again'); render(); }
   }
   function openEx(id) { open = id; q = ''; $('exQ').value = ''; store.set('focus.open', id); $('ex').hidden = false; renderEx(); $('exQ').focus({ preventScroll: true }); }
   function closeEx(silent) { open = null; q = ''; $('ex').hidden = true; if (!silent) store.set('focus.open', null); hidePop(); }
@@ -1733,7 +1767,7 @@ if (typeof firebase !== 'undefined') (function () {
     $('ex').hidden = false;
     $('exTabs').innerHTML = IDS.map(id => `<button class="tab${id === open ? ' on' : ''}" style="--c:${META[id].c}" data-tab="${id}"><span class="dot"></span>${META[id].tab} <span class="n">${V.counts[id]}</span></button>`).join('');
     $('exTitle').innerHTML = `<div class="lrow" style="--c:${m.c}"><span class="dot"></span><span class="lab">${m.label}</span></div>
-      <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>${open === 'rev' ? selBar(true) : open === 'upd' ? updBar(true) : ''}`;
+      <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>${open === 'rev' ? selBar(true) : open === 'upd' ? updBar(true) : open === 'sj' || open === 'sd' ? sBar(open, true) : ''}`;
     const drillOn = open === 'match' || open === 'rev';
     $('exDrillWrap').hidden = !drillOn;
     if (drillOn) drillRender(V.lists[open]);
@@ -2127,8 +2161,56 @@ if (typeof firebase !== 'undefined') (function () {
   // ---------- actions (same Firebase writes as before) ----------
   // ---------- mailer export ----------
   const E = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  function expJobs() { return V.lists.rev.filter(r => sel.has(r.jk)); }
-  function expOpts() { return { head: $('expHead').value.trim(), intro: $('expIntro').value.trim(), outro: $('expOutro').value.trim(), site: $('expSite').checked, rate: $('expRate').checked, req: $('expReq').checked, shifts: $('expShifts').checked }; }
+  // Josh 23 Oct: the mailer also works from job search (selected jobs) and doctor search (selected doctors)
+  let EXP = 'rev';
+  const sSel = { sj: new Set(), sd: new Set() };
+  const EXPTXT = {
+    job: { head: 'Current locum opportunities', intro: "Hi there, here are some locum shifts we're currently looking to fill. If any suit you, just reply to this email or give us a call and we'll lock it in.", outro: "Not quite right? Let us know your availability and preferences and we'll keep you in mind for what comes up next." },
+    doc: { head: 'Doctors available for locum work', intro: "Hi there, here are some of our doctors who are available for locum work. If any of them suit, just reply to this email and we'll send through their CVs.", outro: "Looking for something else? Let us know what you need and we'll find the right doctor." } };
+  const asMailJob = x => { const j = x.j || {}, ds = x.ds || [];
+    return Object.assign({}, x, { j, st: x.st || j.state || '', rate: x.rate || rateShort(j.rate) || 'Rate n/a', roleFull: x.roleFull || String(j.title || '').split(' – ').slice(1).join(' – ') || j.specialty || '',
+      when: x.when || (ds.length ? longDates(ds) : x.dates || '') }); };
+  function expJobs() {
+    if (EXP === 'sj') return (V.lists.sj || []).filter(o => o.kind !== 'sjmore' && o.x.j && sSel.sj.has(o.jk)).map(o => asMailJob(o.x));
+    return V.lists.rev.filter(r => sel.has(r.jk));
+  }
+  function expDocs() {
+    const F = V.F, end = N.addDays(F.today, 180);
+    return (V.lists.sd || []).filter(x => sSel.sd.has(x.d.k)).map(x => { const days = [];
+      for (let d = F.today; d < end; d = N.addDays(d, 1)) if (F.freeOn(x.d.k, d)) days.push(d);
+      return { d: x.d, rg: N.ranges(days), notes: F.notesFor(x.d.k).filter(t => !/^(available|tentative)$/i.test(t)).slice(0, 2) }; });
+  }
+  const pgyOf = d => d.pgy ? (/pgy/i.test(d.pgy) ? d.pgy : 'PGY' + d.pgy) : '';
+  const docTitle = (x, o) => o.name ? drName(x.d.name) : [x.d.level || 'Doctor', (x.d.specAll || x.d.spec || '').split(/[,;]/)[0]].filter(Boolean).join(' – ');
+  const docSub = (x, o) => [o.name ? x.d.level : '', pgyOf(x.d), o.name ? (x.d.specAll || x.d.spec || '').split(/[,;]/)[0] : ''].filter(Boolean).join(' · ');
+  const docAv = x => x.rg.length ? x.rg.slice(0, 6).map(r => r[0] === r[1] ? N.nice(r[0]) : `${N.nice(r[0])} – ${N.nice(r[1])}`).join(', ') + (x.rg.length > 6 ? ` +${x.rg.length - 6} more` : '') : 'Ask us – no dates logged yet';
+  const docPrefs = x => [...new Set(String([x.d.prefs, x.d.specAll].filter(Boolean).join(',')).split(/[,;]+/).map(t => t.trim()).filter(Boolean))].join(', ');
+  function docMailHTML(docs, o) {
+    const F = 'font-family:Arial,Helvetica,sans-serif;';
+    const block = x => `<tr><td style="padding:0 0 12px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e8ef;border-radius:10px;border-collapse:separate"><tr><td style="padding:14px 16px;${F}">
+      <div style="${F}font-size:16px;font-weight:bold;color:#1b2230;margin:0 0 2px">${E(docTitle(x, o))}</div>
+      ${docSub(x, o) ? `<div style="${F}font-size:14px;color:#1f62d6;margin:0 0 8px">${E(docSub(x, o))}</div>` : ''}
+      <div style="${F}font-size:14px;color:#3b4252;line-height:1.5">${[o.av ? `<b>Available:</b> ${E(docAv(x))}` : '', o.wants && x.d.base ? `<b>Wants to work:</b> ${E(x.d.base)}` : '', o.prefs && docPrefs(x) ? `<b>Will cover:</b> ${E(docPrefs(x))}` : '', o.notes && x.notes.length ? `<b>Notes:</b> ${E(x.notes.join(' / '))}` : ''].filter(Boolean).join('<br>')}</div>
+    </td></tr></table></td></tr>`;
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto"><tr><td style="padding:8px 4px;${F}">
+      ${o.head ? `<h2 style="${F}font-size:22px;color:#1b2230;margin:0 0 10px">${E(o.head)}</h2>` : ''}
+      ${o.intro ? `<p style="${F}font-size:14px;color:#3b4252;line-height:1.5;margin:0 0 16px">${E(o.intro).replace(/\n/g, '<br>')}</p>` : ''}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${docs.map(block).join('')}</table>
+      ${o.outro ? `<p style="${F}font-size:14px;color:#3b4252;line-height:1.5;margin:8px 0 0">${E(o.outro).replace(/\n/g, '<br>')}</p>` : ''}
+    </td></tr></table>`;
+  }
+  function docMailText(docs, o) {
+    const lines = [o.head, '', o.intro, ''];
+    for (const x of docs) { lines.push(`• ${docTitle(x, o)}${docSub(x, o) ? ' (' + docSub(x, o) + ')' : ''}`); if (o.av) lines.push(`  Available: ${docAv(x)}`); if (o.wants && x.d.base) lines.push(`  Wants to work: ${x.d.base}`); if (o.prefs && docPrefs(x)) lines.push(`  Will cover: ${docPrefs(x)}`); if (o.notes && x.notes.length) lines.push(`  Notes: ${x.notes.join(' / ')}`); lines.push(''); }
+    lines.push(o.outro); return lines.filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n').trim();
+  }
+  const isDocExp = () => EXP === 'sd';
+  const expItems = () => isDocExp() ? expDocs() : expJobs();
+  const expHTMLFor = (items, o) => isDocExp() ? docMailHTML(items, o) : mailerHTML(items, o);
+  const expTextFor = (items, o) => isDocExp() ? docMailText(items, o) : mailerText(items, o);
+  const expFile = () => isDocExp() ? 'available-doctors' : EXP === 'sj' ? 'locum-jobs' : 'reverse-market';
+  function expOpts() { return { head: $('expHead').value.trim(), intro: $('expIntro').value.trim(), outro: $('expOutro').value.trim(), site: $('expSite').checked, rate: $('expRate').checked, req: $('expReq').checked, shifts: $('expShifts').checked,
+    name: $('expDName').checked, av: $('expDAv').checked, wants: $('expDWants').checked, prefs: $('expDPrefs').checked, notes: $('expDNotes').checked }; }
   // shift breakdown for candidates (written by Job Matches): one line per run of identical shifts; rates taken out when rates are hidden
   const shiftsOf = (x, o) => !o.shifts ? [] : arr(x.j.shifts).map(l => String(l || '')).map(l => o.rate ? l : l.replace(/\s*·\s*\$[\d,.]+(?:–\$?[\d,.]+)?(?:\/\w+)?/g, '')).filter(Boolean);
   const notesOf = (x, o) => o.shifts ? String(x.j.notes || '').trim() : '';
@@ -2155,24 +2237,42 @@ if (typeof firebase !== 'undefined') (function () {
     lines.push(o.outro); return lines.filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n').trim();
   }
   function expPreview() {
-    const f = $('expFrame'), jobs = expJobs(), o = expOpts();
-    f.srcdoc = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:16px;background:#fff">${mailerHTML(jobs, o)}</body></html>`;
-    $('expMsg').textContent = `${jobs.length} job${jobs.length === 1 ? '' : 's'}`;
+    const f = $('expFrame'), items = expItems(), o = expOpts(), w = isDocExp() ? 'doctor' : 'job';
+    f.srcdoc = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:16px;background:#fff">${expHTMLFor(items, o)}</body></html>`;
+    $('expMsg').textContent = `${items.length} ${w}${items.length === 1 ? '' : 's'}`;
   }
-  function openExport() { if (!sel.size) return; $('expSet').hidden = false; expPreview(); }
+  let expKind = 'job';   // which default texts are in the boxes
+  function openExport(mode) {
+    mode = mode || 'rev';
+    if (mode === 'rev' ? !sel.size : !sSel[mode].size) return;
+    const kind = mode === 'sd' ? 'doc' : 'job';
+    if (kind !== expKind) {   // keep each kind's edits, swap the texts in
+      EXPTXT[expKind] = { head: $('expHead').value, intro: $('expIntro').value, outro: $('expOutro').value };
+      $('expHead').value = EXPTXT[kind].head; $('expIntro').value = EXPTXT[kind].intro; $('expOutro').value = EXPTXT[kind].outro; expKind = kind;
+    }
+    EXP = mode;
+    $('expJobOpts').hidden = kind === 'doc'; $('expDocOpts').hidden = kind !== 'doc';
+    $('expTitle').textContent = kind === 'doc' ? 'Email selected doctors' : mode === 'sj' ? 'Email selected jobs' : 'Export to mailer';
+    $('expSet').hidden = false; expPreview();
+  }
+  ['expDName', 'expDAv', 'expDWants', 'expDPrefs', 'expDNotes'].forEach(id => $(id).addEventListener('change', expPreview));
   ['expHead', 'expIntro', 'expOutro', 'expSite', 'expRate', 'expReq', 'expShifts'].forEach(id => $(id).addEventListener('input', expPreview));
   ['expSite', 'expRate', 'expReq', 'expShifts'].forEach(id => $(id).addEventListener('change', expPreview));
   $('expClose').onclick = () => { $('expSet').hidden = true; };
   function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
   const stamp = () => N.sydToday();
-  $('expHtml').onclick = () => download(`reverse-market-${stamp()}.html`, `<!doctype html><html><head><meta charset="utf-8"><title>${E(expOpts().head)}</title></head><body style="margin:0;padding:16px">${mailerHTML(expJobs(), expOpts())}</body></html>`, 'text/html');
+  $('expHtml').onclick = () => download(`${expFile()}-${stamp()}.html`, `<!doctype html><html><head><meta charset="utf-8"><title>${E(expOpts().head)}</title></head><body style="margin:0;padding:16px">${expHTMLFor(expItems(), expOpts())}</body></html>`, 'text/html');
   $('expCsv').onclick = () => {
     const o = expOpts(), q = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    if (isDocExp()) {
+      const rows = [['Doctor', 'Level', 'PGY', 'Specialty', 'Available', 'Wants to work', 'Will cover', 'Notes']].concat(expDocs().map(x => [o.name ? drName(x.d.name) : '', x.d.level || '', pgyOf(x.d), (x.d.specAll || x.d.spec || '').split(/[,;]/)[0], docAv(x), x.d.base || '', docPrefs(x), x.notes.join(' / ')]));
+      return download(`${expFile()}-${stamp()}.csv`, rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
+    }
     const rows = [['Role', 'Hospital', 'State', 'Dates', 'Shifts', 'Rate', 'Requirements', 'Travel & accommodation', 'About the shifts']].concat(expJobs().map(x => [roleOf(x), o.site ? siteOf(x) : '', x.st, x.when, shiftsOf(x, o).join('\n'), o.rate ? (x.j.rate || '') : '', x.j.req || '', x.j.travel || '', notesOf(x, o)]));
-    download(`reverse-market-${stamp()}.csv`, rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
+    download(`${expFile()}-${stamp()}.csv`, rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
   };
   $('expCopy').onclick = async () => {
-    const jobs = expJobs(), o = expOpts(), html = mailerHTML(jobs, o), text = mailerText(jobs, o);
+    const items = expItems(), o = expOpts(), html = expHTMLFor(items, o), text = expTextFor(items, o);
     let ok = false;
     try { if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) { await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })]); ok = true; } } catch (e) {}
     if (!ok) {   // fallback (e.g. inside the ClickUp embed): copy the rendered preview
@@ -2396,6 +2496,10 @@ if (typeof firebase !== 'undefined') (function () {
     const t = e.target;
     if (t.dataset.sel != null) { if (t.checked) sel.add(t.dataset.sel); else sel.delete(t.dataset.sel); render(); }
     else if (t.dataset.selall != null) { if (t.checked) V.lists.rev.forEach(r => sel.add(r.jk)); else sel.clear(); render(); }
+    else if (t.dataset.ssel) { const S = sSel[t.dataset.ssel]; if (t.checked) S.add(t.dataset.sk); else S.delete(t.dataset.sk); render(); }
+    else if (t.dataset.sselall) { const kind = t.dataset.sselall, S = sSel[kind];
+      const keys = (V.lists[kind] || []).filter(o => kind === 'sd' || (o.kind !== 'sjmore' && o.x.j)).map(o => kind === 'sd' ? o.d.k : o.jk);
+      if (t.checked) keys.forEach(k => S.add(k)); else keys.forEach(k => S.delete(k)); render(); }
   });
   function findJob(jk) { for (const id of ['match', 'close']) { const x = V.lists[id].find(y => y.jk === jk); if (x) return x; } return null; }
   // Accept: Make 6452828 creates the ClickUp Order (same link as the chat alert); Make 6625206 tells us its URL once it exists.
@@ -2506,17 +2610,19 @@ if (typeof firebase !== 'undefined') (function () {
     if (on) toast(`${name} marked contacted`, () => setContacted(k, false));
   }
   document.addEventListener('click', e => {
+    if (e.target.closest('[data-sjmore]')) { e.preventDefault(); showOther = !showOther; render(); return; }
     const g = e.target.closest('[data-goto],[data-dsrch]');
     if (g) { e.preventDefault(); e.stopPropagation(); if (g.dataset.goto) gotoCard(g.dataset.goto, g.dataset.jk, g.dataset.dk); else { dq = g.dataset.dsrch; $('dq').value = dq; render(); } return; }
-    const t = e.target.closest('[data-reopen],[data-presacc],[data-hidepres],[data-present],[data-withdraw],[data-rmjob],[data-export],[data-selnone],[data-rm],[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
+    const t = e.target.closest('[data-reopen],[data-presacc],[data-hidepres],[data-present],[data-withdraw],[data-rmjob],[data-export],[data-selnone],[data-sselnone],[data-rm],[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
     if (t.dataset.present) { e.preventDefault(); presOpen(t.dataset.present); return; }
     if (t.dataset.withdraw) { e.preventDefault(); presWithdraw(t.dataset.withdraw); return; }
     if (t.dataset.presacc) { e.preventDefault(); acceptJob(t.dataset.jk, t.dataset.presacc); return; }
     if (t.dataset.hidepres) { e.preventDefault(); hidePres(t.dataset.hidepres); return; }
     if (t.dataset.reopen) { e.preventDefault(); reopenJob(t.dataset.reopen); return; }
     if (t.dataset.rmjob) { removeRev(t.dataset.rmjob); return; }
-    if (t.dataset.export != null) { openExport(); return; }
+    if (t.dataset.export != null) { openExport(t.dataset.export || 'rev'); return; }
     if (t.dataset.selnone != null) { sel.clear(); render(); return; }
+    if (t.dataset.sselnone) { sSel[t.dataset.sselnone].clear(); render(); return; }
     if (t.dataset.rm) { e.preventDefault(); hidePop(); openDocWhy(t.dataset.jk, t.dataset.rm, t.dataset.uid, t.dataset.nm, t.dataset.site); }   // asks why first
     else if (t.dataset.act === 'notsuitable') openJobWhy(t.dataset.jk);
     else if (t.dataset.act) answer(t.dataset.jk, t.dataset.act);
