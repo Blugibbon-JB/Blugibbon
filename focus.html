@@ -120,10 +120,26 @@ a.nl{color:inherit} a.nl:hover{color:#1f62d6}
 .exHead .cnt{font-size:52px}
 .exHint{font-size:15px;color:#5b6475;text-wrap:pretty}
 .flt{display:flex;align-items:center;gap:8px;border:1px solid #dde2ea;border-radius:10px;background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:0 12px;height:40px;width:300px;max-width:100%;color:#8a93a3}
-.flt.gq{width:340px;height:36px}
+.flt.gq{width:270px;height:36px}
 .flt.gq.on{border-color:#1f62d6;box-shadow:0 0 0 3px rgba(31,98,214,.12)}
+.flt.dr{width:auto;height:36px;gap:6px;padding:0 8px 0 12px}.flt.dr.on{border-color:#1f62d6;box-shadow:0 0 0 3px rgba(31,98,214,.12)}
+.flt.dr input{flex:none;width:118px;font-size:12px}.flt.dr .to{font-size:12px;color:#8a93a3}
+.drill{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px}
+.drill select,.drill input{height:34px;border:1px solid #dde2ea;border-radius:9px;background:#fff;font:inherit;font-size:12.5px;color:#1b2230;padding:0 8px;max-width:190px}
+.drill select.on,.drill input.on{border-color:#1f62d6;background:#f3f7ff}.drill .dl{font-size:12px;color:#8a93a3}.drill .lnk2{font-size:12px}
+.tag.cl{background:#eceff3;color:#475467}.rob{border:1px solid #d5dbe5;background:#fff;border-radius:8px;padding:4px 10px;font:inherit;font-size:12px;font-weight:600;color:#1b2230;cursor:pointer;white-space:nowrap}.rob:hover{border-color:#1f62d6;color:#1f62d6}
 .gqX{border:0;background:#eef1f6;color:#5b6475;border-radius:999px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;padding:0;font-size:13px;line-height:1}
 .srchCard{grid-column:1/-1}
+.grid.searching{grid-auto-rows:auto}.grid.searching .card{min-height:0}.grid.searching .cBody{max-height:none}
+.sres{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.3fr) minmax(0,2fr);gap:6px 18px;align-items:start;padding:12px 20px;border-top:1px solid rgba(16,24,40,.06)}
+.sres:first-child{border-top:0}.tr .sres{padding:0}.sres .nm{font-weight:600;font-size:14px;color:#1b2230}.sres .nm .x{font-weight:400;color:#5b6475}.sres .sub{font-size:12.5px;color:#5b6475;margin-top:2px}
+.stags{display:flex;flex-wrap:wrap;gap:6px}.stag{border:0;border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.stag.g{background:#e4f4ec;color:#15603f}.stag.m{background:#eef7f1;color:#3d7a5a;border:1px dashed #9ccbb0}.stag.t{background:#dcf3ee;color:#0f766e}.stag.c{background:#eceff3;color:#475467}
+.stag.b{background:#e5eefd;color:#174aa3}.stag.o{background:#e4f4ec;color:#15603f}.stag.x{background:#fff;color:#8a93a3;border:1px solid #dde2ea;cursor:default}.stag.f{background:#e5eefd;color:#1f62d6}.stag.e{background:#fcf0dd;color:#9a5b05}
+.stag:not(.x):hover{filter:brightness(.95)}
+.sdocs{display:flex;flex-wrap:wrap;gap:5px;font-size:12.5px;color:#5b6475}.sdocs .sd{background:#fff;border:1px solid #e3e7ee;border-radius:8px;padding:2px 8px;cursor:pointer}
+.sdocs .sd.g{border-color:#9ccbb0;color:#15603f}.sdocs .sd.a{border-color:#f0c98a;color:#9a5b05}.sdocs .sd.p{border-color:#c9b6f2;color:#6b45c9}.sdocs .sd.b{border-color:#a9c3f5;color:#174aa3}
+@media (max-width:900px){.sres{grid-template-columns:1fr}}
 .grid.cols .srchCard{grid-column:auto}
 mark{background:#fff3b0;color:inherit;border-radius:3px;padding:0 1px}
 .flt input{flex:1;border:0;outline:0;background:transparent;font:inherit;font-size:13px;color:#1b2230;min-width:0}
@@ -250,7 +266,7 @@ mark{background:#fff3b0;color:inherit;border-radius:3px;padding:0 1px}
 [hidden]{display:none!important}
 /* view-only accounts (VIEWERS): no action buttons, VIEW ONLY tag in the header */
 body.viewonly [data-present],body.viewonly [data-presacc],body.viewonly [data-withdraw],body.viewonly [data-hidepres],
-body.viewonly [data-rmjob],body.viewonly [data-rm],body.viewonly [data-act],body.viewonly [data-contact]{display:none!important}
+body.viewonly [data-rmjob],body.viewonly [data-reopen],body.viewonly [data-rm],body.viewonly [data-act],body.viewonly [data-contact]{display:none!important}
 body.viewonly .hd .brand::after{content:'VIEW ONLY';margin-left:10px;padding:2px 8px;border-radius:999px;background:#fff4e5;color:#9a3412;border:1px solid #f59e0b;font-size:11px;font-weight:700;letter-spacing:.06em}
 .modal.why{width:560px;max-height:calc(100vh - 32px);overflow:auto}
 .wsub{color:#5b6475;margin:0 0 12px!important}
@@ -279,11 +295,20 @@ body.viewonly .hd .brand::after{content:'VIEW ONLY';margin-left:10px;padding:2px
     <span class="meta" id="meta"></span>
     <label class="flt gq" id="gqBox" title="Search everything on this screen – press / to jump here">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="gq" placeholder="Search doctor, site, level, location…" autocomplete="off" spellcheck="false">
+      <input id="gq" placeholder="Search jobs – site, specialty, EVO…" autocomplete="off" spellcheck="false">
       <button class="gqX" id="gqX" title="Clear search" hidden>×</button>
     </label>
+    <label class="flt gq" id="dqBox" title="Search doctors – shows each doctor and the jobs they're matched to">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+      <input id="dq" placeholder="Search doctors – name, level, specialty…" autocomplete="off" spellcheck="false">
+      <button class="gqX" id="dqX" title="Clear search" hidden>×</button>
+    </label>
+    <label class="flt dr" id="drBox" title="Date range – works with the search words: jobs with a date in the range, doctors free in it">
+      <input type="date" id="gFrom" aria-label="From date"><span class="to">to</span><input type="date" id="gTo" aria-label="To date">
+      <button class="gqX" id="drX" title="Clear dates" hidden>×</button>
+    </label>
     <span class="sp"></span>
-    <div class="seg" id="winSeg" title="How far ahead to look"><button data-w="14">2 wks</button><button data-w="28">4 wks</button><button data-w="56">8 wks</button></div>
+    <div class="seg" id="winSeg" title="How far ahead to look"><button data-w="14">2 wks</button><button data-w="28">4 wks</button><button data-w="56">8 wks</button><button data-w="0" title="Every future job">All</button></div>
     <div class="seg" id="layoutSeg" title="Card layout"><button data-l="grid" title="2 × 2 grid"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></button><button data-l="cols" title="4 columns"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="4" height="18" x="2" y="3" rx="1"/><rect width="4" height="18" x="7.33" y="3" rx="1"/><rect width="4" height="18" x="12.67" y="3" rx="1"/><rect width="4" height="18" x="18" y="3" rx="1"/></svg></button></div>
     <div class="seg" id="scopeSeg" hidden><button data-s="mine">Mine</button><button data-s="all">Everyone</button></div>
     <a class="calBtn" href="https://blugibbon-jb.github.io/Blugibbon/availability2.html" target="_blank" rel="noopener" title="Open the availability calendar">
@@ -307,6 +332,7 @@ body.viewonly .hd .brand::after{content:'VIEW ONLY';margin-left:10px;padding:2px
       <input id="exQ" placeholder="Filter by name, site, specialty" autocomplete="off">
     </label>
   </div>
+  <div class="exHead" id="exDrillWrap" style="padding-top:0" hidden><div class="drill" id="exDrill"></div></div>
   <div class="exBody"><div class="tbl" id="exTbl"></div></div>
 </div>
 <div class="pop" id="pop" hidden></div>
@@ -809,8 +835,11 @@ const Focus = (() => {
       return out;
     }
 
+    // Izzy's desk (same list as Make 6526556 izzy-match.js deskFit): reverse-market only these
+    const DESK_YES = /\b(cardiolog\w*|general\s+med\w*|gen\.?\s*med\w*|medicine\s*[-–,]?\s*general|geriatric\w*|medicine\s*[-–,]?\s*geriatric\w*|haematolog\w*|hematolog\w*|nephrolog\w*|oncolog\w*|palliative|rehabilitation|rehab|infectious\s+diseases?|respiratory|obstetric\w*|gynaecolog\w*|gynecolog\w*|o\s*&\s*g|paediatric\w*|pediatric\w*|child\s+health|general\s+rotation)\b/i, DESK_NO = /emergency/i;
+    const deskFit = j => { const t = [j.specialty, j.specialty_raw, j.level_raw, String(j.title || '').split(' – ').slice(1).join(' – ')].filter(Boolean).join(' | '); return DESK_YES.test(t) && !DESK_NO.test(t); };
     // ---------- 1 + 2: job matches ----------
-    const jobs = [], nearJobs = [], unmatched = [], inJob = new Set(), inNear = new Set();
+    const jobs = [], nearJobs = [], unmatched = [], closed = [], baselines = [], inJob = new Set(), inNear = new Set();
     const anyUm = nodes.some(({ node }) => Object.values((node && node.jobmatches) || {}).some(r => r && r.job && r.job.um));
     const seenJob = new Set();
     for (const { uid, node } of nodes) {
@@ -821,20 +850,30 @@ const Focus = (() => {
         const rj = ruleJob(j, j.lvN || lvFromText([j.level, String(j.title || '').split(' – ').slice(1).join(' – ')].join(' ')));
         const si = siteOfCard(j); rj.si = si; rj.site = [rj.site, si.site].join(' / ');
         if ((opts.desk || []).some(d => RULES.deskHit(d, rj, canonSet))) continue;   // 'not work we do' for your desk
-        if ((opts.dismissed || {})[jk]) continue;   // answered by you (accepted / not suitable / removed) -> gone for you only
+        const dis = (opts.dismissed || {})[jk];
+        let cl = null;
+        if (dis) {   // answered by you (accepted / not suitable / removed) -> gone for you only
+          // Josh 23 Oct: crossed-off jobs go to Closed jobs - not accepted ones (Orders) and not 'not work we do' / 'job details wrong'
+          if (!(typeof dis === 'object' && dis.s && dis.s !== 'accepted' && dis.s !== 'hidden' && dis.r !== 'notwork' && dis.r !== 'wrong')) continue;
+          cl = { jk, uid, j, si, src: 'you', s: dis.s, r: dis.r || '', at: dis.at || '', by: dis.by || '' };
+          if (dis.r === 'dup' || dis.r === 'filled') { closed.push(cl); continue; }   // duplicate / already filled: never comes back
+          // otherwise it reopens into Matched when a doctor who wasn't free when you closed it is free now (dis.free = who was)
+        }
         const dates = arr(j.dates).filter(d => d >= today).sort();
         // Make's matches (made when the email came in) + anyone on these calendars who fits now
         const pageRows = liveMatch(j, dates), mk = new Set(arr(j.docs).map(m => key(m && m.k)));
         const cands = arr(j.docs).concat(pageRows.filter(r => !mk.has(r.k)));
         const pageHit = pageRows.some(r => r.g !== 'near' && r.c && (r.c === r.n || r.c / r.n >= 0.5));
-        if (dates.length && j.um && !(pageHit && dates[0] < until)) { unmatched.push({ jk, uid, j, state, dates, si }); continue; }   // desk job with no doctor free -> reverse market (any start date)
-        if (!dates.length || dates[0] >= until) continue;          // only jobs starting inside the look-ahead window
+        if (!cl && dates.length && j.um && !(pageHit && dates[0] < until)) { unmatched.push({ jk, uid, j, state, dates, si, near: pageRows.filter(r => r.g === 'near' && docs[key(r.k)] && !docs[key(r.k)].hidden && !docRuled(key(r.k), rj)).map(r => ({ k: key(r.k), name: docs[key(r.k)].name || r.name, level: docs[key(r.k)].level || r.lv || '', cu: docs[key(r.k)].cu || r.cu || '', why: r.why || '' })) }); continue; }   // desk job with no doctor free -> reverse market (any start date)
+        if (!dates.length) { if (cl) closed.push(cl); continue; }
+        let nRm = 0, nOk = 0;   // doctors on these calendars for this job / of them taken off it by you
         const live = [], near = [];
         for (const m of cands) {
           if (!m) continue;
           const dk = key(m.k), doc = docs[dk];
           if (!doc) continue;                     // doctor isn't on the calendars you're looking at
-          if (opts.removed && opts.removed.has(jk + '|' + safeKey(dk))) continue;   // taken off this job by a recruiter (availability untouched)
+          if (!doc.hidden) nOk++;
+          if (opts.removed && opts.removed.has(jk + '|' + safeKey(dk))) { if (!doc.hidden) nRm++; continue; }   // taken off this job by a recruiter (availability untouched)
           if (doc && doc.hidden) continue;
           if (docRuled(dk, rj)) continue;           // doctor's own rule (profile) rules this job out
           const c = dates.filter(d => freeOnJ(dk, d, rj)).length;
@@ -842,13 +881,31 @@ const Focus = (() => {
             tent: !!m.tent, viaNote: !!m.viaNote, why: m.why || '', note: m.note || '', page: !!m.page };
           // Josh 21 Oct: one list per job - free every day (green) and free some days (orange); one-level-off / near-the-dates doctors are no longer shown
           if (m.g !== 'near' && c > 0) live.push(row);
+          else if (!near.some(r => r.k === dk)) near.push(Object.assign(row, { why: m.why || (c ? '' : 'not free on the job dates') }));   // Josh 23 Oct: near fits -> 'could suit' on Reverse market
         }
         live.sort((a, b) => b.c - a.c || a.name.localeCompare(b.name));
         const item = { jk, uid, j, state, dates, live, near, si };
-        if (live.length) { jobs.push(item); if (!state) live.forEach(r => inJob.add(r.k)); }
-        else if (near.length) { nearJobs.push(item); if (!state) near.forEach(r => inNear.add(r.k)); }
+        if (cl) {   // Josh 23 Oct: closed by you - back to Matched only for doctors who weren't free when you closed it
+          const base = dis.free;
+          if (!base || typeof base !== 'object') { baselines.push({ jk, rec: dis, free: live.map(r => r.k) }); closed.push(cl); continue; }   // older closings: record who's free now
+          const was = new Set(Object.keys(base)), fresh = live.filter(r => !was.has(safeKey(r.k)));
+          if (fresh.length && dates[0] < until) { fresh.forEach(r => r.fresh = 1); item.reopened = cl; jobs.push(item); if (!state) live.forEach(r => inJob.add(r.k)); continue; }
+          if (fresh.length) cl.fresh = fresh.map(r => r.name);
+          closed.push(cl); continue;
+        }
+        if (live.length) { if (dates[0] < until) { jobs.push(item); if (!state) live.forEach(r => inJob.add(r.k)); } }   // Matched: only jobs starting inside the 2/4/8-week window (All = every future job)
+        else if (nRm && nRm === nOk) closed.push({ jk, uid, j, si, src: 'you', s: 'alldocs', at: '', dates });   // Josh 23 Oct: you took every doctor off -> Closed jobs
+        else if (opts.revAll && deskFit(j)) unmatched.push({ jk, uid, j, state, dates, si, near });   // Josh 23 Oct: desk job, no doctor free (only close fits, or none) -> reverse market (Izzy + Josh only)
       }
     }
+    // filled / cancelled jobs Make took off every calendar - it keeps a copy in jobmatches/_closed (Josh 23 Oct)
+    for (const { uid, node } of nodes) for (const [jk, c] of Object.entries(((node && node.jobmatches) || {})._closed || {})) {
+      if (!c || seenJob.has(jk)) continue; seenJob.add(jk);
+      if (c.at && Date.now() - Number(c.at) > 30 * 864e5) continue;    // show for 30 days after closing
+      const j = { title: c.t || c.site || '', site: c.site || '', specialty: c.sp || '', lvN: c.lv || '', level: c.lv || '', evo: c.evo || '', ref: c.ref || '', rate: c.rate || '', state: c.au || '', start: c.s || '', end: c.e || '', jStart: c.js || '', dates: arr(c.d), um: c.um ? 1 : 0, req: c.req || '', sk: c.sk, sites: c.sites };
+      closed.push({ jk, uid, j, si: siteOfCard(j), src: 'make', s: 'filled', why: c.why || 'filled / cancelled email', at: c.at || '' });
+    }
+    closed.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')) || String(a.j.start || '').localeCompare(String(b.j.start || '')));
     const byStart = (a, b) => (a.state ? 1 : 0) - (b.state ? 1 : 0) || a.dates[0].localeCompare(b.dates[0]);
     jobs.sort(byStart); nearJobs.sort(byStart); unmatched.sort(byStart);
 
@@ -907,9 +964,9 @@ const Focus = (() => {
     // the availability entry a job was matched on (first one covering a job date), for 'just this block' rules
     const blockFor = (k, ds) => (evBy[k] || []).find(x => (x.k === 'avail' || x.k === 'tent') && (ds || []).some(d => d >= x.s && d < x.e)) || (evBy[k] || []).find(x => (x.k === 'avail' || x.k === 'tent') && x.e > today) || null;
     const blockRules = k => { const out = []; for (const x of evBy[k] || []) if ((x.k === 'avail' || x.k === 'tent') && x.e > today) { for (const r of x.rules || []) if (!out.includes(r.raw)) out.push(r.raw); for (const s of x.ns || []) { const t = 'Not interested in: ' + (s.n || s.k); if (!out.includes(t)) out.push(t); } } return out; };
-    return { blockFor, blockRules, ruleJob, siteOfCard, today, win, jobs, nearJobs, unmatched, anyUm, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, coverFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
+    return { blockFor, blockRules, ruleJob, siteOfCard, today, win, jobs, nearJobs, unmatched, closed, baselines, freeOn, anyUm, avail, finishing, docs, freeDaysFor, notesFor, lastBookedFor, currentBookingFor, coverFor, docsCount: Object.values(docs).filter(d => !d.hidden).length };
   }
-  return { build, safeKey, addDays, nice, short, span, ranges, sydToday, key, RULES, SITES, ruleJob, canonSet, lvFromText };
+  return { build, tooLate, safeKey, addDays, nice, short, span, ranges, sydToday, key, RULES, SITES, ruleJob, canonSet, lvFromText };
 })();
 if (typeof module !== 'undefined') module.exports = Focus;
 </script><script>
@@ -940,7 +997,7 @@ if (typeof firebase !== 'undefined') (function () {
     };
     document.addEventListener('click', e => {
       if (!viewOnly) return;
-      const t = e.target.closest('[data-present],[data-presacc],[data-withdraw],[data-hidepres],[data-rmjob],[data-rm],[data-act],[data-contact]');
+      const t = e.target.closest('[data-present],[data-presacc],[data-withdraw],[data-hidepres],[data-rmjob],[data-reopen],[data-rm],[data-act],[data-contact]');
       if (t) { e.preventDefault(); e.stopImmediatePropagation(); }
     }, true);
   }
@@ -948,13 +1005,13 @@ if (typeof firebase !== 'undefined') (function () {
   const arr = v => Array.isArray(v) ? v : Object.values(v || {});
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const store = { get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} } };
-  const ALL_IDS = ['match', 'free', 'end', 'rev', 'upd', 'pres', 'ord'];   // Josh 21 Oct: no Close matches card - one list, full (green) then partial (orange)
+  const ALL_IDS = ['match', 'free', 'end', 'rev', 'upd', 'pres', 'ord', 'closed'];   // Josh 21 Oct: no Close matches card - one list, full (green) then partial (orange)
   const ORDER_HOOK = 'https://hook.us2.make.com/fqqy830msku3tlzepnr5sqxq1u1zabcx';
   const ORDER_FIX_HOOK = 'https://hook.us2.make.com/8ri2wr17nugbdrpt24h5fhyhulhwjsiw';   // Make 6625437 "Doctor Focus – order fix-up" (Focus dates + presented doctors on the Order)     // Make 6625206 "Doctor Focus – order lookup" (reads the Job Matches record)
   const PRESENT_HOOK = 'https://hook.us2.make.com/8ggkmdfw3g0vrn8kbd1gua8999pezfx4';   // Make 6622466 "Doctor Focus – present doctors"
   const LOOKUP_HOOK = 'https://hook.us2.make.com/q59nzaswg8idallwal14bzfdlxcnpnht';    // Make 6622723 "Doctor Focus – job sender lookup"
   let IDS = ['match', 'free', 'end'];
-  let user = null, scope = store.get('focus.scope', 'mine'), win = Number(store.get('focus.win', '28')) || 28;
+  let user = null, scope = store.get('focus.scope', 'mine'), win = [0, 14, 28, 56].includes(Number(store.get('focus.win', '28'))) ? Number(store.get('focus.win', '28')) : 28;   // 0 = All
   let updWin = store.get('focus.updWin', 'last') === 'today' ? 'today' : 'last';
   let gq = '';   // master search (header)
   let open = store.get('focus.open', ''); if (!ALL_IDS.includes(open)) open = null;
@@ -976,11 +1033,14 @@ if (typeof firebase !== 'undefined') (function () {
 
   // ---------- card meta ----------
   const META = {
-    match: { label: 'MATCHED', tab: 'Matched', c: '#1f8a5b', t: '#e4f4ec', hint: () => 'Inbox jobs your doctors can cover', exHint: 'Inbox jobs your doctors can cover. Green ✓ = free every day, orange ◐ = free some of the days.', empty: 'Nothing waiting right now.' },
+    match: { label: 'MATCHED', tab: 'Matched', c: '#1f8a5b', t: '#e4f4ec', hint: () => 'Inbox jobs your doctors can cover', exHint: 'Inbox jobs your doctors can cover, starting inside the 2/4/8-week window (All = every future job). Green ✓ = free every day, orange ◐ = free some of the days.', empty: 'Nothing waiting right now.' },
     close: { label: 'CLOSE MATCHES', tab: 'Close', c: '#6b45c9', t: '#eee8fc', hint: () => 'Worth a call – one level off or near the dates', exHint: 'Worth a call – level one step off, or free just around the dates.', empty: 'Nothing waiting right now.' },
-    free: { label: 'FREE, NO JOB', tab: 'Free, no job', c: '#1f62d6', t: '#e5eefd', hint: () => `Free in the next ${win / 7} weeks with nothing booked – market them`, exHint: 'Free with nothing booked or matched. Mark as contacted to hide for 7 days.', empty: 'Everyone free is booked or matched.' },
-    rev: { label: 'REVERSE MARKET', tab: 'Reverse market', c: '#0f766e', t: '#dcf3ee', hint: () => 'Desk jobs with no doctor free (any date) – market them to candidates', exHint: 'Jobs that fit your desk but none of your doctors are free – shown whatever the start date. "Could suit" lists doctors who fit the job but have no availability logged for those dates. Tick jobs to export them to a mailer.', empty: 'No unmatched desk jobs right now.' },
+    free: { label: 'FREE, NO JOB', tab: 'Free, no job', c: '#1f62d6', t: '#e5eefd', hint: () => win ? `Free in the next ${win / 7} weeks with nothing booked – market them` : 'Free any time ahead with nothing booked – market them', exHint: 'Free with nothing booked or matched. Mark as contacted to hide for 7 days.', empty: 'Everyone free is booked or matched.' },
+    rev: { label: 'REVERSE MARKET', tab: 'Reverse market', c: '#0f766e', t: '#dcf3ee', hint: () => 'Desk jobs with no doctor free (any date) – market them to candidates', exHint: 'Jobs that fit your desk but none of your doctors are free – shown whatever the start date. "Could suit" lists close fits (one level off, or free just around the dates) first, then doctors who fit the job but have no availability logged for those dates. Tick jobs to export them to a mailer.', empty: 'No unmatched desk jobs right now.' },
+    sj: { label: 'JOB SEARCH', tab: 'Jobs', c: '#1b2230', t: '#eef1f6', hint: () => (V && V.sjHint) || '', exHint: 'Every job matching your search, once each. The tags show where it sits – click one to open that card on this job.', empty: 'No jobs match.' },
+    sd: { label: 'DOCTOR SEARCH', tab: 'Doctors', c: '#1b2230', t: '#eef1f6', hint: () => (V && V.sdHint) || '', exHint: 'Every doctor matching your search, with where they sit and the jobs they’re matched to. Click a job to open it in its card.', empty: 'No doctors match.' },
     srch: { label: 'SEARCH – DOCTORS', tab: 'Search', c: '#1b2230', t: '#eef1f6', hint: () => (V && V.srchHint) || '', exHint: 'Every doctor on the calendar matching your search (name, level, specialty, preferences, where they want to work, tags, notes) – whether or not they are in another card. The other cards are filtered by the same search.', empty: 'No doctors match.' },
+    closed: { label: 'CLOSED JOBS', tab: 'Closed', c: '#6b7280', t: '#eceff3', hint: () => 'Filled, cancelled or crossed off – last 30 days', exHint: 'Jobs closed in the last 30 days: filled / cancelled emails (taken off everywhere), jobs you marked not suitable or removed (not “Not work we do” or “Job details wrong”), and jobs you took every doctor off. They still show in search. Reopen puts your own ones back.', empty: 'No closed jobs.' },
     upd: { label: 'UPDATES', tab: 'Updates', c: '#475467', t: '#eceff3', hint: () => (V && V.updHint) || 'What the last update changed', exHint: 'What changed: new, updated and removed jobs, and doctors whose availability, bookings, away dates or status changed. "Last update" = the most recent update that changed something; "Today" = every update since midnight. Updates run every 30 min, 8:30–5:30 weekdays.', empty: 'Nothing has changed yet.' },
     end: { label: 'FINISHING SOON', tab: 'Finishing', c: '#c27a12', t: '#fcf0dd', hint: () => 'Bookings ending in 2 weeks with nothing lined up', exHint: 'Bookings ending in the next 2 weeks with nothing lined up after.', empty: 'No gaps coming up.' },
     ord: { label: 'ORDERS CREATED', tab: 'Orders', c: '#15603f', t: '#e4f4ec', hint: () => 'Jobs you accepted – last 30 days', exHint: 'Every job you accepted from this page in the last 30 days, with a link to the ClickUp Order. A job matched to one doctor moves here when you accept it; a job with several doctors stays in Matched (marked "Order created") so you can keep presenting.', empty: 'No orders created yet.' },
@@ -1007,7 +1067,7 @@ if (typeof firebase !== 'undefined') (function () {
   const evoOf = j => String(j.evo || (String(j.ref || '').match(/EVO\s*([\d][\d\s\-–\/,&]*\d|\d{5})/) || [])[1]
     || (String(j.ref || '').match(/Ref\s*(\d{5}(?:\s*[-–\/]\s*\d{1,5})?)(?!\d)/) || [])[1] || '').trim();   // older jobs filed a 5-digit EVO number as Ref
   const flagsHTML = x => { const j = x.j, ev = evoOf(j);
-    return (ev ? `<span class="tag evo" title="EVO order">EVO ${esc(ev)}</span>` : '') +
+    return (x.reopened ? `<span class="tag upd" title="${esc('You closed this' + (x.reopened.at ? ' on ' + day(sydDate(Date.parse(x.reopened.at) || Date.now())) : '') + ' – back because ' + x.cand.filter(r => r.fresh).map(r => r.name).join(', ') + ' became free')}">Reopened – new availability</span>` : '') + (ev ? `<span class="tag evo" title="EVO order">EVO ${esc(ev)}</span>` : '') +
       (j.mod ? `<span class="tag upd" title="${esc('EVO order modified ' + j.mod + (j.chg ? ' – ' + j.chg : ' – job updated'))}">Updated</span>` : '') +
       (j.variant ? `<span class="tag var" title="An earlier email had a different ${j.variant === 'rate' ? 'rate' : 'set of dates'} for this job">Different ${j.variant === 'rate' ? 'rate' : 'dates'}</span>` : ''); };
   const rgText = (rg, max) => rg.slice(0, max).map(r => range(r[0], r[1])).join(', ') + (rg.length > max ? ` +${rg.length - max}` : '');
@@ -1077,7 +1137,7 @@ if (typeof firebase !== 'undefined') (function () {
       r.on('value', snap => { extJobs[uid] = snap.val() || null; if (loaded || Object.keys(own).length) compose(); }, () => { /* no access to that calendar – just your own jobs */ });
     }
   }
-  const hiddenNow = new Set();        // hidden the instant you click, before Firebase answers
+  const hiddenNow = new Set(), baseDone = new Set();   // baseDone: closed jobs whose 'who was free' list was written this session        // hidden the instant you click, before Firebase answers
   const removedNow = new Set(), unremovedNow = new Set();   // instant feedback before Firebase answers
   // Accept / Not suitable / removed jobs and doctors taken off a job are personal: they live in YOUR calendar
   // (users/{you}/focus/...) and never change anyone else's Doctor Focus. Older marks saved on the shared job card only count if you made them.
@@ -1093,9 +1153,9 @@ if (typeof firebase !== 'undefined') (function () {
   function dismissedMap() {
     const out = {};
     const me = data[user.uid] || {};
-    for (const k of Object.keys((me.focus && me.focus.dismissed) || {})) out[k] = 1;
-    for (const node of Object.values(data)) for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) if (rec && rec.state && rec.state.s && mine(rec.state)) out[jk] = 1;
-    hiddenNow.forEach(k => out[k] = 1);
+    for (const [k, r] of Object.entries((me.focus && me.focus.dismissed) || {})) out[k] = r && typeof r === 'object' ? r : 1;
+    for (const node of Object.values(data)) for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) if (rec && rec.state && rec.state.s && mine(rec.state)) out[jk] = out[jk] || rec.state;
+    hiddenNow.forEach(k => out[k] = out[k] || { s: 'hidden' });
     return out;
   }
   function contactedMap() {
@@ -1107,7 +1167,8 @@ if (typeof firebase !== 'undefined') (function () {
   // ---------- view models ----------
   function build() {
     const today = N.sydToday();
-    const F = N.build(Object.entries(data).map(([uid, node]) => ({ uid, node })), { today, win, me: String(user.email || '').toLowerCase(), contacted: contactedMap(), dismissed: dismissedMap(), removed: removedSet(), desk: deskRulesNow(), sites: siteList });
+    const bopts = { today, win: win || 400, revAll: ADMINS.includes(String(user.email || '').toLowerCase()) || JOB_CALS.includes(user.uid), me: String(user.email || '').toLowerCase(), contacted: contactedMap(), dismissed: dismissedMap(), removed: removedSet(), desk: deskRulesNow(), sites: siteList };
+    const nodesAll = Object.entries(data).map(([uid, node]) => ({ uid, node })), F = N.build(nodesAll, bopts); bopts.nodes = nodesAll;
     const pops = {}; let pi = 0;
     const jobVM = (x, near) => {
       const j = x.j, { site: tSite, role } = shortTitle(j.title), site = (x.si && x.si.site) || tSite, docs = near ? x.near : x.live, n = x.dates.length;
@@ -1117,7 +1178,7 @@ if (typeof firebase !== 'undefined') (function () {
         pid = 'p' + (pi++); pops[pid] = { k: r.k, name: r.name, level: r.level && r.level !== '?' ? r.level : '', jobLevel: j.level || '', fit: tip, all, near, c: r.c, n: r.n };
         return { ...r, cls: near ? 'p' : all ? 'g' : 'a', mark: near ? '' : all ? '✓ ' : '◐ ', tip, pid };
       });
-      return { kind: near ? 'close' : 'match', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, st: j.state || '', n, ds: x.dates, cand: docs,
+      return { kind: near ? 'close' : 'match', reopened: x.reopened || null, jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, st: j.state || '', n, ds: x.dates, cand: docs,
         dates: compactDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a', chips,
         q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo, ...docs.map(r => r.name + ' ' + lvWords(r.level) + ' ' + (r.why || ''))].join(' ').toLowerCase() };
     };
@@ -1133,36 +1194,119 @@ if (typeof firebase !== 'undefined') (function () {
       const where = shortTitle(b.location ? b.location + ' – ' : (t && !/^(booked|booking.*|timesheet)$/i.test(t) ? t : '')).site;
       const next = f.afterRanges.length ? 'Free after ' + f.afterRanges.map(r => range(r[0], r[1])).join(', ') : 'No availability logged after';
       const n = daysBetween(today, f.last);
-      return { kind: 'end', d, where, next, ends: day(f.last), inDays: n <= 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`,
+      return { kind: 'end', d, where, next, last: f.last, ends: day(f.last), inDays: n <= 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`,
         q: [d.name, lvWords(d.level), d.spec, d.specAll, d.base, where, t, b.location].join(' ').toLowerCase() };
     });
     const rev = F.unmatched.map(x => {
       const j = x.j, { site: tSite, role } = shortTitle(j.title), site = (x.si && x.si.site) || tSite, n = x.dates.length, fit = arr(j.fit).filter(f => f && F.docs[N.key(f.k)] && !F.docs[N.key(f.k)].hidden);   // only doctors on the calendars you're viewing
+      arr(x.near).forEach(r => { if (!fit.some(f => N.key(f.k) === r.k)) fit.unshift({ k: r.k, name: r.name, lv: r.level && r.level !== '?' ? r.level : '', cu: r.cu, why: r.why || 'close fit' }); });   // close fits first
       return { kind: 'rev', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, ds: x.dates, roleFull: String(j.title || '').split(' – ').slice(1).join(' – ') || j.specialty || '',
         st: j.state || '', n, dates: compactDates(x.dates), when: longDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a',
         req: [j.req, j.travel].filter(Boolean).join(' · '), fit,
-        q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), j.req, j.travel, j.ref, j.evo, ...fit.map(f => f.name)].join(' ').toLowerCase() };
+        q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), j.req, j.travel, j.ref, j.evo, ...fit.map(f => f.name + ' ' + (f.why || ''))].join(' ').toLowerCase() };
     });
     const U = updatesVM(today);
     const P = presentedVM();
     for (const k of [...sel]) if (!rev.some(r => r.jk === k)) sel.delete(k);   // forget ticks on jobs that have gone
-    const lists = { match, close, free, end, rev, upd: U.rows, pres: P.rows, ord: O.rows };
-    const T = gTerms(); let srchHint = '';
-    if (T.length) {
-      for (const id of Object.keys(lists)) lists[id] = lists[id].filter(x => gHit(x.q || '', T));
-      lists.srch = searchDocs(F, T);
-      const tot = Object.values(lists).reduce((n, l) => n + l.length, 0) - lists.srch.length;
-      srchHint = `${lists.srch.length} doctor${lists.srch.length === 1 ? '' : 's'} match “${gq.trim()}” · ${tot} item${tot === 1 ? '' : 's'} in the other cards`;
-    }
-    const counts = { match: lists.match.length, close: lists.close.length, free: lists.free.filter(a => !a.contacted).length, end: lists.end.length, rev: lists.rev.length, upd: lists.upd.length, srch: (lists.srch || []).length, pres: lists.pres.filter(r => r.status !== 'withdrawn').length, ord: lists.ord.length };
-    return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0, updHint: U.hint, srchHint, searching: T.length > 0, presByJob: P.byJob, presByDoc: P.byDoc, ordByJob: O.byJob };
+    const closedL = closedVM(F);
+    const lists = { match, close, free, end, rev, upd: U.rows, pres: P.rows, ord: O.rows, closed: closedL };
+    const T = gTerms(), DT = dTerms(), R = gRange(); let srchHint = '', sjHint = '', sdHint = '';
+    // Josh 23 Oct: two searches, one list each – jobs (tagged with every card they sit in) and doctors (with their jobs)
+    const jobOn = T.length > 0 || (!!R && !DT.length), docOn = DT.length > 0 || (!!R && !T.length);
+    const FA = (jobOn || docOn) && win ? N.build(nodesAll, Object.assign({}, bopts, { win: 400 })) : null;   // matches that start after the window
+    const later = FA ? FA.jobs.filter(x => !x.state && !lists.match.some(m => m.jk === x.jk)).map(x => jobVM(x, false)) : [];
+    if (jobOn) { lists.sj = jobSearch(F, bopts, lists, T, R, later); sjHint = `${lists.sj.length} job${lists.sj.length === 1 ? '' : 's'} match ${searchLabel(T)}`; }
+    if (docOn) { lists.sd = docSearch(F, lists, DT, R, later); sdHint = `${lists.sd.length} doctor${lists.sd.length === 1 ? '' : 's'} match ${searchLabel(DT)}`; }
+    const counts = { sj: (lists.sj || []).length, sd: (lists.sd || []).length, closed: lists.closed.length, match: lists.match.length, close: lists.close.length, free: lists.free.filter(a => !a.contacted).length, end: lists.end.length, rev: lists.rev.length, upd: lists.upd.length, srch: (lists.srch || []).length, pres: lists.pres.filter(r => r.status !== 'withdrawn').length, ord: lists.ord.length };
+    return { F, today, lists, counts, pops, showRev: F.anyUm || rev.length > 0, updHint: U.hint, srchHint, sjHint, sdHint, jobOn, docOn, searching: jobOn || docOn, jobVM, presByJob: P.byJob, presByDoc: P.byDoc, ordByJob: O.byJob };
   }
 
   // ---------- master search ----------
   const LV_WORDS = { junior: 'junior rmo jmo hmo intern resident', senior: 'senior srmo smo cmo pho', registrar: 'registrar reg', 'training registrar': 'training registrar reg trainee', specialist: 'specialist consultant vmo staff specialist', consultant: 'consultant specialist vmo' };
   const lvWords = l => { const k = String(l || '').trim().toLowerCase(); return k + ' ' + (LV_WORDS[k] || ''); };
+  let dq = '';   // doctor search (header)
   const gTerms = () => gq.toLowerCase().split(/\s+/).filter(Boolean);
+  const dTerms = () => dq.toLowerCase().split(/\s+/).filter(Boolean);
   const gHit = (q, T) => T.every(t => q.includes(t));
+  // date range paired with the search words (Josh 23 Oct): jobs with a date in the range, doctors free in it
+  let gFrom = '', gTo = '';
+  const gRange = () => (gFrom || gTo) ? { f: gFrom || '0000-00-00', t: gTo || '9999-12-31' } : null;
+  const searchLabel = (T) => [(T || gTerms()).length ? `“${(T || gTerms()).join(' ')}”` : '', (gFrom || gTo) ? (gFrom && gTo ? range(gFrom, gTo) : gFrom ? 'from ' + day(gFrom) : 'to ' + day(gTo)) : ''].filter(Boolean).join(' · ');
+  const dsIn = (ds, R) => arr(ds).some(d => d >= R.f && d <= R.t);
+  function freeIn(F, k, R) {
+    let d = R.f > F.today ? R.f : F.today; const end = R.t < N.addDays(F.today, 400) ? R.t : N.addDays(F.today, 400);
+    for (let i = 0; d <= end && i < 400; d = N.addDays(d, 1), i++) if (F.freeOn(k, d)) return true;
+    return false;
+  }
+  function inRange(id, x, R, F) {
+    if (id === 'match' || id === 'close' || id === 'rev' || id === 'closed') return x.ds && x.ds.length ? dsIn(x.ds, R) : !!(x.j && x.j.start && x.j.start <= R.t && (x.j.end || x.j.start) >= R.f);
+    if (id === 'free') return freeIn(F, x.a.k, R);
+    if (id === 'upd') return x.type === 'job' && !!x.s && x.s <= R.t && (x.e || x.s) >= R.f;
+    if (id === 'end') return !!x.last && x.last >= R.f && x.last <= R.t;
+    return false;   // Presented / Orders have no job dates to test
+  }
+  // ---------- job search: one row per job, tagged with every card it sits in (Josh 23 Oct) ----------
+  const DISW = { notwork: 'You marked it: not work we do', wrong: 'You marked it: job details wrong', accepted: 'Accepted by you' };
+  function jobSearch(F, bopts, lists, T, R, later) {
+    const J = new Map();
+    const add = (x, tag, jk) => { jk = jk || x.jk; if (!jk) return; let o = J.get(jk);
+      if (!o) J.set(jk, o = { kind: 'sj', jk, x, tags: [], q: '', pres: [] });
+      if (!o.tags.some(t => t[1] === tag[1])) o.tags.push(tag); o.q += ' ' + (x.q || '');
+      if ((x.kind === 'match' || x.kind === 'rev' || x.kind === 'closed') && !(o.x.kind === 'match' || o.x.kind === 'rev')) o.x = x; };
+    lists.match.forEach(x => add(x, ['g', x.reopened ? 'Matched (reopened)' : 'Matched', 'match']));
+    lists.rev.forEach(x => add(x, ['t', 'Reverse market', 'rev']));
+    lists.closed.forEach(x => add(x, ['c', 'Closed – ' + x.why, 'closed']));
+    lists.pres.filter(r => r.jk && r.status !== 'withdrawn' && r.status !== 'withdrawing').forEach(r => { add(r, ['b', 'Presented', 'pres'], r.jk); J.get(r.jk).pres.push(...r.docs); });
+    lists.ord.filter(r => r.jk).forEach(r => add(r, ['o', 'Order created', 'ord'], r.jk));
+    later.forEach(x => { if (!J.has(x.jk)) add(x, ['m', `Matched – starts after ${win / 7} weeks`, 'all']); });   // matched, but starts after the 2/4/8-week window
+    const dis = bopts.dismissed || {};
+    for (const { node } of bopts.nodes) for (const [jk, rec] of Object.entries((node && node.jobmatches) || {})) {   // anything else still on the calendars
+      const j = rec && rec.job; if (jk === '_closed' || !j || !j.end || J.has(jk) || N.tooLate(j, F.today)) continue;
+      const { site: tSite, role } = shortTitle(j.title), ds = arr(j.dates).filter(d => d >= F.today).sort(), d = dis[jk];
+      const why = (d && (DISW[d.r] || DISW[d.s])) || 'Not on your cards – none of your doctors free, or not your desk';
+      add({ jk, j, site: tSite || j.title || 'Job', role, ds, dates: compactDates(ds), rate: rateShort(j.rate) || 'Rate n/a', st: j.state || '',
+        q: [j.title, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo].join(' ').toLowerCase() }, ['x', why, '']);
+    }
+    const first = o => (o.x.ds && o.x.ds[0]) || '9999';
+    return [...J.values()].filter(o => gHit(o.q, T) && (!R || (o.x.ds && o.x.ds.length ? dsIn(o.x.ds, R) : false)))
+      .sort((a, b) => first(a).localeCompare(first(b)));
+  }
+  // ---------- doctor search: one row per doctor with where they sit + their jobs ----------
+  function docSearch(F, lists, DT, R, later) {
+    const freeK = new Set(lists.free.map(a => a.a.k)), endK = new Set(lists.end.map(f => f.d.k));
+    return searchDocs(F, DT).filter(x => !R || freeIn(F, x.d.k, R)).map(x => {
+      const k = x.d.k, tags = [], jobs = [];
+      for (const j of lists.match) { const r = j.cand.find(c => c.k === k); if (r) jobs.push({ jk: j.jk, card: 'match', cls: r.c === r.n ? 'g' : 'a', t: `${j.site} · ${j.dates}`, tip: `${j.site}${j.role ? ' – ' + j.role : ''} · ${r.c === r.n ? 'free all ' + r.n + ' days' : 'free ' + r.c + ' of ' + r.n + ' days'}` }); }
+      for (const j of later) { const r = j.cand.find(c => c.k === k); if (r) jobs.push({ jk: j.jk, card: 'all', cls: r.c === r.n ? 'g' : 'a', t: `${j.site} · ${j.dates}`, tip: `${j.site}${j.role ? ' – ' + j.role : ''} · starts after ${win / 7} weeks · ${r.c === r.n ? 'free all ' + r.n + ' days' : 'free ' + r.c + ' of ' + r.n + ' days'}` }); }
+      for (const j of lists.rev) { const f = j.fit.find(f => N.key(f.k) === k); if (f) jobs.push({ jk: j.jk, card: 'rev', cls: 'p', t: `${j.site} · ${j.dates}`, tip: `Reverse market – could suit${f.why ? ': ' + f.why : ''}` }); }
+      for (const p of lists.pres) if (p.jk && p.status !== 'withdrawn' && p.docs.some(d => N.key(d.k) === k)) jobs.push({ jk: p.jk, card: 'pres', cls: 'b', t: `${p.site || 'Job'} · presented`, tip: 'You presented them to this job' });
+      if (freeK.has(k)) tags.push(['f', 'Free, no job', 'free']);
+      if (endK.has(k)) tags.push(['e', 'Finishing soon', 'end']);
+      const nm = jobs.filter(j => j.card === 'match' || j.card === 'all').length, nr = jobs.filter(j => j.card === 'rev').length;
+      if (nm) tags.push(['g', `Matched to ${nm} job${nm === 1 ? '' : 's'}`, 'match']);
+      if (nr) tags.push(['t', `Could suit ${nr} reverse-market job${nr === 1 ? '' : 's'}`, 'rev']);
+      if (!tags.length) tags.push(['x', 'Not on a card', '']);
+      return Object.assign({}, x, { kind: 'sd', tags, jobs, q: x.q });
+    });
+  }
+  // ---------- closed jobs (Josh 23 Oct) ----------
+  const CRSN = { rate: 'rate too low', filled: 'already filled', dup: 'duplicate', other: 'other' };
+  function closedVM(F) {
+    const nsr = ((data[user.uid] || {}).focus || {}).nsr || {};
+    return F.closed.map(x => {
+      const j = x.j, { site: tSite, role } = shortTitle(j.title), site = (x.si && x.si.site) || tSite || j.site || 'Job';
+      const all = arr(j.dates).slice().sort(), ds = all.length ? all : j.start ? [j.start] : [];
+      const note = x.r === 'other' && nsr[N.safeKey(x.jk)] ? nsr[N.safeKey(x.jk)].note || nsr[N.safeKey(x.jk)].n || '' : '';
+      const why = x.src === 'make' ? String(x.why || 'filled / cancelled email').replace(/^./, c => c.toUpperCase())
+        : x.s === 'alldocs' ? 'You took every doctor off it' : x.s === 'removed' ? 'Removed from reverse market'
+        : 'Not suitable' + (x.r ? ' – ' + (CRSN[x.r] || x.r) : '') + (note ? ': ' + note : '');
+      const why2 = x.fresh ? why + ' · now free: ' + x.fresh.join(', ') + ' (shows in Matched once inside the window)' : why;
+      const atMs = /^\d+$/.test(String(x.at || '')) ? Number(x.at) : Date.parse(x.at || '') || 0;
+      return { kind: 'closed', jk: x.jk, uid: x.uid, j, site, role, st: j.state || '', ds, n: ds.length, dates: ds.length ? compactDates(ds) : '', rate: rateShort(j.rate) || 'Rate n/a',
+        why: why2, atMs, when: atMs ? day(sydDate(atMs)) : '', src: x.src, s: x.s, mine: x.src === 'you',
+        q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo, why2, 'closed'].join(' ').toLowerCase() };
+    }).sort((a, b) => b.atMs - a.atMs || String(a.ds[0] || '').localeCompare(String(b.ds[0] || '')));
+  }
   function searchDocs(F, T) {
     const out = [];
     for (const d of Object.values(F.docs)) {
@@ -1202,8 +1346,8 @@ if (typeof firebase !== 'undefined') (function () {
       for (const j of arr(e.jobs)) {
         const id = at + j.t + j.k; if (seenJ.has(id)) continue; seenJ.add(id);
         const { site, role } = shortTitle(j.title || '');
-        const what = j.t === 'del' ? (j.why || 'removed') : j.t === 'upd' ? (j.chg || 'order updated') : ({ match: 'matched to your doctors', near: 'close match', rev: 'reverse market' }[j.kind] || '');
-        rows.push({ kind: 'upd', type: 'job', t: j.t, at, site: site || j.title || 'Job', role, dates: j.s ? range(j.s, j.e || j.s) : '', what, evo: j.evo || '',
+        const what = j.t === 'del' ? (j.why || 'removed') : j.t === 'upd' ? (j.chg || 'order updated') : ({ match: 'matched to your doctors', near: 'reverse market (close fits)', rev: 'reverse market' }[j.kind] || '');
+        rows.push({ kind: 'upd', type: 'job', t: j.t, s: j.s || '', e: j.e || j.s || '', at, site: site || j.title || 'Job', role, dates: j.s ? range(j.s, j.e || j.s) : '', what, evo: j.evo || '',
           q: [j.title, what, j.evo, j.t === 'add' ? 'new' : j.t === 'upd' ? 'updated' : 'removed'].join(' ').toLowerCase() });
       }
       for (const d of arr(e.docs)) {
@@ -1420,8 +1564,8 @@ if (typeof firebase !== 'undefined') (function () {
   const rmBtn = (x, big) => `<button class="ib${big ? ' big' : ''}" title="Not suitable – remove" data-rmjob="${esc(x.jk)}">${I.x(18)}</button>`;
   const fitHTML = (x, wide) => {
     if (!x.fit.length) return '';
-    const chip = f => { const tip = `${f.name}${f.lv ? ' · ' + f.lv : ''} – ${f.av ? 'availability logged to ' + day(f.av) : 'no availability logged'}. Fits the job; check if they can go that far out.`;
-      const inner = `${esc(f.name)}${f.lv ? ` <span class="fl2">${esc(lvShort(f.lv))}</span>` : ''}${wide ? `<span class="ctip">${f.av ? 'Avail. to ' + esc(day(f.av)) : 'No availability logged'}</span>` : ''}`;
+    const chip = f => { const tip = f.why ? `${f.name}${f.lv ? ' · ' + f.lv : ''} – close fit: ${f.why}. Worth a call.` : `${f.name}${f.lv ? ' · ' + f.lv : ''} – ${f.av ? 'availability logged to ' + day(f.av) : 'no availability logged'}. Fits the job; check if they can go that far out.`;
+      const inner = `${esc(f.name)}${f.lv ? ` <span class="fl2">${esc(lvShort(f.lv))}</span>` : ''}${wide ? `<span class="ctip">${f.why ? esc(f.why) : f.av ? 'Avail. to ' + esc(day(f.av)) : 'No availability logged'}</span>` : ''}`;
       return f.cu ? `<a class="chip t${wide ? ' wide' : ''}" href="${esc(f.cu)}" target="_blank" rel="noopener" title="${esc(tip)}"><span class="cn">${inner}</span></a>` : `<span class="chip t${wide ? ' wide' : ''}" title="${esc(tip)}"><span class="cn">${inner}</span></span>`; };
     return `<div class="fitRow${wide ? ' w' : ''}"><span class="fitL" title="Doctors who fit the specialty and level but haven't logged availability for these dates">Could suit</span>${x.fit.slice(0, wide ? 10 : 4).map(chip).join('')}${!wide && x.fit.length > 4 ? `<span class="fitMore">+${x.fit.length - 4}</span>` : ''}</div>`;
   };
@@ -1438,29 +1582,58 @@ if (typeof firebase !== 'undefined') (function () {
       <div style="min-width:0"><div class="nm">${nameLink(x.d)} <span class="x">· ${esc(dot(lvShort(x.d.level), x.d.spec))}</span></div>
         <div class="sub" title="${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.free, x.book, x.notes))}">${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.freeShort, x.book))}</div></div>
       <span class="lb">${x.days ? x.days + 'd free' : ''}</span></div>`;
-  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow, rev: revRow, upd: updRow, srch: srchRow, pres: presRow, ord: ordRow };
+  const stagBtn = (t, jk, k) => `<button class="stag ${t[0]}"${t[2] ? ` data-goto="${t[2]}"${jk ? ` data-jk="${esc(jk)}"` : ''}${k ? ` data-dk="${esc(k)}"` : ''}` : ' disabled'} title="${esc(t[2] ? t[1] + ' – open' : t[1])}">${esc(t[1].length > 46 ? t[1].slice(0, 44) + '…' : t[1])}</button>`;
+  const sjRow = o => { const x = o.x, j = x.j || {}, ev = j.evo || j.ref ? evoOf(j) : (x.evo || '');
+    const docs = x.kind === 'match' ? x.chips.map(c => `<span class="sd ${c.cls}" data-dsrch="${esc(c.name)}" title="${esc(c.tip)} – search this doctor">${c.mark}${esc(c.name)}</span>`)
+      : x.kind === 'rev' ? x.fit.map(f => `<span class="sd p" data-dsrch="${esc(f.name)}" title="Could suit${f.why ? ': ' + esc(f.why) : ''} – search this doctor">${esc(f.name)}</span>`) : [];
+    const pres = (o.pres || []).filter(d => !docs.join('').includes(esc(d.name))).map(d => `<span class="sd b" data-dsrch="${esc(d.name)}" title="Presented – search this doctor">${esc(d.name)}</span>`);
+    return `<div class="sres"><div style="min-width:0"><div class="nm">${esc(x.site || 'Job')}${x.role ? ` <span class="x">· ${esc(x.role)}</span>` : ''}</div>
+      <div class="sub">${esc(dot(x.dates, x.rate, x.st, ev ? 'EVO ' + ev : ''))}</div></div>
+      <div class="stags">${o.tags.map(t => stagBtn(t, o.jk)).join('')}</div>
+      <div class="sdocs">${docs.concat(pres).join('') || '<span>No doctors on it</span>'}</div></div>`; };
+  const sdRow = x => `<div class="sres"><div style="min-width:0"><div class="nm">${nameLink(x.d)} <span class="x">· ${esc(dot(lvShort(x.d.level), x.d.spec))}</span></div>
+      <div class="sub" title="${esc(dot(x.d.base ? 'Wants ' + x.d.base : '', x.free, x.book, x.notes))}">${esc(dot(x.freeShort, x.book, x.d.base ? 'Wants ' + x.d.base : ''))}</div></div>
+      <div class="stags">${x.tags.map(t => stagBtn(t, '', x.d.k)).join('')}</div>
+      <div class="sdocs">${x.jobs.slice(0, 8).map(j => `<span class="sd ${j.cls}" data-goto="${j.card}" data-jk="${esc(j.jk)}" title="${esc(j.tip)} – open">${esc(j.t)}</span>`).join('')}${x.jobs.length > 8 ? `<span>+${x.jobs.length - 8} more</span>` : ''}${x.jobs.length ? '' : '<span>No jobs matched</span>'}</div></div>`;
+  const reopenBtn = x => x.mine ? `<button class="rob" data-reopen="${esc(x.jk)}" title="Put this job back on your Doctor Focus">Reopen</button>` : '';
+  const closedRow = x => `<div class="drow"><div style="min-width:0"><div class="nm"><span class="tag cl">Closed</span> ${esc(x.site)}${x.role ? ` <span class="x">· ${esc(x.role)}</span>` : ''}</div>
+        <div class="sub" title="${esc(dot(x.dates, x.why))}">${esc(dot(x.dates, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : '', x.why))}</div></div><div class="rt"><span class="lb">${esc(x.when)}</span>${reopenBtn(x)}</div></div>`;
+  const exClosed = x => `<div class="tr job">
+      <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}</div>
+      <div class="c13">${esc(x.dates || '–')}<div class="s2">${x.n ? x.n + ' day' + (x.n === 1 ? '' : 's') : ''}</div></div>
+      <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div></div>
+      <div class="c13m">${esc(x.why)}</div>
+      <div class="c13m">${esc(x.when || '–')}</div>
+      <div class="acts">${reopenBtn(x)}</div></div>`;
+  const ROW = { match: jobRow, close: jobRow, free: freeRow, end: endRow, rev: revRow, upd: updRow, srch: srchRow, pres: presRow, ord: ordRow, closed: closedRow, sj: sjRow, sd: sdRow };
 
   // ---------- render ----------
   function render() {
     if (!user || !loaded) return;
     V = build();
+    for (const b of V.F.baselines) if (!baseDone.has(b.jk) && typeof b.rec === 'object' && b.rec.s && b.rec.s !== 'hidden') {
+      baseDone.add(b.jk); const free = { _: 1 }; b.free.forEach(k => free[N.safeKey(k)] = 1);
+      db.ref(`users/${user.uid}/focus/dismissed/${b.jk}`).set(Object.assign({}, b.rec, { free })).catch(e => console.warn('baseline', e));
+    }
     setTimeout(recheckOrders, 0);
-    $('meta').textContent = `${N.nice(V.today)} · ${V.F.docsCount} doctors · ${win / 7} weeks ahead`;
-    $('gqBox').classList.toggle('on', V.searching); $('gqX').hidden = !V.searching;
+    $('meta').textContent = `${N.nice(V.today)} · ${V.F.docsCount} doctors · ${win ? win / 7 + ' weeks ahead' : 'all future jobs'}`;
+    $('gqBox').classList.toggle('on', !!gq.trim()); $('gqX').hidden = !gq.trim(); $('dqBox').classList.toggle('on', !!dq.trim()); $('dqX').hidden = !dq.trim();
     const grid = $('grid'), keep = {};
     grid.querySelectorAll('.cBody').forEach(b => keep[b.dataset.id] = b.scrollTop);       // keep each card's scroll on live updates
     IDS = V.showRev ? ALL_IDS.slice() : ALL_IDS.filter(i => i !== 'rev');
-    if (V.searching) IDS = ['srch', ...IDS.filter(id => V.lists[id].length)];   // searching: doctor results first, then only the cards with a hit
+    const GRID = V.searching ? [V.jobOn && 'sj', V.docOn && 'sd'].filter(Boolean) : IDS;   // searching: just the job and/or doctor result lists
+    if (V.searching) IDS = [...GRID, ...IDS];
     if (open && !IDS.includes(open)) closeEx();
-    grid.classList.toggle('withUpd', IDS.includes('rev') && IDS.includes('upd'));
-    grid.innerHTML = IDS.map(id => {
+    grid.classList.toggle('withUpd', !V.searching && IDS.includes('rev') && IDS.includes('upd'));
+    grid.classList.toggle('searching', V.searching);
+    grid.innerHTML = GRID.map(id => {
       const m = META[id], list = V.lists[id];
-      return `<section class="card${id === 'rev' ? ' revCard' : id === 'srch' ? ' srchCard' : ''}" style="--c:${m.c};--t70:${m.t}b3;--t30:${m.t}4d">
+      return `<section class="card${id === 'rev' ? ' revCard' : id === 'srch' || id === 'sj' || id === 'sd' ? ' srchCard' : ''}" style="--c:${m.c};--t70:${m.t}b3;--t30:${m.t}4d">
         <button class="cHead" data-open="${id}" title="Open full screen">
           <div class="lrow"><span class="dot"></span><span class="lab">${m.label}</span><span class="sp"></span><span style="color:#8a93a3;display:flex">${I.max(16)}</span></div>
           <div class="crow"><span class="cnt">${V.counts[id]}</span><span class="hint">${esc(m.hint())}</span></div>
         </button>${id === 'rev' ? selBar(false) : id === 'upd' ? updBar(false) : ''}
-        <div class="cBody" data-id="${id}">${list.length ? list.map(ROW[id]).join('') : `<div class="empty">${V.searching ? 'Nothing matches “' + esc(gq.trim()) + '”.' : m.empty}</div>`}</div>
+        <div class="cBody" data-id="${id}">${list.length ? list.map(ROW[id]).join('') : `<div class="empty">${m.empty}</div>`}</div>
         <button class="cFoot" data-open="${id}">View all ${list.length} full screen ${I.right(14)}</button>
       </section>`;
     }).join('');
@@ -1479,12 +1652,14 @@ if (typeof firebase !== 'undefined') (function () {
     end: 'minmax(0,1.4fr) minmax(0,1.4fr) 120px minmax(0,1.6fr)',
     rev: '28px minmax(0,2fr) 150px 140px minmax(0,2fr) 100px',
     upd: '80px 120px minmax(0,1.4fr) minmax(0,2.4fr)',
-    srch: 'minmax(0,1.4fr) minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.6fr) 150px'
+    srch: 'minmax(0,1.4fr) minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.6fr) 150px',
+    closed: 'minmax(0,2fr) 140px 140px minmax(0,2fr) 110px 90px',
+    sj: 'minmax(0,1fr)', sd: 'minmax(0,1fr)'
   };
   const exJob = x => `<div class="tr job">
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
       <div class="c13">${esc(x.dates)}<div class="s2">${x.n} day${x.n === 1 ? '' : 's'}</div></div>
-      <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
+      <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.reopened || x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
       <div>${chipRows(x, true)}${ordLine(x, true)}${presLine(x, true)}</div>
       <div class="acts">${actBtns(x, true)}</div></div>`;
   const exFree = a => `<div class="tr${a.contacted ? ' dim' : ''}">
@@ -1507,6 +1682,49 @@ if (typeof firebase !== 'undefined') (function () {
       <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
       <div class="c13m">${esc(x.req || '–')}${fitHTML(x, true)}${presLine(x, true)}</div>
       <div class="acts">${presBtn(x, true)}${rmBtn(x, true)}</div></div>`;
+  // ---------- drill-down filters: Matched + Reverse market full screen (Josh 23 Oct) ----------
+  const DR = { st: '', sp: '', lv: '', f: '', t: '' };
+  const drLv = x => String(x.j.lvN || x.j.level || '').trim();
+  const drSp = x => String(x.j.specialty || '').trim();
+  const drillOk = x => (!DR.st || x.st === DR.st) && (!DR.sp || drSp(x) === DR.sp) && (!DR.lv || drLv(x) === DR.lv)
+    && (!(DR.f || DR.t) || dsIn(x.ds, { f: DR.f || '0000-00-00', t: DR.t || '9999-12-31' }));
+  function drillRender(all) {
+    const opts = (fn, cur, lab) => { const vals = [...new Set(all.map(fn).filter(Boolean))].sort();
+      if (cur && !vals.includes(cur)) vals.unshift(cur);
+      return `<option value="">${lab}</option>` + vals.map(v => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(v)} (${all.filter(x => fn(x) === v).length})</option>`).join(''); };
+    const any = DR.st || DR.sp || DR.lv || DR.f || DR.t;
+    $('exDrill').innerHTML = `<select data-dr="st" class="${DR.st ? 'on' : ''}">${opts(x => x.st, DR.st, 'All states')}</select>
+      <select data-dr="sp" class="${DR.sp ? 'on' : ''}">${opts(drSp, DR.sp, 'All specialties')}</select>
+      <select data-dr="lv" class="${DR.lv ? 'on' : ''}">${opts(drLv, DR.lv, 'All levels')}</select>
+      <span class="dl">Dates</span><input type="date" data-dr="f" value="${esc(DR.f)}" class="${DR.f ? 'on' : ''}"><span class="dl">to</span><input type="date" data-dr="t" value="${esc(DR.t)}" class="${DR.t ? 'on' : ''}">
+      ${any ? '<button class="lnk2" data-drclear>Clear filters</button>' : ''}`;
+  }
+  $('exDrill').addEventListener('change', e => { const k = e.target.dataset.dr; if (!k) return; DR[k] = e.target.value; renderEx(); });
+  $('exDrill').addEventListener('click', e => { if (e.target.closest('[data-drclear]')) { Object.keys(DR).forEach(k => DR[k] = ''); renderEx(); } });
+  // header date range
+  const drSync = () => { $('drBox').classList.toggle('on', !!(gFrom || gTo)); $('drX').hidden = !(gFrom || gTo); };
+  $('gFrom').addEventListener('change', e => { gFrom = e.target.value; if (gFrom && gTo && gTo < gFrom) { gTo = gFrom; $('gTo').value = gTo; } drSync(); render(); });
+  $('gTo').addEventListener('change', e => { gTo = e.target.value; if (gFrom && gTo && gTo < gFrom) { gFrom = gTo; $('gFrom').value = gFrom; } drSync(); render(); });
+  $('drX').addEventListener('click', e => { e.preventDefault(); gFrom = gTo = ''; $('gFrom').value = $('gTo').value = ''; drSync(); render(); });
+  // reopen one of your own closed jobs
+  async function reopenJob(jk) {
+    const x = V && V.lists.closed.find(y => y.jk === jk); if (!x || !x.mine) return;
+    hiddenNow.delete(jk);
+    try {
+      if (x.s === 'alldocs') {
+        await db.ref(`users/${user.uid}/focus/removed/${jk}`).remove();
+        const rm = (await db.ref(`users/${x.uid}/jobmatches/${jk}/removed`).once('value')).val() || {};
+        for (const [dk, r] of Object.entries(rm)) if (mine(r)) await db.ref(`users/${x.uid}/jobmatches/${jk}/removed/${dk}`).remove();
+        [...removedNow].forEach(k => { if (k.startsWith(jk + '|')) removedNow.delete(k); });
+      } else {
+        await db.ref(`users/${user.uid}/focus/dismissed/${jk}`).remove();
+        await db.ref(`users/${user.uid}/focus/nsr/${N.safeKey(jk)}`).remove().catch(() => {});
+        const st = await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).once('value'); if (mine(st.val())) await db.ref(`users/${x.uid}/jobmatches/${jk}/state`).remove();
+      }
+      toast(`${x.site} reopened`);
+    } catch (e) { console.warn(e); toast('Couldn’t reopen – try again'); }
+    render();
+  }
   function openEx(id) { open = id; q = ''; $('exQ').value = ''; store.set('focus.open', id); $('ex').hidden = false; renderEx(); $('exQ').focus({ preventScroll: true }); }
   function closeEx(silent) { open = null; q = ''; $('ex').hidden = true; if (!silent) store.set('focus.open', null); hidePop(); }
   function renderEx() {
@@ -1516,16 +1734,19 @@ if (typeof firebase !== 'undefined') (function () {
     $('exTabs').innerHTML = IDS.map(id => `<button class="tab${id === open ? ' on' : ''}" style="--c:${META[id].c}" data-tab="${id}"><span class="dot"></span>${META[id].tab} <span class="n">${V.counts[id]}</span></button>`).join('');
     $('exTitle').innerHTML = `<div class="lrow" style="--c:${m.c}"><span class="dot"></span><span class="lab">${m.label}</span></div>
       <div class="crow"><span class="cnt">${V.counts[open]}</span><span class="exHint">${esc(m.exHint)}</span></div>${open === 'rev' ? selBar(true) : open === 'upd' ? updBar(true) : ''}`;
-    const list = V.lists[open].filter(x => !qq || x.q.includes(qq));
+    const drillOn = open === 'match' || open === 'rev';
+    $('exDrillWrap').hidden = !drillOn;
+    if (drillOn) drillRender(V.lists[open]);
+    const list = V.lists[open].filter(x => (!qq || x.q.includes(qq)) && (!drillOn || drillOk(x)));
     const kind = open === 'match' || open === 'close' ? 'job' : open;
-    const head = { rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'], upd: ['TIME', 'TYPE', 'JOB / DOCTOR', 'WHAT CHANGED'], srch: ['DOCTOR', 'LEVEL · SPECIALTY', 'WANTS TO WORK', 'AVAILABILITY', 'BOOKING'], pres: ['PRESENTED', 'JOB', 'DOCTORS', 'SENT TO', 'STATUS', ''], ord: ['ACCEPTED', 'JOB', 'DOCTORS MATCHED', 'STATUS', 'ORDER'] }[kind];
+    const head = { sj: ['JOB · WHERE IT SITS · DOCTORS'], sd: ['DOCTOR · WHERE THEY SIT · JOBS'], closed: ['JOB', 'DATES', 'RATE', 'WHY CLOSED', 'CLOSED', ''], rev: ['', 'JOB', 'DATES', 'RATE', 'REQUIREMENTS · COULD SUIT', ''], job: ['JOB', 'DATES', 'RATE', 'DOCTORS', ''], free: ['DOCTOR', 'FREE', 'DAYS', 'LAST BOOKED', 'NOTES', ''], end: ['DOCTOR', 'CURRENT PLACEMENT', 'ENDS', 'AFTER'], upd: ['TIME', 'TYPE', 'JOB / DOCTOR', 'WHAT CHANGED'], srch: ['DOCTOR', 'LEVEL · SPECIALTY', 'WANTS TO WORK', 'AVAILABILITY', 'BOOKING'], pres: ['PRESENTED', 'JOB', 'DOCTORS', 'SENT TO', 'STATUS', ''], ord: ['ACCEPTED', 'JOB', 'DOCTORS MATCHED', 'STATUS', 'ORDER'] }[kind];
     const exSrch = x => `<div class="tr">
       <div style="min-width:0"><div class="site">${nameLink(x.d)}</div>${x.d.pgy ? `<div class="c13m">${esc(x.d.pgy)}</div>` : ''}</div>
       <div class="c13m">${esc(dot(x.d.level, x.d.specAll || x.d.spec))}${x.d.prefs ? `<div class="s2">${esc(x.d.prefs)}</div>` : ''}</div>
       <div class="c13m">${esc(x.d.base || '–')}</div>
       <div class="c13">${esc(x.free)}${x.notes ? `<div class="s2">${esc(x.notes)}</div>` : ''}</div>
       <div class="c13m">${esc(x.book)}</div></div>`;
-    const row = { job: exJob, free: exFree, end: exEnd, rev: exRev, upd: exUpd, srch: exSrch, pres: exPres, ord: exOrd }[kind];
+    const row = { job: exJob, free: exFree, end: exEnd, rev: exRev, upd: exUpd, srch: exSrch, pres: exPres, ord: exOrd, closed: exClosed, sj: o => `<div class="tr">${sjRow(o)}</div>`, sd: x => `<div class="tr">${sdRow(x)}</div>` }[kind];
     const tbl = $('exTbl'), st = tbl.parentNode.scrollTop;
     tbl.style.setProperty('--cols', COLS[kind]);
     tbl.innerHTML = `<div class="th">${head.map(h => `<span>${h}</span>`).join('')}</div>` +
@@ -1537,6 +1758,20 @@ if (typeof firebase !== 'undefined') (function () {
   $('gq').addEventListener('input', e => { clearTimeout(gqT); gqT = setTimeout(() => { gq = e.target.value; render(); }, 120); });
   $('gqX').addEventListener('click', e => { e.preventDefault(); gq = ''; $('gq').value = ''; render(); $('gq').focus(); });
   $('gq').addEventListener('keydown', e => { if (e.key === 'Escape' && gq) { e.stopPropagation(); gq = ''; e.target.value = ''; render(); } });
+  let dqT = 0;
+  $('dq').addEventListener('input', e => { clearTimeout(dqT); dqT = setTimeout(() => { dq = e.target.value; render(); }, 120); });
+  $('dqX').addEventListener('click', e => { e.preventDefault(); dq = ''; $('dq').value = ''; render(); $('dq').focus(); });
+  $('dq').addEventListener('keydown', e => { if (e.key === 'Escape' && dq) { e.stopPropagation(); dq = ''; e.target.value = ''; render(); } });
+  // search result -> open the card it sits in, filtered to that job / doctor
+  function gotoCard(card, jk, dk) {
+    if (card === 'all') { win = 0; store.set('focus.win', 0); setSeg($('winSeg'), 'w', 0); card = 'match'; render(); }
+    const x = jk && (V.lists[card] || []).find(y => y.jk === jk);
+    openEx(card);
+    let f = '';
+    if (x) f = (x.j && evoOf(x.j)) || x.evo || x.site || '';
+    else if (dk) { const d = V.F.docs[dk]; f = d ? d.name : ''; }
+    if (f) { q = String(f); $('exQ').value = q; renderEx(); }
+  }
   document.addEventListener('keydown', e => { if (e.key === '/' && !/^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '') && $('ex').hidden) { e.preventDefault(); $('gq').focus(); } });
   document.addEventListener('click', e => { const t = e.target.closest('[data-updwin]'); if (!t) return; e.preventDefault(); e.stopPropagation(); updWin = t.dataset.updwin; store.set('focus.updWin', updWin); render(); }, true);
   document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('whySet').hidden) { closeWhy(); return; } if (!$('mailSet').hidden) { $('mailSet').hidden = true; return; } if (!$('expSet').hidden) { $('expSet').hidden = true; return; } if (!$('presSet').hidden) { presClose(); return; } if (open) closeEx(); });
@@ -1966,7 +2201,7 @@ if (typeof firebase !== 'undefined') (function () {
     const out = [];
     const add = (k, name, extra) => { k = N.key(k); if (!k || out.some(o => o.k === k)) return; const d = V.F.docs[k] || {};
       out.push(Object.assign({ k, name: d.name || name || k, level: d.level || '', spec: d.specAll || d.spec || '', pgy: d.pgy || '', cu: d.cu || '', uids: (d.uids || []).slice() }, extra)); };
-    if (x.kind === 'rev') x.fit.forEach(f => add(f.k, f.name, { fit: f.av ? 'availability logged to ' + day(f.av) : 'no availability logged', tag: ['p', 'Could suit'], cu0: f.cu, lv0: f.lv }));
+    if (x.kind === 'rev') x.fit.forEach(f => add(f.k, f.name, { fit: f.why ? 'close fit – ' + f.why : f.av ? 'availability logged to ' + day(f.av) : 'no availability logged', tag: ['p', 'Could suit'], cu0: f.cu, lv0: f.lv }));
     else x.cand.forEach(r => add(r.k, r.name, { fit: x.kind === 'close' ? (r.why || 'close match') : r.c === r.n ? `free all ${r.n} days` : `free ${r.c} of ${r.n} days`,
       tag: x.kind === 'close' ? ['p', 'Close'] : r.c === r.n ? ['g', '✓ All days'] : ['a', `◐ ${r.c}/${r.n}`], cu0: r.cu, lv0: r.level }));
     out.forEach(o => { o.cu = o.cu || o.cu0 || ''; o.level = o.level || (o.lv0 && o.lv0 !== '?' ? o.lv0 : ''); });
@@ -2271,11 +2506,14 @@ if (typeof firebase !== 'undefined') (function () {
     if (on) toast(`${name} marked contacted`, () => setContacted(k, false));
   }
   document.addEventListener('click', e => {
-    const t = e.target.closest('[data-presacc],[data-hidepres],[data-present],[data-withdraw],[data-rmjob],[data-export],[data-selnone],[data-rm],[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
+    const g = e.target.closest('[data-goto],[data-dsrch]');
+    if (g) { e.preventDefault(); e.stopPropagation(); if (g.dataset.goto) gotoCard(g.dataset.goto, g.dataset.jk, g.dataset.dk); else { dq = g.dataset.dsrch; $('dq').value = dq; render(); } return; }
+    const t = e.target.closest('[data-reopen],[data-presacc],[data-hidepres],[data-present],[data-withdraw],[data-rmjob],[data-export],[data-selnone],[data-rm],[data-act],[data-contact],[data-open],[data-close],[data-tab]'); if (!t) return;
     if (t.dataset.present) { e.preventDefault(); presOpen(t.dataset.present); return; }
     if (t.dataset.withdraw) { e.preventDefault(); presWithdraw(t.dataset.withdraw); return; }
     if (t.dataset.presacc) { e.preventDefault(); acceptJob(t.dataset.jk, t.dataset.presacc); return; }
     if (t.dataset.hidepres) { e.preventDefault(); hidePres(t.dataset.hidepres); return; }
+    if (t.dataset.reopen) { e.preventDefault(); reopenJob(t.dataset.reopen); return; }
     if (t.dataset.rmjob) { removeRev(t.dataset.rmjob); return; }
     if (t.dataset.export != null) { openExport(); return; }
     if (t.dataset.selnone != null) { sel.clear(); render(); return; }
