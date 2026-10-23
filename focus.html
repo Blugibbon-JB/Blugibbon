@@ -77,6 +77,7 @@ a.ib{display:inline-flex;align-items:center;justify-content:center;text-decorati
 .tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap}
 .tag.evo{background:#eef1f6;color:#3b4252}
 .tag.upd{background:#e8effc;color:#174aa3}
+.tag.jid{background:#fff;color:#1b2230;border:1px solid #d5dbe5;font-variant-numeric:tabular-nums}
 .tag.var{background:#fbf1e0;color:#8a560c}
 .ago{display:flex;align-items:center;gap:4px;color:#8a93a3}
 .mlink{display:flex;align-items:center;gap:4px;color:#1f62d6;font-weight:600}
@@ -912,7 +913,7 @@ const Focus = (() => {
     for (const { uid, node } of nodes) for (const [jk, c] of Object.entries(((node && node.jobmatches) || {})._closed || {})) {
       if (!c || seenJob.has(jk)) continue; seenJob.add(jk);
       if (c.at && Date.now() - Number(c.at) > 30 * 864e5) continue;    // show for 30 days after closing
-      const j = { title: c.t || c.site || '', site: c.site || '', specialty: c.sp || '', lvN: c.lv || '', level: c.lv || '', evo: c.evo || '', ref: c.ref || '', rate: c.rate || '', state: c.au || '', start: c.s || '', end: c.e || '', jStart: c.js || '', dates: arr(c.d), um: c.um ? 1 : 0, req: c.req || '', sk: c.sk, sites: c.sites };
+      const j = { jid: c.jid || '', title: c.t || c.site || '', site: c.site || '', specialty: c.sp || '', lvN: c.lv || '', level: c.lv || '', evo: c.evo || '', ref: c.ref || '', rate: c.rate || '', state: c.au || '', start: c.s || '', end: c.e || '', jStart: c.js || '', dates: arr(c.d), um: c.um ? 1 : 0, req: c.req || '', sk: c.sk, sites: c.sites };
       if (!j.end || tooLate(j, today)) continue;                                         // dates passed - nothing to do
       const rjc = ruleJob(j, j.lvN || lvFromText([j.level, String(j.title || '').split(' – ').slice(1).join(' – ')].join(' '))), sic = siteOfCard(j); rjc.si = sic; rjc.site = [rjc.site, sic.site].join(' / ');
       if ((opts.desk || []).some(d => RULES.deskHit(d, rjc, canonSet))) continue;        // 'not work we do' for your desk
@@ -1080,9 +1081,11 @@ if (typeof firebase !== 'undefined') (function () {
   }
   const evoOf = j => String(j.evo || (String(j.ref || '').match(/EVO\s*([\d][\d\s\-–\/,&]*\d|\d{5})/) || [])[1]
     || (String(j.ref || '').match(/Ref\s*(\d{5}(?:\s*[-–\/]\s*\d{1,5})?)(?!\d)/) || [])[1] || '').trim();   // older jobs filed a 5-digit EVO number as Ref
+  const dmy = d => { const m = String(d || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : String(d || ''); };
+  const jidTag = j => j && j.jid ? `<span class="tag jid" title="Job ID – search it to find this job">${esc(j.jid)}</span>` : '';
   const flagsHTML = x => { const j = x.j, ev = evoOf(j);
-    return (x.reopened ? `<span class="tag upd" title="${esc('You closed this' + (x.reopened.at ? ' on ' + day(sydDate(Date.parse(x.reopened.at) || Date.now())) : '') + ' – back because ' + x.cand.filter(r => r.fresh).map(r => r.name).join(', ') + ' became free')}">Reopened – new availability</span>` : '') + (ev ? `<span class="tag evo" title="EVO order">EVO ${esc(ev)}</span>` : '') +
-      (j.mod ? `<span class="tag upd" title="${esc('EVO order modified ' + j.mod + (j.chg ? ' – ' + j.chg : ' – job updated'))}">Updated</span>` : '') +
+    return jidTag(j) + (x.reopened ? `<span class="tag upd" title="${esc('You closed this' + (x.reopened.at ? ' on ' + day(sydDate(Date.parse(x.reopened.at) || Date.now())) : '') + ' – back because ' + x.cand.filter(r => r.fresh).map(r => r.name).join(', ') + ' became free')}">Reopened – new availability</span>` : '') + (ev ? `<span class="tag evo" title="EVO order">EVO ${esc(ev)}</span>` : '') +
+      (j.mod ? `<span class="tag upd" title="${esc('Order updated ' + dmy(j.mod) + (j.chg ? ' – ' + j.chg : ' – job updated'))}">Update: ${esc(dmy(j.mod))}</span>` : '') +
       (j.variant ? `<span class="tag var" title="An earlier email had a different ${j.variant === 'rate' ? 'rate' : 'set of dates'} for this job">Different ${j.variant === 'rate' ? 'rate' : 'dates'}</span>` : ''); };
   const rgText = (rg, max) => rg.slice(0, max).map(r => range(r[0], r[1])).join(', ') + (rg.length > max ? ` +${rg.length - max}` : '');
   const daysBetween = (a, b) => Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 864e5);
@@ -1194,7 +1197,7 @@ if (typeof firebase !== 'undefined') (function () {
       });
       return { kind: near ? 'close' : 'match', reopened: x.reopened || null, jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, st: j.state || '', n, ds: x.dates, cand: docs,
         dates: compactDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a', chips,
-        q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo, ...docs.map(r => r.name + ' ' + lvWords(r.level) + ' ' + (r.why || ''))].join(' ').toLowerCase() };
+        q: [j.jid, j.title, site, role, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo, ...docs.map(r => r.name + ' ' + lvWords(r.level) + ' ' + (r.why || ''))].join(' ').toLowerCase() };
     };
     const O = ordersVM();
     const moved = x => { const o = O.byJob[x.jk]; return o && !o.keep && o.status !== 'failed'; };   // one-doctor job accepted -> lives in Orders created
@@ -1217,7 +1220,7 @@ if (typeof firebase !== 'undefined') (function () {
       return { kind: 'rev', jk: x.jk, uid: x.uid, j, site: site || j.title || 'Job', role, ds: x.dates, roleFull: String(j.title || '').split(' – ').slice(1).join(' – ') || j.specialty || '',
         st: j.state || '', n, dates: compactDates(x.dates), when: longDates(x.dates), rate: rateShort(j.rate) || 'Rate n/a',
         req: [j.req, j.travel].filter(Boolean).join(' · '), fit,
-        q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), j.req, j.travel, j.ref, j.evo, ...fit.map(f => f.name + ' ' + (f.why || ''))].join(' ').toLowerCase() };
+        q: [j.jid, j.title, site, role, j.state, j.specialty, lvWords(j.level), j.req, j.travel, j.ref, j.evo, ...fit.map(f => f.name + ' ' + (f.why || ''))].join(' ').toLowerCase() };
     });
     const U = updatesVM(today);
     const P = presentedVM();
@@ -1280,7 +1283,7 @@ if (typeof firebase !== 'undefined') (function () {
       const { site: tSite, role } = shortTitle(j.title), ds = arr(j.dates).filter(d => d >= F.today).sort(), d = dis[jk];
       const why = (d && (DISW[d.r] || DISW[d.s])) || (bopts.revAll && !F.deskFit(j) ? `Not your desk (${j.specialty || 'specialty'})` : 'No doctor of yours free');
       add({ other: 1, jk, j, site: tSite || j.title || 'Job', role, ds, dates: compactDates(ds), rate: rateShort(j.rate) || 'Rate n/a', st: j.state || '',
-        q: [j.title, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo].join(' ').toLowerCase() }, ['x', why, '']);
+        q: [j.jid, j.title, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo].join(' ').toLowerCase() }, ['x', why, '']);
     }
     const first = o => (o.x.ds && o.x.ds[0]) || '9999';
     const hits = [...J.values()].filter(o => gHit(o.q, T) && (!R || (o.x.ds && o.x.ds.length ? dsIn(o.x.ds, R) : false)))
@@ -1322,7 +1325,7 @@ if (typeof firebase !== 'undefined') (function () {
       const atMs = /^\d+$/.test(String(x.at || '')) ? Number(x.at) : Date.parse(x.at || '') || 0;
       return { kind: 'closed', jk: x.jk, uid: x.uid, j, site, role, st: j.state || '', ds, n: ds.length, dates: ds.length ? compactDates(ds) : '', rate: rateShort(j.rate) || 'Rate n/a',
         why: why2, atMs, when: atMs ? day(sydDate(atMs)) : '', src: x.src, s: x.s, mine: x.src === 'you',
-        q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo, why2, 'closed'].join(' ').toLowerCase() };
+        q: [j.title, site, role, j.state, j.specialty, lvWords(j.level), rateShort(j.rate), j.ref, j.evo, j.jid, why2, 'closed'].join(' ').toLowerCase() };
     }).sort((a, b) => b.atMs - a.atMs || String(a.ds[0] || '').localeCompare(String(b.ds[0] || '')));
   }
   function searchDocs(F, T) {
@@ -1365,8 +1368,8 @@ if (typeof firebase !== 'undefined') (function () {
         const id = at + j.t + j.k; if (seenJ.has(id)) continue; seenJ.add(id);
         const { site, role } = shortTitle(j.title || '');
         const what = j.t === 'del' ? (j.why || 'removed') : j.t === 'upd' ? (j.chg || 'order updated') : ({ match: 'matched to your doctors', near: 'reverse market (close fits)', rev: 'reverse market' }[j.kind] || '');
-        rows.push({ kind: 'upd', type: 'job', t: j.t, s: j.s || '', e: j.e || j.s || '', at, site: site || j.title || 'Job', role, dates: j.s ? range(j.s, j.e || j.s) : '', what, evo: j.evo || '',
-          q: [j.title, what, j.evo, j.t === 'add' ? 'new' : j.t === 'upd' ? 'updated' : 'removed'].join(' ').toLowerCase() });
+        rows.push({ kind: 'upd', type: 'job', t: j.t, s: j.s || '', e: j.e || j.s || '', at, site: site || j.title || 'Job', role, dates: j.s ? range(j.s, j.e || j.s) : '', what, evo: j.evo || '', jid: j.jid || '', day: sydDate(at),
+          q: [j.jid, j.title, what, j.evo, j.t === 'add' ? 'new' : j.t === 'upd' ? 'updated' : 'removed'].join(' ').toLowerCase() });
       }
       for (const d of arr(e.docs)) {
         const id = at + d.k; if (seenD.has(id)) continue; seenD.add(id);
@@ -1388,13 +1391,13 @@ if (typeof firebase !== 'undefined') (function () {
   const updTime = x => updWin === 'today' ? `<span class="tm">${esc(hm(x.at))}</span>` : '';
   const updRow = x => x.type === 'job'
     ? `<div class="drow"><div style="min-width:0"><div class="nm"><span class="tag ${TAG[x.t][0]}">${TAG[x.t][1]}</span> ${esc(x.site)}${x.role ? ` <span class="x">· ${esc(x.role)}</span>` : ''}</div>
-        <div class="sub" title="${esc(dot(x.dates, x.what))}">${esc(dot(x.dates, x.evo ? 'EVO ' + x.evo : '', x.what))}</div></div>${updTime(x)}</div>`
+        <div class="sub" title="${esc(dot(x.dates, x.what))}">${esc(dot(x.jid, x.dates, x.evo ? 'EVO ' + x.evo : '', x.t === 'upd' ? 'Update: ' + dmy(x.day) + ' – ' + x.what : x.what))}</div></div>${updTime(x)}</div>`
     : `<div class="drow"><div style="min-width:0"><div class="nm">${nameLink(x.d)}${x.d.level ? ` <span class="x">· ${esc(lvShort(x.d.level))}</span>` : ''}</div>
         <div class="chs">${x.chs.map(c => `<span class="ch ${c[0]}"${c[0] === 'rm' ? ' title="Removed from the calendar"' : ''}>${esc(c[1])}</span>`).join('')}</div></div>${updTime(x)}</div>`;
   const exUpd = x => x.type === 'job'
     ? `<div class="tr"><div class="c13m">${esc(hm(x.at))}</div><div><span class="tag ${TAG[x.t][0]}">${TAG[x.t][1]} job</span></div>
         <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}</div>
-        <div class="c13m">${esc(dot(x.dates, x.evo ? 'EVO ' + x.evo : '', x.what))}</div></div>`
+        <div class="c13m">${esc(dot(x.jid, x.dates, x.evo ? 'EVO ' + x.evo : '', x.t === 'upd' ? 'Update: ' + dmy(x.day) + ' – ' + x.what : x.what))}</div></div>`
     : `<div class="tr"><div class="c13m">${esc(hm(x.at))}</div><div><span class="tag doc">Doctor</span></div>
         <div style="min-width:0"><div class="site">${nameLink(x.d)}</div>${x.d.level ? `<div class="c13m">${esc(x.d.level)}</div>` : ''}</div>
         <div class="chs">${x.chs.map(c => `<span class="ch ${c[0]}"${c[0] === 'rm' ? ' title="Removed from the calendar"' : ''}>${esc(c[1])}</span>`).join('')}</div></div>`;
@@ -1615,7 +1618,7 @@ if (typeof firebase !== 'undefined') (function () {
       : x.kind === 'rev' ? x.fit.map(f => `<span class="sd p" data-dsrch="${esc(f.name)}" title="Could suit${f.why ? ': ' + esc(f.why) : ''} – search this doctor">${esc(f.name)}</span>`) : [];
     const pres = (o.pres || []).filter(d => !docs.join('').includes(esc(d.name))).map(d => `<span class="sd b" data-dsrch="${esc(d.name)}" title="Presented – search this doctor">${esc(d.name)}</span>`);
     return `<div class="sres">${sChk('sj', o.jk, !!x.j)}<div style="min-width:0"><div class="nm">${esc(x.site || 'Job')}${x.role ? ` <span class="x">· ${esc(x.role)}</span>` : ''}</div>
-      <div class="sub">${esc(dot(x.dates, x.rate, x.st, ev ? 'EVO ' + ev : ''))}</div></div>
+      <div class="sub">${esc(dot(j.jid, x.dates, x.rate, x.st, ev ? 'EVO ' + ev : '', j.mod ? 'Update: ' + dmy(j.mod) : ''))}</div></div>
       <div class="stags">${o.tags.map(t => stagBtn(t, o.jk)).join('')}</div>
       <div class="sdocs">${docs.concat(pres).join('') || '<span>No doctors on it</span>'}</div></div>`; };
   const sdRow = x => `<div class="sres">${sChk('sd', x.d.k, true)}<div style="min-width:0"><div class="nm">${nameLink(x.d)} <span class="x">· ${esc(dot(lvShort(x.d.level), x.d.spec))}</span></div>
@@ -1624,11 +1627,11 @@ if (typeof firebase !== 'undefined') (function () {
       <div class="sdocs">${x.jobs.slice(0, 8).map(j => `<span class="sd ${j.cls}" data-goto="${j.card}" data-jk="${esc(j.jk)}" title="${esc(j.tip)} – open">${esc(j.t)}</span>`).join('')}${x.jobs.length > 8 ? `<span>+${x.jobs.length - 8} more</span>` : ''}${x.jobs.length ? '' : '<span>No jobs matched</span>'}</div></div>`;
   const reopenBtn = x => x.mine ? `<button class="rob" data-reopen="${esc(x.jk)}" title="Put this job back on your Doctor Focus">Reopen</button>` : '';
   const closedRow = x => `<div class="drow"><div style="min-width:0"><div class="nm"><span class="tag cl">Closed</span> ${esc(x.site)}${x.role ? ` <span class="x">· ${esc(x.role)}</span>` : ''}</div>
-        <div class="sub" title="${esc(dot(x.dates, x.why))}">${esc(dot(x.dates, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : '', x.why))}</div></div><div class="rt"><span class="lb">${esc(x.when)}</span>${reopenBtn(x)}</div></div>`;
+        <div class="sub" title="${esc(dot(x.dates, x.why))}">${esc(dot(x.j.jid, x.dates, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : '', x.why))}</div></div><div class="rt"><span class="lb">${esc(x.when)}</span>${reopenBtn(x)}</div></div>`;
   const exClosed = x => `<div class="tr job">
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}</div>
       <div class="c13">${esc(x.dates || '–')}<div class="s2">${x.n ? x.n + ' day' + (x.n === 1 ? '' : 's') : ''}</div></div>
-      <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div></div>
+      <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.j.jid, x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div></div>
       <div class="c13m">${esc(x.why)}</div>
       <div class="c13m">${esc(x.when || '–')}</div>
       <div class="acts">${reopenBtn(x)}</div></div>`;
@@ -1686,7 +1689,7 @@ if (typeof firebase !== 'undefined') (function () {
   const exJob = x => `<div class="tr job">
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.role ? `<div class="c13m">${esc(x.role)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
       <div class="c13">${esc(x.dates)}<div class="s2">${x.n} day${x.n === 1 ? '' : 's'}</div></div>
-      <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.reopened || x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
+      <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.jid || x.reopened || x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
       <div>${chipRows(x, true)}${ordLine(x, true)}${presLine(x, true)}</div>
       <div class="acts">${actBtns(x, true)}</div></div>`;
   const exFree = a => `<div class="tr${a.contacted ? ' dim' : ''}">
@@ -1706,7 +1709,7 @@ if (typeof firebase !== 'undefined') (function () {
       ${selBox(x)}
       <div style="min-width:0"><div class="site">${esc(x.site)}</div>${x.roleFull ? `<div class="c13m">${esc(x.roleFull)}</div>` : ''}<div class="jmeta" style="margin-top:4px">${addedHTML(x)}${mailHTML(x)}</div></div>
       <div class="c13">${esc(x.dates)}<div class="s2">${esc(x.when.includes('·') ? x.when.replace(/^[^·]*·\s*/, '') : x.n + ' day' + (x.n === 1 ? '' : 's'))}</div></div>
-      <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
+      <div class="c13">${esc(x.rate)}<div class="s2">${esc(dot(x.st, evoOf(x.j) ? 'EVO ' + evoOf(x.j) : ''))}</div>${x.j.jid || x.j.mod || x.j.variant ? `<div class="jmeta" style="margin-top:4px">${flagsHTML(Object.assign({}, x, { j: Object.assign({}, x.j, { evo: '', ref: '' }) }))}</div>` : ''}</div>
       <div class="c13m">${esc(x.req || '–')}${fitHTML(x, true)}${presLine(x, true)}</div>
       <div class="acts">${presBtn(x, true)}${rmBtn(x, true)}</div></div>`;
   // ---------- drill-down filters: Matched + Reverse market full screen (Josh 23 Oct) ----------
@@ -1802,7 +1805,7 @@ if (typeof firebase !== 'undefined') (function () {
     const x = jk && (V.lists[card] || []).find(y => y.jk === jk);
     openEx(card);
     let f = '';
-    if (x) f = (x.j && evoOf(x.j)) || x.evo || x.site || '';
+    if (x) f = (x.j && (x.j.jid || evoOf(x.j))) || x.evo || x.site || '';
     else if (dk) { const d = V.F.docs[dk]; f = d ? d.name : ''; }
     if (f) { q = String(f); $('exQ').value = q; renderEx(); }
   }
