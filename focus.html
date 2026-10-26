@@ -1085,6 +1085,7 @@ if (typeof firebase !== 'undefined') (function () {
   const jidTag = j => j && j.jid ? `<span class="tag jid" title="Job ID – search it to find this job">${esc(j.jid)}</span>` : '';
   const flagsHTML = x => { const j = x.j, ev = evoOf(j);
     return jidTag(j) + (x.reopened ? `<span class="tag upd" title="${esc('You closed this' + (x.reopened.at ? ' on ' + day(sydDate(Date.parse(x.reopened.at) || Date.now())) : '') + ' – back because ' + x.cand.filter(r => r.fresh).map(r => r.name).join(', ') + ' became free')}">Reopened – new availability</span>` : '') + (ev ? `<span class="tag evo" title="EVO order">EVO ${esc(ev)}</span>` : '') +
+      (Number(j.pos) > 1 ? `<span class="tag evo" title="${esc('Doctors needed' + (j.posBy ? ' – ' + Object.entries(j.posBy).map(([n, p]) => 'EVO ' + n + ': ' + p).join(', ') : ''))}">👥 ${Number(j.pos)} positions</span>` : '') +
       (j.mod ? `<span class="tag upd" title="${esc('Order updated ' + dmy(j.mod) + (j.chg ? ' – ' + j.chg : ' – job updated'))}">Update: ${esc(dmy(j.mod))}</span>` : '') +
       (j.variant ? `<span class="tag var" title="An earlier email had a different ${j.variant === 'rate' ? 'rate' : 'set of dates'} for this job">Different ${j.variant === 'rate' ? 'rate' : 'dates'}</span>` : ''); };
   const rgText = (rg, max) => rg.slice(0, max).map(r => range(r[0], r[1])).join(', ') + (rg.length > max ? ` +${rg.length - max}` : '');
@@ -2327,7 +2328,7 @@ if (typeof firebase !== 'undefined') (function () {
     $('pTo').value = cached ? cached.email : ''; $('pToName').value = firstOf(PM.fullName);
     $('pLook').textContent = cached ? 'From the job email' + (cached.name ? ' – ' + cached.name : '') : ''; $('pAddQ').value = ''; $('pAddList').hidden = true; $('pRebuild').hidden = true;
     $('pTitle').textContent = `Present to ${j.site || x.site}`;
-    $('pSub').innerHTML = [x.role || j.specialty || '', `${I.cal(12)} ${esc(x.dates)}`, x.rate, evoOf(j) ? 'EVO ' + esc(evoOf(j)) : '', j.mail ? `<a href="${esc(mailHref(j.mail))}" data-mail="${esc(j.mail)}" target="_blank" rel="noopener">Original email</a>` : '']
+    $('pSub').innerHTML = [x.role || j.specialty || '', `${I.cal(12)} ${esc(x.dates)}`, x.rate, evoOf(j) ? 'EVO ' + esc(evoOf(j)) : '', Number(j.pos) > 1 ? '👥 ' + Number(j.pos) + ' positions' : '', j.mail ? `<a href="${esc(mailHref(j.mail))}" data-mail="${esc(j.mail)}" target="_blank" rel="noopener">Original email</a>` : '']
       .filter(Boolean).map(h => `<span class="d" style="display:flex;align-items:center;gap:4px">${h.startsWith('<') || h.includes('<svg') ? h : esc(h)}</span>`).join('');
     $('pPrev').innerHTML = prev.length ? prev.map(p => `<div style="margin-bottom:4px">${p.docs.map(d => esc(d.name)).join(', ')} <span class="s2">· ${esc(agoMs(p.at))} · to ${esc(presTo(p))}</span></div>`).join('') : 'None yet.';
     presMode(mode);
